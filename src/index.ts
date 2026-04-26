@@ -16,8 +16,8 @@ async function main(): Promise<void> {
   initDb(dbPath);
 
   const server = new McpServer({
-    name: "fossyl",
-    version: "0.1.0",
+    name: "fossel",
+    version: "1.0.0",
   });
 
   registerStoreContextTool(server);
