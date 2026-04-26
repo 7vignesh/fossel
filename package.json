@@ -1,10 +1,13 @@
 {
-  "name": "fossyl",
-  "version": "0.1.0",
+  "name": "fossel",
+  "version": "1.0.0",
   "description": "Local MCP memory server for open-source contributors",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "bin": {
-    "fossyl": "./dist/index.js"
+    "fossel": "dist/index.js"
   },
   "scripts": {
     "build": "tsup",
