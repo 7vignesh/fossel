@@ -59,9 +59,9 @@ Add this to your Cursor MCP configuration:
 ```json
 {
   "mcpServers": {
-    "fossyl": {
+    "fossel": {
       "command": "npx",
-      "args": ["-y", "fossyl"]
+      "args": ["-y", "fossel"]
     }
   }
 }
