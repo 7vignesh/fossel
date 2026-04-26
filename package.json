@@ -1,0 +1,28 @@
+{
+  "name": "fossyl",
+  "version": "0.1.0",
+  "description": "Local MCP memory server for open-source contributors",
+  "type": "module",
+  "bin": {
+    "fossyl": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "better-sqlite3": "latest",
+    "nanoid": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "latest",
+    "@types/node": "latest",
+    "tsup": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
