@@ -1,6 +1,6 @@
-# Fossyl
+# Fossel
 
-Fossyl is a local MCP (Model Context Protocol) memory server for open-source contributors. It stores project-specific context such as reviewer preferences, bug fixes, conventions, decisions, and issue notes in a local SQLite database with FTS5 search.
+Fossel is a local MCP (Model Context Protocol) memory server for open-source contributors. It stores project-specific context such as reviewer preferences, bug fixes, conventions, decisions, and issue notes in a local SQLite database with FTS5 search.
 
 ## Features
 
