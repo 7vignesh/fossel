@@ -1,6 +1,6 @@
 {
   "name": "fossel",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Local MCP memory server for open-source contributors",
   "type": "module",
   "files": [
