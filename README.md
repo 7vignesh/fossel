@@ -4,7 +4,7 @@ Fossel is a local MCP (Model Context Protocol) memory server for open-source con
 
 ## Features
 
-- Persistent local memory in SQLite (`~/.fossyl/memory.db`)
+- Persistent local memory in SQLite (`~/.fossel/memory.db`)
 - Full-text search with SQLite FTS5
 - Repo-aware context retrieval grouped by memory type
 - Simple delete workflow by memory id
@@ -71,4 +71,4 @@ Add this to your Cursor MCP configuration:
 
 - Fossel is local-first: data remains on your machine.
 - FTS5 is used for V1 search (no `sqlite-vec`).
-- Optional: set `FOSSYL_DB_PATH` to override the default database path for testing.
+- Optional: set `FOSSEL_DB_PATH` to override the default database path for testing.

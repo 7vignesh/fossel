@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fossyl — Memory for Open-Source Contributors</title>
-  <meta name="description" content="Fossyl is a local MCP memory server that gives your AI tools persistent memory about every repo you contribute to. Reviewer patterns, bug fixes, conventions — remembered forever." />
-  <meta property="og:title" content="Fossyl — Memory for Open-Source Contributors" />
-  <meta property="og:description" content="Stop re-explaining your repos to AI. Fossyl remembers everything." />
+  <title>Fossel — Memory for Open-Source Contributors</title>
+  <meta name="description" content="Fossel is a local MCP memory server that gives your AI tools persistent memory about every repo you contribute to. Reviewer patterns, bug fixes, conventions — remembered forever." />
+  <meta property="og:title" content="Fossel — Memory for Open-Source Contributors" />
+  <meta property="og:description" content="Stop re-explaining your repos to AI. Fossel remembers everything." />
   <meta property="og:type" content="website" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -508,7 +508,7 @@
 
 <!-- NAV -->
 <nav>
-  <a href="#" class="nav-logo" aria-label="Fossyl home">
+  <a href="#" class="nav-logo" aria-label="Fossel home">
     <svg class="nav-logo-icon" viewBox="0 0 28 28" fill="none" aria-hidden="true">
       <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
       <circle cx="14" cy="14" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
@@ -516,7 +516,7 @@
       <circle cx="14" cy="14" r="2" fill="var(--color-bg)"/>
       <path d="M6 14 H8 M20 14 H22 M14 6 V8 M14 20 V22" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
     </svg>
-    <span class="nav-logo-text">Fossyl</span>
+    <span class="nav-logo-text">Fossel</span>
   </a>
   <div class="nav-links">
     <a href="#how">How it works</a>
@@ -528,7 +528,7 @@
     <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
-    <a href="https://github.com/7vignesh/fossyl" target="_blank" rel="noopener noreferrer" class="nav-cta">
+    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="nav-cta">
       <i data-lucide="github" width="14" height="14"></i> GitHub
     </a>
   </div>
@@ -544,14 +544,14 @@
     Your repos,<br><em>remembered.</em>
   </h1>
   <p class="hero-sub">
-    Fossyl is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Reviewer patterns, bug fixes, conventions — never explain the same thing twice.
+    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Reviewer patterns, bug fixes, conventions — never explain the same thing twice.
   </p>
   <div class="hero-actions">
     <a href="#install" class="btn-primary">
       <i data-lucide="terminal" width="15" height="15"></i>
       Get started free
     </a>
-    <a href="https://github.com/7vignesh/fossyl" target="_blank" rel="noopener noreferrer" class="btn-ghost">
+    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn-ghost">
       <i data-lucide="star" width="15" height="15"></i>
       Star on GitHub
     </a>
@@ -591,7 +591,7 @@
     <div class="fade-in">
       <p class="problem-text">Every time you open a new chat to work on a PR, your AI assistant starts from zero. You re-explain the project conventions. You re-describe the reviewer preferences. You re-trace the same bug you already solved last week.</p>
       <p class="problem-text" style="margin-top:var(--space-5)">Open-source contributors switch between 5, 10, even 20 repos. Each one has its own culture, its own quirks, its own people. No AI tool remembers any of it across sessions.</p>
-      <p class="problem-text" style="margin-top:var(--space-5)">Fossyl fixes this. Permanently.</p>
+      <p class="problem-text" style="margin-top:var(--space-5)">Fossel fixes this. Permanently.</p>
     </div>
     <ul class="pain-list fade-in" role="list">
       <li class="pain-item">
@@ -648,13 +648,13 @@
         <div class="step-num">02</div>
         <div class="step-icon"><i data-lucide="brain" width="18" height="18"></i></div>
         <h3>Memories build automatically</h3>
-        <p>Tell your AI what you learned — reviewer preferences, bug fixes, architectural decisions. Fossyl stores them locally in SQLite with semantic search.</p>
+        <p>Tell your AI what you learned — reviewer preferences, bug fixes, architectural decisions. Fossel stores them locally in SQLite with semantic search.</p>
       </div>
       <div class="step fade-in">
         <div class="step-num">03</div>
         <div class="step-icon"><i data-lucide="sparkles" width="18" height="18"></i></div>
         <h3>Context loads on every chat</h3>
-        <p>Next time you open a chat about a repo, Fossyl automatically surfaces the most relevant memories. Pick up exactly where you left off, every time.</p>
+        <p>Next time you open a chat about a repo, Fossel automatically surfaces the most relevant memories. Pick up exactly where you left off, every time.</p>
       </div>
     </div>
   </div>
@@ -725,7 +725,7 @@
           <div class="install-step-num">1</div>
           <div class="install-step-body">
             <h4>Install via npx</h4>
-            <p>No global install needed. Works with Node.js 18+. All data stored locally at <code style="font-family:var(--font-mono);font-size:0.9em">~/.fossyl/memory.db</code>.</p>
+            <p>No global install needed. Works with Node.js 18+. All data stored locally at <code style="font-family:var(--font-mono);font-size:0.9em">~/.fossel/memory.db</code>.</p>
           </div>
         </div>
         <div class="install-step">
@@ -739,7 +739,7 @@
           <div class="install-step-num">3</div>
           <div class="install-step-body">
             <h4>Start building memory</h4>
-            <p>Tell your AI to save context. It calls Fossyl's tools automatically — nothing manual required.</p>
+            <p>Tell your AI to save context. It calls Fossel's tools automatically — nothing manual required.</p>
           </div>
         </div>
       </div>
@@ -753,7 +753,7 @@
           </div>
           <pre><span class="kw">$</span> npx fossel
 <span class="t-success" style="color:#6daa45">✓ Fossel v1.0.0 started</span>
-<span class="cmt">  Memory DB: ~/.fossyl/memory.db</span>
+<span class="cmt">  Memory DB: ~/.fossel/memory.db</span>
 <span class="cmt">  Transport: stdio (MCP ready)</span></pre>
         </div>
         <div class="code-block">
@@ -794,7 +794,7 @@
     <div class="tool-pill fade-in"><span class="tool-pill-dot" style="background:var(--color-text-faint)"></span><span class="tool-name">Zed</span><span class="tool-status">coming soon</span></div>
   </div>
   <p class="fade-in" style="margin-top:var(--space-8);font-size:var(--text-sm);color:var(--color-text-muted)">
-    Any tool that supports the Model Context Protocol works with Fossyl.
+    Any tool that supports the Model Context Protocol works with Fossel.
   </p>
 </section>
 
@@ -806,7 +806,7 @@
     <h2>Stop re-explaining.<br><em style="font-family:var(--font-display);font-style:italic">Start building.</em></h2>
     <p>Free, open-source, and fully local. Your memories never leave your machine.</p>
     <div class="cta-btns">
-      <a href="https://github.com/7vignesh/fossyl" target="_blank" rel="noopener noreferrer" class="btn-primary">
+      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn-primary">
         <i data-lucide="github" width="15" height="15"></i> View on GitHub
       </a>
       <a href="#install" class="btn-ghost">
@@ -825,10 +825,10 @@
       <path d="M14 7 C10 9 8 12 10 14 C12 16 16 16 18 14 C20 12 18 9 14 7Z" fill="currentColor" opacity="0.8"/>
       <circle cx="14" cy="14" r="2" fill="var(--color-bg)"/>
     </svg>
-    Fossyl
+    Fossel
   </a>
   <div class="footer-links">
-    <a href="https://github.com/7vignesh/fossyl" target="_blank" rel="noopener noreferrer">GitHub</a>
+    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer">GitHub</a>
     <a href="#install">Docs</a>
     <a href="#how">How it works</a>
   </div>

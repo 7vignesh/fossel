@@ -35,7 +35,7 @@ function extractMemoryId(message: string): string {
 async function main(): Promise<void> {
   const repo = "RocketChat/Rocket.Chat";
   const client = new Client({
-    name: "fossyl-smoke-client",
+    name: "fossel-smoke-client",
     version: "0.1.0",
   });
 
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     cwd: process.cwd(),
     env: {
       ...process.env,
-      FOSSYL_DB_PATH: join(tmpdir(), `fossyl-smoke-${Date.now()}.db`),
+      FOSSEL_DB_PATH: join(tmpdir(), `fossel-smoke-${Date.now()}.db`),
     },
     stderr: "inherit",
   });

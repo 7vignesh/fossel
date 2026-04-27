@@ -12,7 +12,7 @@ import { registerStoreContextTool } from "./tools/store.js";
 
 async function main(): Promise<void> {
   const dbPath =
-    process.env.FOSSYL_DB_PATH?.trim() || join(homedir(), ".fossyl", "memory.db");
+    process.env.FOSSEL_DB_PATH?.trim() || join(homedir(), ".fossel", "memory.db");
   initDb(dbPath);
 
   const server = new McpServer({
@@ -31,6 +31,6 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`Fossyl server failed to start: ${message}`);
+  console.error(`Fossel server failed to start: ${message}`);
   process.exit(1);
 });
