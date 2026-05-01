@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fossel — Memory for Open-Source Contributors</title>
-  <meta name="description" content="Fossel is a local MCP memory server that gives your AI tools persistent memory about every repo you contribute to. Reviewer patterns, bug fixes, conventions — remembered forever." />
+  <meta name="description" content="Fossel is a local MCP memory server for contributors with repo-aware memory, pinning, updates, summaries, and migration-safe SQLite storage." />
   <meta property="og:title" content="Fossel — Memory for Open-Source Contributors" />
-  <meta property="og:description" content="Stop re-explaining your repos to AI. Fossel remembers everything." />
+  <meta property="og:description" content="Stop re-explaining your repos to AI. Fossel now supports init onboarding, memory pinning, updates, and markdown summaries." />
   <meta property="og:type" content="website" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -544,7 +544,7 @@
     Your repos,<br><em>remembered.</em>
   </h1>
   <p class="hero-sub">
-    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Reviewer patterns, bug fixes, conventions — never explain the same thing twice.
+    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Reviewer patterns, bug fixes, conventions, pinned priorities, and summaries — never explain the same thing twice.
   </p>
   <div class="hero-actions">
     <a href="#install" class="btn-primary">
@@ -642,19 +642,19 @@
         <div class="step-num">01</div>
         <div class="step-icon"><i data-lucide="download" width="18" height="18"></i></div>
         <h3>Install in 30 seconds</h3>
-        <p>Run <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">npx fossel</code> and add one JSON snippet to your Cursor or Claude config. No accounts, no cloud, no data leaving your machine.</p>
+        <p>Run <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">npx -y fossel init</code> for guided setup, then use <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">npx -y fossel</code> as your MCP server. No accounts, no cloud, no data leaving your machine.</p>
       </div>
       <div class="step fade-in">
         <div class="step-num">02</div>
         <div class="step-icon"><i data-lucide="brain" width="18" height="18"></i></div>
         <h3>Memories build automatically</h3>
-        <p>Tell your AI what you learned — reviewer preferences, bug fixes, architectural decisions. Fossel stores them locally in SQLite with semantic search.</p>
+        <p>Tell your AI what you learned — reviewer preferences, bug fixes, architectural decisions. Fossel stores everything locally in SQLite with FTS5 search and migration-safe schema upgrades.</p>
       </div>
       <div class="step fade-in">
         <div class="step-num">03</div>
         <div class="step-icon"><i data-lucide="sparkles" width="18" height="18"></i></div>
         <h3>Context loads on every chat</h3>
-        <p>Next time you open a chat about a repo, Fossel automatically surfaces the most relevant memories. Pick up exactly where you left off, every time.</p>
+        <p>Next time you open a chat about a repo, Fossel automatically surfaces the most relevant memories with pinned entries first. Pick up exactly where you left off, every time.</p>
       </div>
     </div>
   </div>
@@ -700,10 +700,10 @@
       <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;RocketChat/Rocket.Chat</div>
     </div>
     <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="share-2" width="10" height="10"></i>&nbsp;export</div>
-      <h3>Team Memory Sharing</h3>
-      <p>Export your repo knowledge as JSON and share it with teammates. They import 6 months of your learnings in one command.</p>
-      <div class="memory-repo"><i data-lucide="users" width="10" height="10"></i>&nbsp;Any repo · Any team</div>
+      <div class="memory-tag"><i data-lucide="pin" width="10" height="10"></i>&nbsp;pin_memory</div>
+      <h3>Pinned Priorities</h3>
+      <p>Pin critical memories so they always appear first in repo context. Keep high-impact conventions and decisions impossible to miss.</p>
+      <div class="memory-repo"><i data-lucide="users" width="10" height="10"></i>&nbsp;Any repo · Priority context</div>
     </div>
   </div>
 </section>
@@ -724,22 +724,22 @@
         <div class="install-step">
           <div class="install-step-num">1</div>
           <div class="install-step-body">
-            <h4>Install via npx</h4>
+            <h4>Initialize via npx</h4>
             <p>No global install needed. Works with Node.js 18+. All data stored locally at <code style="font-family:var(--font-mono);font-size:0.9em">~/.fossel/memory.db</code>.</p>
           </div>
         </div>
         <div class="install-step">
           <div class="install-step-num">2</div>
           <div class="install-step-body">
-            <h4>Add to your AI tool config</h4>
-            <p>One JSON snippet in Cursor, Claude Desktop, or any MCP-compatible tool. Restart once.</p>
+            <h4>Use generated MCP config</h4>
+            <p>Copy the Cursor and Claude Desktop snippets printed by <code style="font-family:var(--font-mono);font-size:0.9em">fossel init</code>, then restart your tool once.</p>
           </div>
         </div>
         <div class="install-step">
           <div class="install-step-num">3</div>
           <div class="install-step-body">
-            <h4>Start building memory</h4>
-            <p>Tell your AI to save context. It calls Fossel's tools automatically — nothing manual required.</p>
+            <h4>Use advanced memory tools</h4>
+            <p>Store context, update old notes, pin important items, and generate markdown summaries for PRs using Fossel MCP tools.</p>
           </div>
         </div>
       </div>
@@ -747,14 +747,14 @@
         <div class="code-block">
           <div class="code-block-header">
             <span>Terminal</span>
-            <button class="copy-btn" onclick="copyCode(this, 'npx fossel')">
+            <button class="copy-btn" onclick="copyCode(this, 'npx -y fossel init')">
               <i data-lucide="copy" width="11" height="11"></i> copy
             </button>
           </div>
-          <pre><span class="kw">$</span> npx fossel
-<span class="t-success" style="color:#6daa45">✓ Fossel v1.0.0 started</span>
-<span class="cmt">  Memory DB: ~/.fossel/memory.db</span>
-<span class="cmt">  Transport: stdio (MCP ready)</span></pre>
+          <pre><span class="kw">$</span> npx -y fossel init
+<span class="t-success" style="color:#6daa45">✓ Fossel initialized for this repo</span>
+<span class="cmt">  Generated MCP config snippets</span>
+<span class="cmt">  Created sample convention memory</span></pre>
         </div>
         <div class="code-block">
           <div class="code-block-header">
@@ -781,20 +781,21 @@
 <section class="tools" id="tools">
   <div class="fade-in">
     <div class="section-label">
-      <i data-lucide="plug" width="12" height="12"></i> Works with
+      <i data-lucide="wrench" width="12" height="12"></i> MCP tools
     </div>
-    <h2 class="section-heading">Your tools.<br>All of them.</h2>
+    <h2 class="section-heading">Built-in tools.<br>Ready now.</h2>
   </div>
   <div class="tools-grid">
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">Cursor</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">Claude Desktop</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">VS Code (Copilot)</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">Windsurf</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">Continue.dev</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot" style="background:var(--color-text-faint)"></span><span class="tool-name">Zed</span><span class="tool-status">coming soon</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">store_context</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">✓ new</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">pin_memory / unpin_memory</span><span class="tool-status">✓ new</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">✓ new</span></div>
   </div>
   <p class="fade-in" style="margin-top:var(--space-8);font-size:var(--text-sm);color:var(--color-text-muted)">
-    Any tool that supports the Model Context Protocol works with Fossel.
+    Works in Cursor, Claude Desktop, and any MCP-compatible client over stdio.
   </p>
 </section>
 
