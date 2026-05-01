@@ -53,7 +53,7 @@ export function registerSearchMemoryTool(server: McpServer): void {
           ? db
               .prepare(
                 `
-                  SELECT m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, bm25(memories_fts) AS rank
+                  SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
                   FROM memories_fts
                   JOIN memories AS m ON m.rowid = memories_fts.rowid
                   WHERE memories_fts MATCH ? AND m.repo = ?
@@ -65,7 +65,7 @@ export function registerSearchMemoryTool(server: McpServer): void {
           : db
               .prepare(
                 `
-                  SELECT m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, bm25(memories_fts) AS rank
+                  SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
                   FROM memories_fts
                   JOIN memories AS m ON m.rowid = memories_fts.rowid
                   WHERE memories_fts MATCH ?
@@ -92,7 +92,8 @@ export function registerSearchMemoryTool(server: McpServer): void {
           .map((row, index) => {
             const tags = parseTags(row.tags);
             const tagsText = tags.length > 0 ? ` | tags: ${tags.join(", ")}` : "";
-            return `${index + 1}. [${row.repo}] ${row.type} (${row.id})\n${row.note}${tagsText}`;
+            const pinPrefix = row.pinned ? "📌 Pinned " : "";
+            return `${index + 1}. [${row.repo}] ${row.type} (${row.row_id} | legacy: ${row.id})\n${pinPrefix}${row.note}${tagsText}`;
           })
           .join("\n\n");
 

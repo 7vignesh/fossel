@@ -38,10 +38,10 @@ export function registerGetRepoContextTool(server: McpServer): void {
         const rows = db
           .prepare(
             `
-              SELECT id, repo, type, note, tags, created_at, updated_at
+              SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
               FROM memories
               WHERE repo = ?
-              ORDER BY updated_at DESC
+              ORDER BY pinned DESC, updated_at DESC
               LIMIT ?
             `,
           )
@@ -62,7 +62,8 @@ export function registerGetRepoContextTool(server: McpServer): void {
         for (const memory of rows) {
           const tags = parseTags(memory.tags);
           const tagSuffix = tags.length > 0 ? ` [tags: ${tags.join(", ")}]` : "";
-          const item = `- (${memory.id}) ${memory.note}${tagSuffix}`;
+          const pinPrefix = memory.pinned ? "📌 Pinned " : "";
+          const item = `- (${memory.row_id} | legacy: ${memory.id}) ${pinPrefix}${memory.note}${tagSuffix}`;
           const existing = grouped.get(memory.type) ?? [];
           existing.push(item);
           grouped.set(memory.type, existing);

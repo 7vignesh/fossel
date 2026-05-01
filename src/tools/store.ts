@@ -33,12 +33,21 @@ export function registerStoreContextTool(server: McpServer): void {
             VALUES (?, ?, ?, ?, ?, ?, ?)
           `,
         ).run(id, repo, type, note, JSON.stringify(normalizedTags), now, now);
+        const stored = db
+          .prepare(
+            `
+              SELECT rowid AS row_id, id
+              FROM memories
+              WHERE id = ?
+            `,
+          )
+          .get(id) as { row_id: number; id: string } | undefined;
 
         return {
           content: [
             {
               type: "text",
-              text: `Stored memory ${id} for ${repo} (${type}).`,
+              text: `Stored memory ${id} (numeric id: ${stored?.row_id ?? "unknown"}) for ${repo} (${type}).`,
             },
           ],
         };
