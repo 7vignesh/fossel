@@ -1,6 +1,6 @@
 {
   "name": "fossel",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Local-first MCP memory for Cursor & Claude: repo context in SQLite, FTS5 search, pins, PR summaries. No cloud.",
   "keywords": [
     "mcp",
