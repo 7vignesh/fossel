@@ -1,7 +1,30 @@
 {
   "name": "fossel",
   "version": "1.0.8",
-  "description": "Local MCP memory server for open-source contributors",
+  "description": "Local-first MCP memory for Cursor & Claude: repo context in SQLite, FTS5 search, pins, PR summaries. No cloud.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cursor",
+    "claude",
+    "claude-desktop",
+    "memory",
+    "sqlite",
+    "fts5",
+    "open-source",
+    "contributors",
+    "local-first",
+    "ai",
+    "llm"
+  ],
+  "homepage": "https://github.com/7vignesh/fossel#readme",
+  "bugs": {
+    "url": "https://github.com/7vignesh/fossel/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/7vignesh/fossel.git"
+  },
   "type": "module",
   "files": [
     "dist"

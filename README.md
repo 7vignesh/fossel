@@ -1,72 +1,83 @@
 # Fossel
 
-Fossel is a local MCP (Model Context Protocol) memory server for open-source contributors. It stores project-specific context such as reviewer preferences, bug fixes, conventions, decisions, and issue notes in a local SQLite database with FTS5 search.
+**Local-first MCP memory for every repo you work on.** Store conventions, bug fixes, reviewer patterns, and decisions in **SQLite on your machine** (with FTS5 search). Works with **Cursor**, **Claude Desktop**, and any **stdio MCP** client. **No accounts, no cloud.**
+
+---
+
+## Quick start (~2 minutes)
+
+1. **Onboard** (prints copy-paste MCP config + creates a sample memory):
+
+   ```bash
+   npx -y fossel init
+   ```
+
+2. **Add the JSON** from the output to **Cursor** (`~/.cursor/mcp.json`) or **Claude Desktop** MCP settings, then restart the app.
+
+3. **Run the server** (what the IDE launches, or for testing):
+
+   ```bash
+   npx -y fossel
+   ```
+
+4. In chat, use tools like `store_context` and `get_repo_context` with your **repo** name (e.g. `org/repo` or your folder name).
+
+**Database path:** `~/.fossel/memory.db` (override with `FOSSEL_DB_PATH`).
+
+---
+
+## Why Fossel?
+
+| You get | Details |
+|--------|---------|
+| **Local data** | SQLite + migrations; nothing leaves your disk unless you share it. |
+| **Repo-scoped memory** | Same patterns across Cursor, Claude, or any MCP client over stdio. |
+| **Find anything** | FTS5 search across notes; pin what matters; summarize for PRs. |
+| **Evolving schema** | Startup migrations keep upgrades safe for existing databases. |
+
+---
 
 ## Features
 
-- Persistent local memory in SQLite (`~/.fossel/memory.db`)
-- Full-text search with SQLite FTS5
-- Repo-aware context retrieval grouped by memory type
-- Pinned memories that stay at the top of repo context
-- Structured markdown summaries for PR and planning context
-- Simple delete workflow by memory id
-- Partial memory updates by numeric id
-- CLI onboarding with `fossel init`
-- Local `stdio` MCP server for tools such as Cursor and Claude Desktop
+- Persistent memory in SQLite (`~/.fossel/memory.db`)
+- Full-text search (FTS5)
+- Repo-aware context, grouped by memory type
+- Pinned memories at the top of `get_repo_context`
+- `summarize_repo_context` for markdown briefs (PRs, planning)
+- `update_memory`, `pin_memory`, `unpin_memory`
+- CLI: `fossel init` for onboarding
+- `stdio` MCP server for Cursor, Claude Desktop, and compatible tools
 
-## Memory Types
+## Memory types
 
-- `convention`
-- `bug_fix`
-- `reviewer_pattern`
-- `decision`
-- `issue`
-- `general`
-
-## Install
-
-```bash
-npm install
-```
-
-Or run without installation:
-
-```bash
-npx -y fossel
-```
+- `convention`, `bug_fix`, `reviewer_pattern`, `decision`, `issue`, `general`
 
 ## Commands
 
 ```bash
-npx -y fossel          # start MCP server over stdio
-npx -y fossel init     # onboarding for current repository
+npx -y fossel          # MCP server over stdio
+npx -y fossel init     # onboarding + config snippets + sample memory
 ```
 
 ## `fossel init`
 
-`fossel init` detects your current repo, prints ready-to-copy MCP config snippets for Cursor and Claude Desktop, inserts a starter memory, and shows DB stats plus command references.
+Detects the current git repo (or folder name), prints **Cursor** and **Claude Desktop** MCP snippets, inserts a starter **convention** memory (`Fossel is active for this repo…`), and shows DB path + memory count.
 
-Starter memory inserted:
+## MCP tools
 
-- Type: `convention`
-- Content: `Fossel is active for this repo. Use store_context to save context.`
+| Tool | Purpose |
+|------|---------|
+| `store_context` | Save memory for a repo |
+| `get_repo_context` | Recent memories by type (pinned first) |
+| `search_memory` | FTS search, optional repo filter |
+| `delete_memory` | Delete by legacy string id |
+| `update_memory` | Partial update by numeric id |
+| `pin_memory` / `unpin_memory` | Pin important items |
+| `summarize_repo_context` | Markdown summary for a repo |
 
-## MCP Tools
-
-- `store_context`: Save a new memory for a repository.
-- `get_repo_context`: Fetch recent memories for a repository, grouped by type. Pinned entries are always listed first and marked `📌 Pinned`.
-- `search_memory`: Full-text search memories across all repos or a single repo.
-- `delete_memory`: Delete a memory by id.
-- `update_memory`: Update memory content and/or type by numeric id.
-- `pin_memory`: Pin a memory by numeric id.
-- `unpin_memory`: Unpin a memory by numeric id.
-- `summarize_repo_context`: Return a structured markdown summary for a repo.
-
-## Tool Examples
+## Tool examples
 
 ### `update_memory`
-
-Input:
 
 ```json
 {
@@ -78,25 +89,17 @@ Input:
 
 ### `pin_memory`
 
-Input:
-
 ```json
-{
-  "id": 12
-}
+{ "id": 12 }
 ```
 
 ### `summarize_repo_context`
 
-Input:
-
 ```json
-{
-  "repo": "RocketChat"
-}
+{ "repo": "RocketChat" }
 ```
 
-Output format:
+Example output shape:
 
 ```md
 Fossel Context Summary: RocketChat
@@ -111,24 +114,9 @@ Bug Fixes
 - (5) Fixed webhook retries by making queue idempotent.
 ```
 
-## Cursor MCP Config
+## Cursor MCP config
 
-Add this to your Cursor MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "fossel": {
-      "command": "npx",
-      "args": ["-y", "fossel"]
-    }
-  }
-}
-```
-
-## Claude Desktop MCP Config
-
-Add this to your Claude Desktop MCP config:
+`~/.cursor/mcp.json`:
 
 ```json
 {
@@ -141,29 +129,36 @@ Add this to your Claude Desktop MCP config:
 }
 ```
 
-## Development
+## Claude Desktop MCP config
 
-```bash
-npm run dev
+```json
+{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"]
+    }
+  }
+}
 ```
 
-This starts the local MCP server over stdio.
-
-## Build
+## Development (from source)
 
 ```bash
+npm install
+npm run dev          # MCP server over stdio
 npm run build
-```
-
-## Run Built Server
-
-```bash
-npm run start
+npm run start        # node dist/index.js
+npm run ci           # typecheck + build + smoke
 ```
 
 ## Notes
 
-- Fossel is local-first: data remains on your machine.
-- FTS5 is used for V1 search (no `sqlite-vec`).
-- Optional: set `FOSSEL_DB_PATH` to override the default database path for testing.
-- DB schema changes are managed via startup migrations in `src/db/migrate.ts`.
+- **Local-first:** data stays on your machine.
+- **Search:** FTS5 (no `sqlite-vec` in v1).
+- **`FOSSEL_DB_PATH`:** optional override for DB location (e.g. tests).
+- **Schema:** migrations live in `src/db/migrate.ts`.
+
+## Community
+
+If Fossel saves you time, **[star the repo](https://github.com/7vignesh/fossel)** and **[open an issue](https://github.com/7vignesh/fossel/issues)** for bugs or ideas—that helps others discover it too.
