@@ -26,6 +26,11 @@ export interface MemoryRecord {
   pinned: number;
 }
 
+export interface MemoryRecordWithMetadata extends MemoryRecord {
+  metadata_json: string;
+  note_normalized: string;
+}
+
 let dbInstance: Database.Database | null = null;
 
 export function initDb(dbPath: string): Database.Database {

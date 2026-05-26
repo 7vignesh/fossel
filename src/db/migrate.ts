@@ -17,6 +17,14 @@ function hasColumn(
   return columns.some((column) => column.name === columnName);
 }
 
+function normalizeNoteForMigration(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const migrations: Migration[] = [
   {
     name: "001_init_memories_schema",
@@ -80,6 +88,64 @@ const migrations: Migration[] = [
           ALTER TABLE memories
           ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
         `);
+      }
+    },
+  },
+  {
+    name: "004_add_repo_aliases",
+    apply: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS repo_aliases (
+          alias TEXT PRIMARY KEY,
+          canonical TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_repo_aliases_canonical
+          ON repo_aliases (canonical);
+      `);
+    },
+  },
+  {
+    name: "005_add_memories_metadata_json",
+    apply: (db) => {
+      if (!hasColumn(db, "memories", "metadata_json")) {
+        db.exec(`
+          ALTER TABLE memories
+          ADD COLUMN metadata_json TEXT NOT NULL DEFAULT '{}';
+        `);
+      }
+    },
+  },
+  {
+    name: "006_add_memories_note_normalized",
+    apply: (db) => {
+      if (!hasColumn(db, "memories", "note_normalized")) {
+        db.exec(`
+          ALTER TABLE memories
+          ADD COLUMN note_normalized TEXT NOT NULL DEFAULT '';
+        `);
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memories_note_normalized
+          ON memories (repo, note_normalized);
+      `);
+
+      const rows = db
+        .prepare("SELECT rowid AS row_id, note FROM memories WHERE note_normalized = ''")
+        .all() as Array<{ row_id: number; note: string }>;
+
+      if (rows.length > 0) {
+        const update = db.prepare(
+          "UPDATE memories SET note_normalized = ? WHERE rowid = ?",
+        );
+        const tx = db.transaction((batch: typeof rows) => {
+          for (const row of batch) {
+            update.run(normalizeNoteForMigration(row.note), row.row_id);
+          }
+        });
+        tx(rows);
       }
     },
   },
