@@ -2,6 +2,7 @@ node_modules/
 dist/
 .fossel/
 *.log
+*.tgz
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
