@@ -38,6 +38,11 @@ jobs:
       - name: Run CI checks
         run: npm run ci
 
+      - name: Verify npm authentication
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish package
         run: npm publish --access public
         env:
