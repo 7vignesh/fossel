@@ -7,7 +7,7 @@
   <meta name="description" content="Fossel is a local MCP memory server for contributors with repo-aware memory, pinning, updates, summaries, and migration-safe SQLite storage." />
   <meta name="keywords" content="MCP, Model Context Protocol, Cursor, Claude Desktop, SQLite, FTS5, memory server, local-first, open source, fossel, contributors" />
   <meta property="og:title" content="Fossel — Memory for Open-Source Contributors" />
-  <meta property="og:description" content="Stop re-explaining your repos to AI. Fossel now supports init onboarding, memory pinning, updates, and markdown summaries." />
+  <meta property="og:description" content="Stop re-explaining your repos to AI. Say 'remember this' and Fossel auto-resolves the repo, infers tags, and merges duplicates. 100% local." />
   <meta property="og:type" content="website" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -553,7 +553,7 @@
     Your repos,<br><em>remembered.</em>
   </h1>
   <p class="hero-sub">
-    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Reviewer patterns, bug fixes, conventions, pinned priorities, and summaries — never explain the same thing twice.
+    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Just say <em style="font-style:italic">remember this</em> — Fossel resolves the repo, infers the type and tags, and merges duplicates. 100% local, no accounts.
   </p>
   <div class="hero-actions">
     <a href="#install" class="btn-primary">
@@ -656,14 +656,14 @@
       <div class="step fade-in">
         <div class="step-num">02</div>
         <div class="step-icon"><i data-lucide="brain" width="18" height="18"></i></div>
-        <h3>Memories build automatically</h3>
-        <p>Tell your AI what you learned — reviewer preferences, bug fixes, architectural decisions. Fossel stores everything locally in SQLite with FTS5 search and migration-safe schema upgrades.</p>
+        <h3>Just say "remember this"</h3>
+        <p>The <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">remember</code> tool auto-infers the memory type, generates tags, and merges near-duplicates so you never store the same idea twice. SQLite + FTS5 under the hood.</p>
       </div>
       <div class="step fade-in">
         <div class="step-num">03</div>
         <div class="step-icon"><i data-lucide="sparkles" width="18" height="18"></i></div>
         <h3>Context loads on every chat</h3>
-        <p>Next time you open a chat about a repo, Fossel automatically surfaces the most relevant memories with pinned entries first. Pick up exactly where you left off, every time.</p>
+        <p>One canonical repo key per workspace — aliases like <code style="font-family:var(--font-mono);font-size:0.9em">studentmanager</code> and <code style="font-family:var(--font-mono);font-size:0.9em">owner/student-manager</code> collapse automatically. Fossel surfaces pinned + recent + matching memories on every new chat.</p>
       </div>
     </div>
   </div>
@@ -747,8 +747,8 @@
         <div class="install-step">
           <div class="install-step-num">3</div>
           <div class="install-step-body">
-            <h4>Use advanced memory tools</h4>
-            <p>Store context, update old notes, pin important items, and generate markdown summaries for PRs using Fossel MCP tools.</p>
+            <h4>Talk to your repo, naturally</h4>
+            <p>Ask <em>"what does Fossel remember about auth here?"</em> or say <em>"remember: API base URL is /api/v2"</em>. No type or tags required. Power tools (<code style="font-family:var(--font-mono);font-size:0.9em">store_context</code>, <code style="font-family:var(--font-mono);font-size:0.9em">pin_memory</code>, <code style="font-family:var(--font-mono);font-size:0.9em">summarize_repo_context</code>) stay available when you want them.</p>
           </div>
         </div>
       </div>
@@ -795,14 +795,18 @@
     <h2 class="section-heading">Built-in tools.<br>Ready now.</h2>
   </div>
   <div class="tools-grid">
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">remember</span><span class="tool-status">✓ new</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">get_context</span><span class="tool-status">✓ new</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status">✓ new</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status">✓ new</span></div>
     <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">store_context</span><span class="tool-status">✓ ready</span></div>
     <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">✓ ready</span></div>
     <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">✓ ready</span></div>
+    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">✓ ready</span></div>
     <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">✓ new</span></div>
   </div>
   <p class="fade-in" style="margin-top:var(--space-8);font-size:var(--text-sm);color:var(--color-text-muted)">
     Works in Cursor, Claude Desktop, and any MCP-compatible client over stdio.
