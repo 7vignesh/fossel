@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
+import { resolveRepoArg } from "../lib/repo.js";
 
 interface SummaryRow {
   row_id: number;
@@ -10,7 +11,7 @@ interface SummaryRow {
 }
 
 const summarizeRepoContextInputSchema = {
-  repo: z.string().trim().min(1, "repo is required"),
+  repo: z.string().trim().min(1).optional(),
 };
 
 const sectionTitleByType: Record<MemoryType, string> = {
@@ -32,6 +33,7 @@ export function registerSummarizeRepoContextTool(server: McpServer): void {
     async ({ repo }) => {
       try {
         const db = getDb();
+        const resolved = resolveRepoArg(repo, process.cwd(), db);
         const rows = db
           .prepare(
             `
@@ -41,14 +43,14 @@ export function registerSummarizeRepoContextTool(server: McpServer): void {
               ORDER BY pinned DESC, updated_at DESC
             `,
           )
-          .all(repo) as SummaryRow[];
+          .all(resolved.canonical) as SummaryRow[];
 
         if (rows.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: `Fossel Context Summary: ${repo}\n\nNo memories found.`,
+                text: `Fossel Context Summary: ${resolved.canonical}\n\nNo memories found.`,
               },
             ],
           };
@@ -58,7 +60,7 @@ export function registerSummarizeRepoContextTool(server: McpServer): void {
           .filter((row) => row.pinned === 1)
           .map((row) => `- (${row.row_id}) ${row.note}`);
 
-        const sections: string[] = [`Fossel Context Summary: ${repo}`];
+        const sections: string[] = [`Fossel Context Summary: ${resolved.canonical}`];
 
         if (pinnedLines.length > 0) {
           sections.push(`📌 Pinned\n${pinnedLines.join("\n")}`);

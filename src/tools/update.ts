@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
+import { normalizeText } from "../lib/dedupe.js";
 
 interface MemoryRow {
   row_id: number;
@@ -95,14 +96,25 @@ export function registerUpdateMemoryTool(server: McpServer): void {
         const now = Math.floor(Date.now() / 1000);
         const nextType = memory_type ?? existing.type;
         const nextNote = content ?? existing.note;
+        const nextNormalized = content ? normalizeText(content) : null;
 
-        db.prepare(
-          `
-            UPDATE memories
-            SET type = ?, note = ?, updated_at = ?
-            WHERE rowid = ?
-          `,
-        ).run(nextType, nextNote, now, id);
+        if (nextNormalized !== null) {
+          db.prepare(
+            `
+              UPDATE memories
+              SET type = ?, note = ?, note_normalized = ?, updated_at = ?
+              WHERE rowid = ?
+            `,
+          ).run(nextType, nextNote, nextNormalized, now, id);
+        } else {
+          db.prepare(
+            `
+              UPDATE memories
+              SET type = ?, note = ?, updated_at = ?
+              WHERE rowid = ?
+            `,
+          ).run(nextType, nextNote, now, id);
+        }
 
         const updated = db
           .prepare(

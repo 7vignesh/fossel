@@ -1,9 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord, MEMORY_TYPES, type MemoryType } from "../db/client.js";
+import { resolveRepoArg } from "../lib/repo.js";
 
 const getRepoContextInputSchema = {
-  repo: z.string().trim().min(1, "repo is required"),
+  repo: z.string().trim().min(1).optional(),
   limit: z.number().int().positive().max(100).default(10),
 };
 
@@ -29,12 +30,14 @@ export function registerGetRepoContextTool(server: McpServer): void {
   server.registerTool(
     "get_repo_context",
     {
-      description: "Get recent memories for a repository grouped by memory type.",
+      description:
+        "Get recent memories for a repository grouped by memory type. The repo argument is resolved to a canonical key automatically; omit it to use the current workspace.",
       inputSchema: getRepoContextInputSchema,
     },
     async ({ repo, limit }) => {
       try {
         const db = getDb();
+        const resolved = resolveRepoArg(repo, process.cwd(), db);
         const rows = db
           .prepare(
             `
@@ -45,14 +48,14 @@ export function registerGetRepoContextTool(server: McpServer): void {
               LIMIT ?
             `,
           )
-          .all(repo, limit) as MemoryRecord[];
+          .all(resolved.canonical, limit) as MemoryRecord[];
 
         if (rows.length === 0) {
           return {
             content: [
               {
                 type: "text",
-                text: `No memories found for ${repo}.`,
+                text: `No memories found for ${resolved.canonical}.`,
               },
             ],
           };
@@ -83,7 +86,7 @@ export function registerGetRepoContextTool(server: McpServer): void {
           content: [
             {
               type: "text",
-              text: `Repository context for ${repo}\nTotal memories: ${rows.length}\n\n${sections.join("\n\n")}`,
+              text: `Repository context for ${resolved.canonical}\nTotal memories: ${rows.length}\n\n${sections.join("\n\n")}`,
             },
           ],
         };

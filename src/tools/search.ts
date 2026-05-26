@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
+import { resolveRepoArg } from "../lib/repo.js";
 
 interface SearchRow extends MemoryRecord {
   rank: number;
@@ -48,8 +49,11 @@ export function registerSearchMemoryTool(server: McpServer): void {
       try {
         const db = getDb();
         const ftsQuery = normalizeFtsQuery(query);
+        const resolvedRepo = repo
+          ? resolveRepoArg(repo, process.cwd(), db).canonical
+          : undefined;
 
-        const rows = (repo
+        const rows = (resolvedRepo
           ? db
               .prepare(
                 `
@@ -61,7 +65,7 @@ export function registerSearchMemoryTool(server: McpServer): void {
                   LIMIT ?
                 `,
               )
-              .all(ftsQuery, repo, limit)
+              .all(ftsQuery, resolvedRepo, limit)
           : db
               .prepare(
                 `
@@ -80,8 +84,8 @@ export function registerSearchMemoryTool(server: McpServer): void {
             content: [
               {
                 type: "text",
-                text: repo
-                  ? `No memories matched "${query}" in ${repo}.`
+                text: resolvedRepo
+                  ? `No memories matched "${query}" in ${resolvedRepo}.`
                   : `No memories matched "${query}".`,
               },
             ],
@@ -101,7 +105,7 @@ export function registerSearchMemoryTool(server: McpServer): void {
           content: [
             {
               type: "text",
-              text: `Search results for "${query}"${repo ? ` in ${repo}` : ""}:\n\n${formatted}`,
+              text: `Search results for "${query}"${resolvedRepo ? ` in ${resolvedRepo}` : ""}:\n\n${formatted}`,
             },
           ],
         };
