@@ -231,14 +231,17 @@ export function resolveRepoArg(
  * and migrate every memory row stored under `from` (or any of its aliases) to
  * `to`. Used by `fossel init` when it discovers that the canonical repo key
  * has shifted (e.g. user moved from a folder-name key to "owner/repo").
+ *
+ * Also rewrites any note text that mentions the deprecated key as a
+ * standalone token so future retrievals don't surface stale guidance.
  */
 export function mergeRepoKeys(
   db: Database.Database,
   from: string,
   to: string,
-): { movedAliases: number; movedMemories: number } {
+): { movedAliases: number; movedMemories: number; rewrittenNotes: number } {
   if (from === to) {
-    return { movedAliases: 0, movedMemories: 0 };
+    return { movedAliases: 0, movedMemories: 0, rewrittenNotes: 0 };
   }
 
   const tx = db.transaction(() => {
@@ -264,14 +267,142 @@ export function mergeRepoKeys(
     // Catch any memories still stored directly under `from`.
     movedMemories += updateMemories.run(to, from).changes;
 
+    // Rewrite stale references to the deprecated key inside note text. We
+    // match `from` only as a whole token (word-boundary or surrounding quotes)
+    // to avoid butchering unrelated substrings. The original wording is kept
+    // in metadata_json so the audit trail isn't lost.
+    const rewrittenNotes = rewriteStaleRepoMentions(db, from, to);
+
     upsertAlias(db, from, to);
     upsertAlias(db, to, to);
 
     return {
       movedAliases: aliasResult.changes,
       movedMemories,
+      rewrittenNotes,
     };
   });
 
   return tx();
+}
+
+interface MemoryRowForRewrite {
+  row_id: number;
+  note: string;
+  metadata_json: string;
+}
+
+interface RewriteMetadata {
+  changelog?: Array<{
+    at: number;
+    action: string;
+    previous_note?: string;
+    rewrote_alias?: string;
+  }>;
+  [key: string]: unknown;
+}
+
+function tokenBoundaryReplace(text: string, from: string, to: string): string {
+  // Build a regex that matches `from` only when surrounded by non-word
+  // characters or string boundaries. Escape regex metacharacters in `from`.
+  const escaped = from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|[^\\w/-])(${escaped})(?=$|[^\\w/-])`, "g");
+  return text.replace(pattern, (_match, prefix: string) => `${prefix}${to}`);
+}
+
+function rewriteStaleRepoMentions(
+  db: Database.Database,
+  from: string,
+  to: string,
+): number {
+  const candidates = db
+    .prepare(
+      `
+        SELECT rowid AS row_id, note, metadata_json
+        FROM memories
+        WHERE note LIKE ?
+      `,
+    )
+    .all(`%${from}%`) as MemoryRowForRewrite[];
+
+  if (candidates.length === 0) {
+    return 0;
+  }
+
+  const update = db.prepare(
+    `
+      UPDATE memories
+      SET note = ?, note_normalized = ?, metadata_json = ?, updated_at = ?
+      WHERE rowid = ?
+    `,
+  );
+  const now = Math.floor(Date.now() / 1000);
+  let rewritten = 0;
+
+  for (const row of candidates) {
+    const next = tokenBoundaryReplace(row.note, from, to);
+    if (next === row.note) {
+      continue;
+    }
+
+    const normalized = next
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    let metadata: RewriteMetadata;
+    try {
+      const parsed = JSON.parse(row.metadata_json);
+      metadata =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as RewriteMetadata)
+          : {};
+    } catch {
+      metadata = {};
+    }
+
+    metadata.changelog = metadata.changelog ?? [];
+    metadata.changelog.push({
+      at: now,
+      action: "alias_rewrite",
+      previous_note: row.note,
+      rewrote_alias: from,
+    });
+
+    update.run(next, normalized, JSON.stringify(metadata), now, row.row_id);
+    rewritten += 1;
+  }
+
+  return rewritten;
+}
+
+/**
+ * Find memories whose text still references a deprecated repo key. Used by
+ * `fossel doctor` to flag stale guidance after an alias merge.
+ */
+export function findMemoriesMentioningAlias(
+  db: Database.Database,
+  alias: string,
+  canonical: string,
+): Array<{ row_id: number; repo: string; note: string }> {
+  const rows = db
+    .prepare(
+      `
+        SELECT rowid AS row_id, repo, note
+        FROM memories
+        WHERE repo = ? AND note LIKE ?
+      `,
+    )
+    .all(canonical, `%${alias}%`) as Array<{
+    row_id: number;
+    repo: string;
+    note: string;
+  }>;
+
+  // Only return rows where the alias appears as a standalone token, not as a
+  // substring of an unrelated word.
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|[^\\w/-])${escaped}(?=$|[^\\w/-])`);
+  return rows.filter((row) => pattern.test(row.note));
 }
