@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { fetchRepoContext, formatContext } from "../lib/context.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const getContextInputSchema = {
   repo: z.string().trim().min(1).optional(),
@@ -22,7 +23,7 @@ export function registerGetContextTool(server: McpServer): void {
     async ({ repo, query, limit, format }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const rows = fetchRepoContext(db, resolved.canonical, limit, query);
         const text = formatContext(rows, {
           repo: resolved.canonical,

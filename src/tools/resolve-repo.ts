@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { resolveRepo } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const resolveRepoInputSchema = {
   cwd: z.string().trim().min(1).optional(),
@@ -18,7 +19,7 @@ export function registerResolveRepoTool(server: McpServer): void {
     async ({ cwd }) => {
       try {
         const db = getDb();
-        const target = cwd?.trim() || process.cwd();
+        const target = cwd?.trim() || getWorkspaceRoot();
         const resolved = resolveRepo(target, db);
 
         const payload = {

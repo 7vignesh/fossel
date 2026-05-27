@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
 import { normalizeText, similarity } from "../lib/dedupe.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const dedupeRepoInputSchema = {
   repo: z.string().trim().min(1).optional(),
@@ -81,7 +82,7 @@ export function registerDedupeRepoTool(server: McpServer): void {
     async ({ repo, threshold, apply }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const rows = db
           .prepare(
             `

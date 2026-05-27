@@ -8,6 +8,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { getDb, initDb } from "./db/client.js";
 import { fetchRepoContext, formatContext } from "./lib/context.js";
 import { resolveRepo } from "./lib/repo.js";
+import { getWorkspaceRoot } from "./lib/workspace.js";
 import { registerDedupeRepoTool } from "./tools/dedupe-repo.js";
 import { registerDeleteMemoryTool } from "./tools/delete.js";
 import { registerGetContextTool } from "./tools/get-context.js";
@@ -46,7 +47,7 @@ function registerStartupContextResource(server: McpServer): void {
     async (uri) => {
       try {
         const db = getDb();
-        const resolved = resolveRepo(process.cwd(), db);
+        const resolved = resolveRepo(getWorkspaceRoot(), db);
         const rows = fetchRepoContext(db, resolved.canonical, 5);
         const text = formatContext(rows, {
           repo: resolved.canonical,
@@ -84,7 +85,7 @@ export async function startServer(): Promise<void> {
 
   const server = new McpServer({
     name: "fossel",
-    version: "1.1.0",
+    version: "1.1.1",
   });
 
   // Phase 1 ambient tools

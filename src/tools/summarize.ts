@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 interface SummaryRow {
   row_id: number;
@@ -33,7 +34,7 @@ export function registerSummarizeRepoContextTool(server: McpServer): void {
     async ({ repo }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const rows = db
           .prepare(
             `

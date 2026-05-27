@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const getRepoContextInputSchema = {
   repo: z.string().trim().min(1).optional(),
@@ -37,7 +38,7 @@ export function registerGetRepoContextTool(server: McpServer): void {
     async ({ repo, limit }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const rows = db
           .prepare(
             `

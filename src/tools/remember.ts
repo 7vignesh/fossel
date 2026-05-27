@@ -5,6 +5,7 @@ import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { findDuplicate, normalizeText } from "../lib/dedupe.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const rememberInputSchema = {
   note: z.string().trim().min(1, "note is required"),
@@ -74,7 +75,7 @@ export function registerRememberTool(server: McpServer): void {
     async ({ note, repo, type, tags }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const inferred = inferMemoryFromNote(note);
 
         const finalType: MemoryType = type ?? inferred.type;

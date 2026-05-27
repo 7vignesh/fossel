@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, MEMORY_TYPES } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const storeContextInputSchema = {
   repo: z.string().trim().min(1).optional(),
@@ -23,7 +24,7 @@ export function registerStoreContextTool(server: McpServer): void {
     async ({ repo, type, note, tags }) => {
       try {
         const db = getDb();
-        const resolved = resolveRepoArg(repo, process.cwd(), db);
+        const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const now = Math.floor(Date.now() / 1000);
         const id = nanoid();
         const normalizedTags = Array.from(
