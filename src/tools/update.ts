@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
+import { findMemoryByAnyId } from "../lib/memory.js";
 
 interface MemoryRow {
   row_id: number;
@@ -16,7 +17,9 @@ interface MemoryRow {
 }
 
 const updateMemoryInputSchema = {
-  id: z.number().int().positive(),
+  // Accept numeric row_id or legacy string id so callers can paste whichever
+  // form they have.
+  id: z.union([z.number().int().positive(), z.string().trim().min(1)]),
   content: z.string().trim().min(1).optional(),
   memory_type: z.enum(MEMORY_TYPES).optional(),
 };
@@ -53,7 +56,8 @@ export function registerUpdateMemoryTool(server: McpServer): void {
   server.registerTool(
     "update_memory",
     {
-      description: "Update an existing memory by numeric id with partial fields.",
+      description:
+        "Update an existing memory by id (numeric or legacy string) with partial fields.",
       inputSchema: updateMemoryInputSchema,
     },
     async ({ id, content, memory_type }) => {
@@ -71,17 +75,8 @@ export function registerUpdateMemoryTool(server: McpServer): void {
         }
 
         const db = getDb();
-        const existing = db
-          .prepare(
-            `
-              SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
-              FROM memories
-              WHERE rowid = ?
-            `,
-          )
-          .get(id) as MemoryRow | undefined;
-
-        if (!existing) {
+        const target = findMemoryByAnyId(db, id);
+        if (!target) {
           return {
             isError: true,
             content: [
@@ -92,6 +87,16 @@ export function registerUpdateMemoryTool(server: McpServer): void {
             ],
           };
         }
+
+        const existing = db
+          .prepare(
+            `
+              SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
+              FROM memories
+              WHERE rowid = ?
+            `,
+          )
+          .get(target.row_id) as MemoryRow;
 
         const now = Math.floor(Date.now() / 1000);
         const nextType = memory_type ?? existing.type;
@@ -105,7 +110,7 @@ export function registerUpdateMemoryTool(server: McpServer): void {
               SET type = ?, note = ?, note_normalized = ?, updated_at = ?
               WHERE rowid = ?
             `,
-          ).run(nextType, nextNote, nextNormalized, now, id);
+          ).run(nextType, nextNote, nextNormalized, now, existing.row_id);
         } else {
           db.prepare(
             `
@@ -113,7 +118,7 @@ export function registerUpdateMemoryTool(server: McpServer): void {
               SET type = ?, note = ?, updated_at = ?
               WHERE rowid = ?
             `,
-          ).run(nextType, nextNote, now, id);
+          ).run(nextType, nextNote, now, existing.row_id);
         }
 
         const updated = db
@@ -124,7 +129,7 @@ export function registerUpdateMemoryTool(server: McpServer): void {
               WHERE rowid = ?
             `,
           )
-          .get(id) as MemoryRow | undefined;
+          .get(existing.row_id) as MemoryRow | undefined;
 
         if (!updated) {
           return {

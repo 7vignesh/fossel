@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
+import { findMemoryByAnyId } from "../lib/memory.js";
 
 interface MemoryPinRow {
   row_id: number;
@@ -9,10 +10,11 @@ interface MemoryPinRow {
 }
 
 const pinInputSchema = {
-  id: z.number().int().positive(),
+  // Accept numeric row_id or legacy string id for parity with the other tools.
+  id: z.union([z.number().int().positive(), z.string().trim().min(1)]),
 };
 
-function setPinnedState(memoryId: number, pinned: 0 | 1): MemoryPinRow | null {
+function setPinnedState(rowId: number, pinned: 0 | 1): MemoryPinRow | null {
   const db = getDb();
   const now = Math.floor(Date.now() / 1000);
   const updateResult = db
@@ -23,7 +25,7 @@ function setPinnedState(memoryId: number, pinned: 0 | 1): MemoryPinRow | null {
         WHERE rowid = ?
       `,
     )
-    .run(pinned, now, memoryId);
+    .run(pinned, now, rowId);
 
   if (updateResult.changes === 0) {
     return null;
@@ -37,7 +39,7 @@ function setPinnedState(memoryId: number, pinned: 0 | 1): MemoryPinRow | null {
         WHERE rowid = ?
       `,
     )
-    .get(memoryId) as MemoryPinRow;
+    .get(rowId) as MemoryPinRow;
 }
 
 export function registerPinMemoryTool(server: McpServer): void {
@@ -49,7 +51,21 @@ export function registerPinMemoryTool(server: McpServer): void {
     },
     async ({ id }) => {
       try {
-        const memory = setPinnedState(id, 1);
+        const db = getDb();
+        const target = findMemoryByAnyId(db, id);
+        if (!target) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: `Memory ${id} not found.`,
+              },
+            ],
+          };
+        }
+
+        const memory = setPinnedState(target.row_id, 1);
         if (!memory) {
           return {
             isError: true,
@@ -97,7 +113,21 @@ export function registerUnpinMemoryTool(server: McpServer): void {
     },
     async ({ id }) => {
       try {
-        const memory = setPinnedState(id, 0);
+        const db = getDb();
+        const target = findMemoryByAnyId(db, id);
+        if (!target) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text",
+                text: `Memory ${id} not found.`,
+              },
+            ],
+          };
+        }
+
+        const memory = setPinnedState(target.row_id, 0);
         if (!memory) {
           return {
             isError: true,
