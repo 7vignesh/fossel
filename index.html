@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fossel — Memory for Open-Source Contributors</title>
-  <meta name="description" content="Fossel is a local MCP memory server for contributors with repo-aware memory, pinning, updates, summaries, and migration-safe SQLite storage." />
-  <meta name="keywords" content="MCP, Model Context Protocol, Cursor, Claude Desktop, SQLite, FTS5, memory server, local-first, open source, fossel, contributors" />
-  <meta property="og:title" content="Fossel — Memory for Open-Source Contributors" />
-  <meta property="og:description" content="Stop re-explaining your repos to AI. Say 'remember this' and Fossel auto-resolves the repo, infers tags, and merges duplicates. 100% local." />
+  <title>Fossel — Local-first MCP memory for your repos</title>
+  <meta name="description" content="Fossel is a local-first MCP memory server. Say 'remember this' and your editor's AI just knows. SQLite, FTS5, no cloud, no accounts." />
+  <meta name="keywords" content="MCP, Model Context Protocol, Cursor, Claude Desktop, SQLite, FTS5, memory, local-first, open source, fossel" />
+  <meta property="og:title" content="Fossel — Local-first MCP memory for your repos" />
+  <meta property="og:description" content="Stop re-explaining your repos to AI. Say 'remember this' and Fossel resolves the repo, infers the type and tags, and merges duplicates. 100% local." />
   <meta property="og:type" content="website" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,62 +16,74 @@
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
   <style>
+    /* ─────────── tokens ─────────── */
     :root {
-      --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
-      --text-sm:   clamp(0.875rem, 0.8rem  + 0.35vw, 1rem);
-      --text-base: clamp(1rem,     0.95rem + 0.25vw, 1.125rem);
-      --text-lg:   clamp(1.125rem, 1rem    + 0.75vw, 1.5rem);
-      --text-xl:   clamp(1.5rem,   1.2rem  + 1.25vw, 2.25rem);
-      --text-2xl:  clamp(2rem,     1.2rem  + 2.5vw,  3.5rem);
-      --text-3xl:  clamp(2.5rem,   1rem    + 4vw,    5rem);
+      --text-xs:   clamp(0.75rem,  0.7rem  + 0.2vw, 0.82rem);
+      --text-sm:   clamp(0.85rem,  0.8rem  + 0.3vw, 0.95rem);
+      --text-base: clamp(0.95rem,  0.9rem  + 0.25vw, 1.05rem);
+      --text-lg:   clamp(1.05rem,  0.95rem + 0.6vw, 1.35rem);
+      --text-xl:   clamp(1.4rem,   1.15rem + 1vw,  2rem);
+      --text-2xl:  clamp(2rem,     1.4rem  + 2.4vw, 3.2rem);
+      --text-3xl:  clamp(2.6rem,   1.4rem  + 4.5vw, 5.2rem);
+
       --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
       --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem;
       --space-8: 2rem; --space-10: 2.5rem; --space-12: 3rem;
       --space-16: 4rem; --space-20: 5rem; --space-24: 6rem;
-      --radius-sm: 0.375rem; --radius-md: 0.5rem;
-      --radius-lg: 0.75rem; --radius-xl: 1rem; --radius-full: 9999px;
-      --transition: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+
+      --radius-sm: 0.4rem; --radius-md: 0.65rem;
+      --radius-lg: 0.95rem; --radius-xl: 1.25rem;
+      --radius-full: 9999px;
+
+      --transition: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+
       --font-display: 'Instrument Serif', Georgia, serif;
       --font-body: 'Geist', 'Inter', sans-serif;
       --font-mono: 'Geist Mono', 'Fira Code', monospace;
+
+      --max-w: 1180px;
     }
 
     [data-theme="dark"] {
-      --color-bg:             #0d0d0b;
-      --color-surface:        #131310;
-      --color-surface-2:      #191916;
-      --color-surface-offset: #1e1e1a;
-      --color-border:         #2a2a25;
-      --color-divider:        #222220;
-      --color-text:           #e8e6e0;
-      --color-text-muted:     #7a7870;
-      --color-text-faint:     #3e3d38;
-      --color-primary:        #d4874a;
-      --color-primary-hover:  #e09a5c;
-      --color-primary-dim:    rgba(212,135,74,0.12);
-      --color-primary-glow:   rgba(212,135,74,0.06);
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
-      --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
-      --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+      --bg:           #0b0b09;
+      --surface:      #131311;
+      --surface-2:    #1a1a17;
+      --surface-3:    #21211d;
+      --border:       #2a2a25;
+      --border-hi:    #38382f;
+      --divider:      #1f1f1c;
+
+      --text:         #ece9e1;
+      --text-muted:   #8a877d;
+      --text-faint:   #4a4843;
+
+      --accent:       #d4874a;
+      --accent-hi:    #e89b5e;
+      --accent-soft:  rgba(212,135,74,0.14);
+      --accent-glow:  rgba(212,135,74,0.07);
+
+      --grid:         rgba(232,229,221,0.04);
     }
 
     [data-theme="light"] {
-      --color-bg:             #f9f7f2;
-      --color-surface:        #f4f2ec;
-      --color-surface-2:      #eeeae0;
-      --color-surface-offset: #e8e3d8;
-      --color-border:         #d8d3c8;
-      --color-divider:        #e0dbd0;
-      --color-text:           #1a1915;
-      --color-text-muted:     #6b6860;
-      --color-text-faint:     #b8b5ae;
-      --color-primary:        #b8632a;
-      --color-primary-hover:  #9e5223;
-      --color-primary-dim:    rgba(184,99,42,0.1);
-      --color-primary-glow:   rgba(184,99,42,0.05);
-      --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
-      --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-      --shadow-lg: 0 16px 48px rgba(0,0,0,0.12);
+      --bg:           #f4f1ea;
+      --surface:      #ece8df;
+      --surface-2:    #e2ddd1;
+      --surface-3:    #d6d0c2;
+      --border:       #c8c2b4;
+      --border-hi:    #b3ac9d;
+      --divider:      #d6d0c2;
+
+      --text:         #1a1814;
+      --text-muted:   #5e5b54;
+      --text-faint:   #a39d92;
+
+      --accent:       #b8632a;
+      --accent-hi:    #9c5223;
+      --accent-soft:  rgba(184,99,42,0.12);
+      --accent-glow:  rgba(184,99,42,0.06);
+
+      --grid:         rgba(26,24,20,0.05);
     }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -79,807 +91,1012 @@
     body {
       font-family: var(--font-body);
       font-size: var(--text-base);
-      color: var(--color-text);
-      background: var(--color-bg);
+      color: var(--text);
+      background: var(--bg);
       min-height: 100dvh;
       line-height: 1.6;
+      transition: background var(--transition), color var(--transition);
     }
     img, svg { display: block; max-width: 100%; }
-    ul[role="list"] { list-style: none; }
     button { cursor: pointer; background: none; border: none; font: inherit; color: inherit; }
-    a, button { transition: color var(--transition), background var(--transition), border-color var(--transition), opacity var(--transition); }
-    p { max-width: 68ch; text-wrap: pretty; }
-    h1,h2,h3,h4 { text-wrap: balance; line-height: 1.15; }
-    ::selection { background: var(--color-primary-dim); color: var(--color-text); }
-    :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; border-radius: var(--radius-sm); }
+    a { color: inherit; }
+    p { max-width: 64ch; text-wrap: pretty; }
+    h1, h2, h3, h4 { text-wrap: balance; line-height: 1.1; }
+    code { font-family: var(--font-mono); font-size: 0.92em; }
+    ::selection { background: var(--accent-soft); color: var(--text); }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius-sm); }
 
-    /* ── SCROLLBAR ── */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: var(--color-bg); }
-    ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-hi); }
 
-    /* ── SCROLL ANIMATIONS ── */
+    /* ─────────── layout ─────────── */
+    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--space-6); }
+
+    section { position: relative; }
+    .section-pad { padding: clamp(4.5rem, 9vw, 8rem) 0; }
+
+    /* Subtle grid backdrop. Pure CSS so it costs nothing. */
+    .grid-bg {
+      background-image:
+        linear-gradient(to right, var(--grid) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+      background-size: 64px 64px;
+    }
+
+    /* Editorial chapter marker, e.g.  〉  HOW IT WORKS [3/8] */
+    .chapter {
+      display: inline-flex; align-items: center; gap: var(--space-3);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--divider);
+      margin-bottom: var(--space-6);
+      width: max-content;
+    }
+    .chapter::before { content: '〉'; color: var(--accent); }
+    .chapter span:last-child { color: var(--text-faint); }
+
+    .display {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+
+    /* ─────────── nav ─────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(18px);
+      background: color-mix(in oklch, var(--bg) 78%, transparent);
+      border-bottom: 1px solid var(--divider);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: var(--max-w); margin: 0 auto;
+      padding: var(--space-3) var(--space-6);
+    }
+    .brand {
+      display: flex; align-items: center; gap: var(--space-2);
+      text-decoration: none; color: var(--text);
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-lg);
+    }
+    .brand-mark {
+      width: 26px; height: 26px;
+      display: grid; place-items: center;
+      border: 1px solid var(--border-hi);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      font-family: var(--font-mono); font-style: normal;
+      font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .nav-links { display: flex; align-items: center; gap: var(--space-5); }
+    .nav-links a {
+      text-decoration: none;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      transition: color var(--transition);
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+    .icon-btn {
+      width: 34px; height: 34px;
+      display: grid; place-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--border-hi); background: var(--surface); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-4);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm); font-weight: 500;
+      text-decoration: none;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+    .btn-accent { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
+    .btn-accent:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--border-hi); background: var(--surface); }
+
+    /* ─────────── hero ─────────── */
+    .hero { position: relative; overflow: hidden; padding: clamp(5rem, 9vw, 8rem) 0 clamp(3rem, 6vw, 5rem); }
+    .hero::before {
+      content: ''; position: absolute; pointer-events: none;
+      top: -10%; left: 50%; transform: translateX(-50%);
+      width: min(900px, 90vw); height: 600px;
+      background: radial-gradient(ellipse at center, var(--accent-glow), transparent 65%);
+    }
+    .hero-inner { position: relative; z-index: 1; }
+
+    .ann {
+      display: inline-flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-full);
+      background: var(--surface);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text-muted);
+      margin-bottom: var(--space-6);
+      text-decoration: none;
+      transition: border-color var(--transition);
+    }
+    .ann:hover { border-color: var(--border-hi); color: var(--text); }
+    .ann-tag {
+      background: var(--accent-soft); color: var(--accent);
+      padding: 1px 6px; border-radius: var(--radius-sm);
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: var(--text-3xl);
+      letter-spacing: -0.015em;
+      margin: 0 0 var(--space-6);
+      max-width: 18ch;
+      color: var(--text);
+    }
+    .hero h1 em { font-style: normal; font-family: var(--font-body); font-weight: 400; color: var(--accent); letter-spacing: -0.02em; }
+
+    .hero-sub {
+      font-size: var(--text-lg);
+      color: var(--text-muted);
+      max-width: 56ch;
+      margin-bottom: var(--space-8);
+      line-height: 1.55;
+    }
+
+    .hero-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-12); }
+
+    .npx-strip {
+      display: inline-flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      font-family: var(--font-mono); font-size: var(--text-sm);
+      color: var(--text);
+      max-width: 100%;
+    }
+    .npx-strip .dollar { color: var(--text-faint); }
+    .npx-strip .copy { color: var(--text-muted); cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); transition: color var(--transition), background var(--transition); }
+    .npx-strip .copy:hover { color: var(--text); background: var(--surface-2); }
+
+    /* ─────────── hero terminal ─────────── */
+    .term {
+      margin-top: var(--space-10);
+      max-width: 720px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      overflow: hidden;
+      box-shadow: 0 30px 80px -30px rgba(0,0,0,0.5);
+    }
+    .term-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--divider);
+    }
+    .term-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-hi); }
+    .term-title {
+      margin-left: auto; margin-right: auto;
+      padding-right: 60px;
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text-faint);
+    }
+    .term-body { padding: var(--space-5) var(--space-6); font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.85; }
+    .t-prompt { color: var(--accent); }
+    .t-you    { color: var(--text); }
+    .t-mem    { color: var(--text); }
+    .t-bullet { color: var(--text-muted); padding-left: 1.5rem; font-size: 0.86em; }
+    .t-bullet code { color: var(--accent); }
+    .t-ok     { color: #6daa45; }
+
+    /* ─────────── two-card comparison ─────────── */
+    .compare {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: var(--space-5);
+      margin-top: var(--space-12);
+    }
+    @media (max-width: 768px) { .compare { grid-template-columns: 1fr; } }
+
+    .compare-card {
+      padding: var(--space-6);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      position: relative;
+      transition: border-color var(--transition), background var(--transition);
+    }
+    .compare-card.bad { opacity: 0.85; }
+    .compare-card.good {
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+      border-color: var(--border-hi);
+    }
+    .compare-card.good::before {
+      content: ''; position: absolute; inset: -1px;
+      border-radius: var(--radius-lg);
+      padding: 1px;
+      background: linear-gradient(180deg, var(--accent), transparent 60%);
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+    }
+    .compare-eyebrow {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: var(--space-3);
+    }
+    .compare-card.good .compare-eyebrow { color: var(--accent); }
+    .compare-card h3 {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-lg);
+      margin-bottom: var(--space-4);
+      color: var(--text);
+    }
+    .compare-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+    .compare-list li {
+      display: flex; align-items: flex-start; gap: var(--space-3);
+      font-size: var(--text-sm); color: var(--text-muted);
+    }
+    .compare-list li i { color: var(--text-faint); margin-top: 2px; flex-shrink: 0; }
+    .compare-card.good .compare-list li i { color: var(--accent); }
+
+    /* ─────────── eyebrow + heading row ─────────── */
+    .head-row {
+      display: grid; grid-template-columns: 1fr 1.4fr;
+      gap: var(--space-10);
+      align-items: end;
+    }
+    @media (max-width: 900px) { .head-row { grid-template-columns: 1fr; gap: var(--space-5); } }
+    .head-row h2 {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-2xl);
+      letter-spacing: -0.01em;
+    }
+    .head-row p {
+      font-size: var(--text-base);
+      color: var(--text-muted);
+      max-width: 56ch;
+    }
+
+    /* ─────────── steps ─────────── */
+    .steps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-top: var(--space-12); }
+    @media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+    .step {
+      padding: var(--space-6);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      display: grid; grid-template-rows: auto auto 1fr auto;
+      gap: var(--space-3);
+      min-height: 220px;
+      transition: border-color var(--transition);
+    }
+    .step:hover { border-color: var(--border-hi); }
+    .step-num {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      letter-spacing: 0.14em;
+      color: var(--text-faint);
+    }
+    .step-num span { color: var(--accent); }
+    .step h3 {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-lg);
+      color: var(--text);
+    }
+    .step p { color: var(--text-muted); font-size: var(--text-sm); line-height: 1.65; }
+    .step-code {
+      margin-top: var(--space-3);
+      padding: var(--space-3);
+      background: var(--bg);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono); font-size: 0.78rem;
+      color: var(--text-muted);
+      overflow-x: auto;
+    }
+    .step-code .accent { color: var(--accent); }
+
+    /* ─────────── feature grid (memory types) ─────────── */
+    .feat-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--space-4); margin-top: var(--space-12);
+    }
+    .feat {
+      padding: var(--space-5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      transition: border-color var(--transition), transform var(--transition);
+    }
+    .feat:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+    .feat-tag {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 2px 8px; border-radius: var(--radius-full);
+      margin-bottom: var(--space-3);
+    }
+    .feat h3 {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-base); font-weight: 400;
+      margin-bottom: var(--space-2);
+      color: var(--text);
+    }
+    .feat p { font-size: var(--text-sm); color: var(--text-muted); line-height: 1.55; max-width: none; }
+
+    /* ─────────── stats ─────────── */
+    .stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--space-5);
+      margin-top: var(--space-12);
+      padding: var(--space-8);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+    }
+    .stat-num {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-2xl);
+      color: var(--text);
+      letter-spacing: -0.01em;
+      margin-bottom: var(--space-1);
+    }
+    .stat-num em { font-style: normal; color: var(--accent); font-family: var(--font-body); font-weight: 400; }
+    .stat-lbl {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ─────────── install split ─────────── */
+    .split {
+      display: grid; grid-template-columns: 1fr 1.1fr;
+      gap: var(--space-10);
+      margin-top: var(--space-12);
+      align-items: start;
+    }
+    @media (max-width: 900px) { .split { grid-template-columns: 1fr; gap: var(--space-8); } }
+
+    .install-list { display: flex; flex-direction: column; gap: var(--space-5); }
+    .install-item { display: flex; gap: var(--space-4); align-items: flex-start; }
+    .install-pill {
+      width: 28px; height: 28px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+      flex-shrink: 0;
+    }
+    .install-item h4 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-1); color: var(--text); }
+    .install-item p { font-size: var(--text-sm); color: var(--text-muted); }
+
+    /* ─────────── code block primitive ─────────── */
+    .code {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .code-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-2) var(--space-4);
+      border-bottom: 1px solid var(--divider);
+      background: var(--surface-2);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .code-tabs { display: flex; gap: 1px; }
+    .code-tab {
+      padding: var(--space-1) var(--space-3);
+      border-radius: var(--radius-sm);
+      color: var(--text-faint);
+      transition: color var(--transition), background var(--transition);
+    }
+    .code-tab.active { color: var(--text); background: var(--surface-3); }
+    .code-tab:hover { color: var(--text); }
+    .code-copy {
+      display: inline-flex; align-items: center; gap: var(--space-1);
+      padding: var(--space-1) var(--space-2);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text-muted);
+      border: 1px solid transparent;
+    }
+    .code-copy:hover { color: var(--text); border-color: var(--border); }
+    .code pre {
+      padding: var(--space-5);
+      font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.7;
+      overflow-x: auto;
+      color: var(--text);
+    }
+    .code .panel { display: none; }
+    .code .panel.active { display: block; }
+    .kw { color: var(--accent); }
+    .str { color: #6daa45; }
+    .key { color: #5591c7; }
+    .cmt { color: var(--text-faint); }
+
+    /* ─────────── tools ─────────── */
+    .tool-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: var(--space-3); margin-top: var(--space-12);
+    }
+    .tool {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      font-size: var(--text-sm);
+      transition: border-color var(--transition);
+    }
+    .tool:hover { border-color: var(--border-hi); }
+    .tool-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .tool-name { font-family: var(--font-mono); font-size: var(--text-xs); }
+    .tool-status {
+      margin-left: auto;
+      font-family: var(--font-mono); font-size: 0.7rem;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .tool-status.new { color: var(--accent); }
+
+    /* ─────────── divider ─────────── */
+    .rule {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      border: 0;
+      height: 1px;
+      background: var(--divider);
+    }
+
+    /* ─────────── final CTA ─────────── */
+    .cta {
+      text-align: center;
+      padding: clamp(5rem, 10vw, 9rem) var(--space-6);
+      position: relative; overflow: hidden;
+    }
+    .cta::before {
+      content: ''; position: absolute; pointer-events: none;
+      bottom: -30%; left: 50%; transform: translateX(-50%);
+      width: min(900px, 90vw); height: 500px;
+      background: radial-gradient(ellipse, var(--accent-glow), transparent 60%);
+    }
+    .cta-inner { position: relative; z-index: 1; }
+    .cta h2 {
+      font-family: var(--font-display); font-style: italic;
+      font-size: var(--text-2xl);
+      margin-bottom: var(--space-4);
+      letter-spacing: -0.01em;
+    }
+    .cta h2 em { font-style: normal; color: var(--accent); font-family: var(--font-body); font-weight: 400; }
+    .cta p { color: var(--text-muted); margin: 0 auto var(--space-8); }
+    .cta-btns { display: flex; align-items: center; justify-content: center; gap: var(--space-3); flex-wrap: wrap; }
+
+    /* ─────────── footer ─────────── */
+    footer {
+      border-top: 1px solid var(--divider);
+      padding: var(--space-6);
+      max-width: var(--max-w); margin: 0 auto;
+    }
+    .foot {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: var(--space-3);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text-muted);
+    }
+    .foot .links { display: flex; gap: var(--space-4); }
+    .foot a { text-decoration: none; transition: color var(--transition); }
+    .foot a:hover { color: var(--text); }
+
+    /* ─────────── reveal ─────────── */
     .fade-in { opacity: 1; }
     @supports (animation-timeline: scroll()) {
       .fade-in {
-        opacity: 0;
-        animation: reveal-fade linear both;
+        opacity: 0; transform: translateY(8px);
+        animation: reveal linear both;
         animation-timeline: view();
-        animation-range: entry 0% entry 80%;
+        animation-range: entry 0% entry 50%;
       }
     }
-    @keyframes reveal-fade { to { opacity: 1; } }
+    @keyframes reveal { to { opacity: 1; transform: none; } }
 
-    /* ── NAV ── */
-    nav {
-      position: sticky; top: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: var(--space-4) var(--space-8);
-      background: color-mix(in oklch, var(--color-bg) 85%, transparent);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--color-divider);
-    }
-    .nav-logo { display: flex; align-items: center; gap: var(--space-2); text-decoration: none; color: var(--color-text); }
-    .nav-logo-icon {
-      width: 28px; height: 28px;
-    }
-    .nav-logo-text { font-family: var(--font-display); font-size: var(--text-lg); font-style: italic; }
-    .nav-links { display: flex; align-items: center; gap: var(--space-6); }
-    .nav-links a { text-decoration: none; color: var(--color-text-muted); font-size: var(--text-sm); }
-    .nav-links a:hover { color: var(--color-text); }
-    .nav-cta {
-      display: flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-2) var(--space-4);
-      background: var(--color-primary);
-      color: #fff !important;
-      border-radius: var(--radius-full);
-      font-size: var(--text-sm) !important;
-      font-weight: 500;
-      text-decoration: none;
-    }
-    .nav-cta:hover { opacity: 0.88; }
-    .theme-btn {
-      width: 36px; height: 36px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: var(--radius-full);
-      color: var(--color-text-muted);
-      border: 1px solid var(--color-border);
-    }
-    .theme-btn:hover { color: var(--color-text); }
-
-    /* ── HERO ── */
-    .hero {
-      display: flex; flex-direction: column; align-items: center;
-      text-align: center;
-      padding: clamp(5rem, 10vw, 9rem) var(--space-8) clamp(4rem, 8vw, 7rem);
-      position: relative; overflow: hidden;
-    }
-    .hero::before {
-      content: '';
-      position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
-      width: 600px; height: 600px;
-      background: radial-gradient(ellipse, var(--color-primary-glow) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-1) var(--space-3);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-full);
-      font-size: var(--text-xs);
-      color: var(--color-text-muted);
-      margin-bottom: var(--space-8);
-      background: var(--color-surface);
-    }
-    .hero-badge span { color: var(--color-primary); font-weight: 500; }
-    .hero-heading {
-      font-family: var(--font-display);
-      font-size: var(--text-3xl);
-      font-style: italic;
-      color: var(--color-text);
-      margin-bottom: var(--space-6);
-      max-width: 14ch;
-      position: relative; z-index: 1;
-    }
-    .hero-heading em { color: var(--color-primary); font-style: italic; }
-    .hero-sub {
-      font-size: var(--text-lg);
-      color: var(--color-text-muted);
-      max-width: 52ch;
-      margin-bottom: var(--space-10);
-      line-height: 1.7;
-    }
-    .hero-actions { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; justify-content: center; }
-    .btn-primary {
-      display: inline-flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-3) var(--space-6);
-      background: var(--color-primary);
-      color: #fff;
-      border-radius: var(--radius-full);
-      font-size: var(--text-sm);
-      font-weight: 500;
-      text-decoration: none;
-      font-family: var(--font-body);
-    }
-    .btn-primary:hover { opacity: 0.88; }
-    .btn-ghost {
-      display: inline-flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-3) var(--space-6);
-      border: 1px solid var(--color-border);
-      color: var(--color-text-muted);
-      border-radius: var(--radius-full);
-      font-size: var(--text-sm);
-      text-decoration: none;
-      background: var(--color-surface);
-    }
-    .btn-ghost:hover { color: var(--color-text); border-color: var(--color-text-muted); }
-
-    /* ── TERMINAL ── */
-    .terminal-wrap {
-      margin: clamp(3rem, 6vw, 5rem) auto 0;
-      max-width: 560px; width: 100%;
-    }
-    .terminal {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      overflow: hidden;
-      box-shadow: var(--shadow-lg);
-    }
-    .terminal-bar {
-      display: flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-3) var(--space-4);
-      border-bottom: 1px solid var(--color-divider);
-      background: var(--color-surface-offset);
-    }
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .dot-r { background: #ff5f57; }
-    .dot-y { background: #febc2e; }
-    .dot-g { background: #28c840; }
-    .terminal-title { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted); margin-left: auto; margin-right: auto; padding-right: 52px; }
-    .terminal-body { padding: var(--space-5) var(--space-6); font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.8; }
-    .t-prompt { color: var(--color-primary); }
-    .t-cmd { color: var(--color-text); }
-    .t-out { color: var(--color-text-muted); }
-    .t-success { color: #6daa45; }
-    .t-mem { color: var(--color-primary); opacity: 0.85; }
-    .t-line { display: flex; gap: var(--space-2); }
-
-    /* ── DIVIDER ── */
-    .section-divider {
-      height: 1px;
-      background: var(--color-divider);
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    /* ── PROBLEM ── */
-    .problem {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: clamp(4rem, 8vw, 7rem) var(--space-8);
-    }
-    .section-label {
-      display: inline-flex; align-items: center; gap: var(--space-2);
-      font-size: var(--text-xs); font-weight: 600;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      color: var(--color-primary); margin-bottom: var(--space-5);
-    }
-    .section-heading {
-      font-family: var(--font-display);
-      font-size: var(--text-2xl);
-      font-style: italic;
-      margin-bottom: var(--space-4);
-    }
-    .problem-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-12);
-      align-items: start;
-      margin-top: var(--space-12);
-    }
-    .problem-text { color: var(--color-text-muted); line-height: 1.75; font-size: var(--text-base); }
-    .pain-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-4); }
-    .pain-item {
-      display: flex; align-items: flex-start; gap: var(--space-4);
-      padding: var(--space-5);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      background: var(--color-surface);
-    }
-    .pain-icon { color: var(--color-text-faint); margin-top: 2px; flex-shrink: 0; }
-    .pain-title { font-weight: 500; font-size: var(--text-sm); color: var(--color-text); margin-bottom: var(--space-1); }
-    .pain-desc { font-size: var(--text-sm); color: var(--color-text-muted); }
-
-    /* ── HOW IT WORKS ── */
-    .how {
-      background: var(--color-surface);
-      border-top: 1px solid var(--color-divider);
-      border-bottom: 1px solid var(--color-divider);
-      padding: clamp(4rem, 8vw, 7rem) var(--space-8);
-    }
-    .how-inner { max-width: 1200px; margin: 0 auto; }
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-6);
-      margin-top: var(--space-12);
-    }
-    .step {
-      padding: var(--space-6);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      background: var(--color-bg);
-      position: relative;
-    }
-    .step-num {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--color-primary);
-      font-weight: 600;
-      margin-bottom: var(--space-4);
-    }
-    .step-icon {
-      width: 40px; height: 40px;
-      display: flex; align-items: center; justify-content: center;
-      border-radius: var(--radius-md);
-      background: var(--color-primary-dim);
-      color: var(--color-primary);
-      margin-bottom: var(--space-4);
-    }
-    .step h3 { font-size: var(--text-base); font-weight: 600; margin-bottom: var(--space-2); }
-    .step p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.65; max-width: 100%; }
-
-    /* ── MEMORY TYPES ── */
-    .memories {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: clamp(4rem, 8vw, 7rem) var(--space-8);
-    }
-    .memory-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(280px,100%), 1fr));
-      gap: var(--space-4);
-      margin-top: var(--space-12);
-    }
-    .memory-card {
-      padding: var(--space-5) var(--space-5);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      background: var(--color-surface);
-      transition: box-shadow var(--transition), border-color var(--transition);
-    }
-    .memory-card:hover { box-shadow: var(--shadow-md); border-color: var(--color-primary); }
-    .memory-tag {
-      display: inline-flex; align-items: center; gap: var(--space-1);
-      font-family: var(--font-mono); font-size: var(--text-xs);
-      color: var(--color-primary);
-      background: var(--color-primary-dim);
-      padding: 2px var(--space-2);
-      border-radius: var(--radius-full);
-      margin-bottom: var(--space-3);
-    }
-    .memory-card h3 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-2); }
-    .memory-card p { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.6; max-width: 100%; }
-    .memory-repo {
-      display: flex; align-items: center; gap: var(--space-1);
-      margin-top: var(--space-3);
-      font-family: var(--font-mono); font-size: var(--text-xs);
-      color: var(--color-text-faint);
-    }
-
-    /* ── INSTALL ── */
-    .install {
-      background: var(--color-surface);
-      border-top: 1px solid var(--color-divider);
-      border-bottom: 1px solid var(--color-divider);
-      padding: clamp(4rem, 8vw, 7rem) var(--space-8);
-    }
-    .install-inner { max-width: 1200px; margin: 0 auto; }
-    .install-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-12);
-      align-items: start;
-      margin-top: var(--space-12);
-    }
-    .install-steps { display: flex; flex-direction: column; gap: var(--space-6); }
-    .install-step { display: flex; gap: var(--space-4); align-items: flex-start; }
-    .install-step-num {
-      width: 28px; height: 28px; border-radius: 50%;
-      border: 1px solid var(--color-primary);
-      color: var(--color-primary);
-      font-family: var(--font-mono); font-size: var(--text-xs);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; font-weight: 600; margin-top: 2px;
-    }
-    .install-step-body h4 { font-size: var(--text-sm); font-weight: 600; margin-bottom: var(--space-2); }
-    .install-step-body p { font-size: var(--text-sm); color: var(--color-text-muted); }
-    .code-block {
-      background: var(--color-bg);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .code-block-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: var(--space-3) var(--space-4);
-      border-bottom: 1px solid var(--color-divider);
-      font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-muted);
-    }
-    .copy-btn {
-      display: flex; align-items: center; gap: var(--space-1);
-      font-size: var(--text-xs); color: var(--color-text-muted);
-      padding: var(--space-1) var(--space-2);
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--color-border);
-    }
-    .copy-btn:hover { color: var(--color-text); }
-    .code-block pre {
-      padding: var(--space-5) var(--space-5);
-      font-family: var(--font-mono); font-size: var(--text-sm);
-      line-height: 1.7; overflow-x: auto; color: var(--color-text);
-    }
-    .code-block pre .kw { color: var(--color-primary); }
-    .code-block pre .str { color: #6daa45; }
-    .code-block pre .cmt { color: var(--color-text-faint); }
-    .code-block pre .key { color: #5591c7; }
-
-    /* ── TOOLS ── */
-    .tools {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: clamp(4rem, 8vw, 7rem) var(--space-8);
-    }
-    .tools-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(220px,100%), 1fr));
-      grid-auto-rows: 1fr;
-      gap: var(--space-3);
-      margin-top: var(--space-12);
-    }
-    .tool-pill {
-      display: flex; align-items: center; gap: var(--space-3);
-      padding: var(--space-3) var(--space-4);
-      min-height: 56px;
-      height: 100%;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg);
-      background: var(--color-surface);
-      font-size: var(--text-sm);
-    }
-    .tool-pill-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); flex-shrink: 0; }
-    .tool-name {
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .tool-status { margin-left: auto; font-size: var(--text-xs); color: var(--color-text-faint); font-family: var(--font-mono); }
-
-    /* ── CTA ── */
-    .cta-section {
-      padding: clamp(5rem, 10vw, 8rem) var(--space-8);
-      text-align: center;
-      position: relative; overflow: hidden;
-    }
-    .cta-section::before {
-      content: '';
-      position: absolute; bottom: -20%; left: 50%; transform: translateX(-50%);
-      width: 700px; height: 400px;
-      background: radial-gradient(ellipse, var(--color-primary-glow) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .cta-section h2 {
-      font-family: var(--font-display);
-      font-size: var(--text-2xl);
-      font-style: italic;
-      margin-bottom: var(--space-4);
-    }
-    .cta-section p { font-size: var(--text-base); color: var(--color-text-muted); margin: 0 auto var(--space-8); }
-    .cta-btns { display: flex; align-items: center; justify-content: center; gap: var(--space-4); flex-wrap: wrap; }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--color-divider);
-      padding: var(--space-8);
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4);
-      max-width: 1200px; margin: 0 auto;
-    }
-    .footer-logo { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-style: italic; font-size: var(--text-base); color: var(--color-text); text-decoration: none; }
-    .footer-links { display: flex; gap: var(--space-6); }
-    .footer-links a { font-size: var(--text-sm); color: var(--color-text-muted); text-decoration: none; }
-    .footer-links a:hover { color: var(--color-text); }
-    .footer-copy { font-size: var(--text-xs); color: var(--color-text-faint); }
-
-    /* ── RESPONSIVE ── */
+    /* ─────────── small screens ─────────── */
     @media (max-width: 768px) {
-      nav { padding: var(--space-3) var(--space-4); }
       .nav-links { display: none; }
-      .problem-grid, .install-grid, .steps { grid-template-columns: 1fr; gap: var(--space-8); }
-      .steps { gap: var(--space-4); }
-      footer { flex-direction: column; align-items: flex-start; }
-    }
-
-    @media (prefers-color-scheme: light) {
-      :root:not([data-theme]) {
-        --color-bg:#f9f7f2; --color-surface:#f4f2ec; --color-surface-2:#eeeae0;
-        --color-surface-offset:#e8e3d8; --color-border:#d8d3c8; --color-divider:#e0dbd0;
-        --color-text:#1a1915; --color-text-muted:#6b6860; --color-text-faint:#b8b5ae;
-        --color-primary:#b8632a; --color-primary-hover:#9e5223;
-        --color-primary-dim:rgba(184,99,42,0.1); --color-primary-glow:rgba(184,99,42,0.05);
-        --shadow-sm:0 1px 2px rgba(0,0,0,0.06); --shadow-md:0 4px 16px rgba(0,0,0,0.08); --shadow-lg:0 16px 48px rgba(0,0,0,0.12);
-      }
     }
   </style>
 </head>
-<body>
+<body class="grid-bg">
 
-<!-- NAV -->
+<!-- ─────────── nav ─────────── -->
 <nav>
-  <a href="#" class="nav-logo" aria-label="Fossel home">
-    <svg class="nav-logo-icon" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
-      <circle cx="14" cy="14" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M14 7 C10 9 8 12 10 14 C12 16 16 16 18 14 C20 12 18 9 14 7Z" fill="currentColor" opacity="0.85"/>
-      <circle cx="14" cy="14" r="2" fill="var(--color-bg)"/>
-      <path d="M6 14 H8 M20 14 H22 M14 6 V8 M14 20 V22" stroke="currentColor" stroke-width="1" stroke-linecap="round" opacity="0.4"/>
-    </svg>
-    <span class="nav-logo-text">Fossel</span>
-  </a>
-  <div class="nav-links">
-    <a href="#how">How it works</a>
-    <a href="#memories">Memory types</a>
-    <a href="#install">Install</a>
-    <a href="#tools">Works with</a>
-  </div>
-  <div style="display:flex;align-items:center;gap:var(--space-3)">
-    <button class="theme-btn" data-theme-toggle aria-label="Toggle theme">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="nav-cta">
-      <i data-lucide="github" width="14" height="14"></i> GitHub
+  <div class="nav-inner">
+    <a href="#" class="brand" aria-label="Fossel home">
+      <span class="brand-mark">Fo</span>
+      Fossel
     </a>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#how">How</a>
+      <a href="#types">Memories</a>
+      <a href="#install">Install</a>
+      <a href="#tools">Tools</a>
+    </div>
+    <div class="nav-actions">
+      <button class="icon-btn" data-theme-toggle aria-label="Toggle theme" title="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">
+        <i data-lucide="github" width="14" height="14"></i> GitHub
+      </a>
+    </div>
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- ─────────── hero ─────────── -->
 <section class="hero">
-  <div class="hero-badge">
-    <i data-lucide="zap" width="12" height="12"></i>
-    MCP Memory Server &nbsp;·&nbsp; <span>Open Source</span>
-  </div>
-  <h1 class="hero-heading">
-    Your repos,<br><em>remembered.</em>
-  </h1>
-  <p class="hero-sub">
-    Fossel is a local MCP server that gives your AI tools persistent memory about every codebase you contribute to. Just say <em style="font-style:italic">remember this</em> — Fossel resolves the repo, infers the type and tags, and merges duplicates. 100% local, no accounts.
-  </p>
-  <div class="hero-actions">
-    <a href="#install" class="btn-primary">
-      <i data-lucide="terminal" width="15" height="15"></i>
-      Get started free
+  <div class="container hero-inner">
+    <a href="https://github.com/7vignesh/fossel/releases" target="_blank" rel="noopener noreferrer" class="ann">
+      <span class="ann-tag">v1.1.1</span>
+      <span>Ambient memory: just say <em style="font-style:italic">remember this</em></span>
     </a>
-    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn-ghost">
-      <i data-lucide="star" width="15" height="15"></i>
-      Star on GitHub
-    </a>
-  </div>
 
-  <div class="terminal-wrap">
-    <div class="terminal">
-      <div class="terminal-bar">
-        <span class="dot dot-r"></span>
-        <span class="dot dot-y"></span>
-        <span class="dot dot-g"></span>
-        <span class="terminal-title">fossel · cursor chat</span>
+    <h1>
+      Local memory<br>
+      for every repo<br>
+      your <em>agent</em> touches.
+    </h1>
+
+    <p class="hero-sub">
+      Fossel is a local-first MCP server. Your editor's AI just knows the conventions, bug fixes, reviewer patterns, and architectural decisions for every repo you contribute to. No cloud, no accounts, your data never leaves your laptop.
+    </p>
+
+    <div class="hero-actions">
+      <a href="#install" class="btn btn-accent">
+        <i data-lucide="terminal" width="14" height="14"></i> Get started
+      </a>
+      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn btn-ghost">
+        <i data-lucide="star" width="14" height="14"></i> Star on GitHub
+      </a>
+    </div>
+
+    <div class="npx-strip">
+      <span class="dollar">$</span>
+      <span><span class="kw" style="color:var(--accent)">npx</span> -y fossel init</span>
+      <span class="copy" onclick="copyText(this, 'npx -y fossel init')">copy</span>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <span class="term-dot"></span>
+        <span class="term-dot"></span>
+        <span class="term-dot"></span>
+        <span class="term-title">cursor · new chat · 7vignesh/fossel</span>
       </div>
-      <div class="terminal-body">
-        <div class="t-line"><span class="t-prompt">you</span><span class="t-cmd">&nbsp;→ work on issue #892 in RocketChat</span></div>
-        <div class="t-line" style="margin-top:var(--space-3)"><span class="t-prompt" style="color:var(--color-primary)">fossel</span><span class="t-mem">&nbsp;→ loading context for RocketChat...</span></div>
-        <div class="t-line" style="margin-left:3.5rem; color: var(--color-text-muted); font-size:0.8em; margin-top:4px">⟡ &nbsp;Uses Blaze, not React. Components in <code>client/</code></div>
-        <div class="t-line" style="margin-left:3.5rem; color: var(--color-text-muted); font-size:0.8em;">⟡ &nbsp;Reviewer Guilherme prefers PRs under 200 lines</div>
-        <div class="t-line" style="margin-left:3.5rem; color: var(--color-text-muted); font-size:0.8em;">⟡ &nbsp;Issue #892 — tried <code>RoomHeader.js</code>, try <code>Toolbar.js</code> next</div>
-        <div class="t-line" style="margin-top:var(--space-3)"><span class="t-success">✓ &nbsp;3 memories loaded. Picking up where you left off.</span></div>
+      <div class="term-body">
+        <div><span class="t-prompt">you</span> <span class="t-you">→ what does Fossel remember about auth here?</span></div>
+        <div style="margin-top: 0.65rem;"><span class="t-prompt">fossel</span> <span class="t-mem">→ loaded 4 memories for 7vignesh/fossel</span></div>
+        <div class="t-bullet">⟡ JWT lives in <code>localStorage</code>; 401 redirects to <code>/login</code></div>
+        <div class="t-bullet">⟡ API base URL is <code>http://localhost:5000/api</code></div>
+        <div class="t-bullet">⟡ Reviewers prefer explicit return types on exports</div>
+        <div class="t-bullet">⟡ <em>📌 Pinned</em> Always run <code>npm run ci</code> before merge</div>
+        <div style="margin-top: 0.65rem;"><span class="t-ok">✓ context loaded · picking up where you left off</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="section-divider"></div>
+<hr class="rule">
 
-<!-- PROBLEM -->
-<section class="problem" id="problem">
-  <div class="fade-in">
-    <div class="section-label">
-      <i data-lucide="alert-circle" width="12" height="12"></i> The problem
+<!-- ─────────── problem ─────────── -->
+<section id="problem" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>The problem</span><span>[01 / 06]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">AI is brilliant.<br>And painfully forgetful.</h2>
+      <p>Every new chat starts from zero. You re-explain the conventions, the reviewer preferences, the bug you already solved last week. Now multiply that by every repo you contribute to.</p>
     </div>
-    <h2 class="section-heading">AI is smart.<br>But painfully forgetful.</h2>
-  </div>
-  <div class="problem-grid">
-    <div class="fade-in">
-      <p class="problem-text">Every time you open a new chat to work on a PR, your AI assistant starts from zero. You re-explain the project conventions. You re-describe the reviewer preferences. You re-trace the same bug you already solved last week.</p>
-      <p class="problem-text" style="margin-top:var(--space-5)">Open-source contributors switch between 5, 10, even 20 repos. Each one has its own culture, its own quirks, its own people. No AI tool remembers any of it across sessions.</p>
-      <p class="problem-text" style="margin-top:var(--space-5)">Fossel fixes this. Permanently.</p>
+
+    <div class="compare">
+      <div class="compare-card bad fade-in">
+        <div class="compare-eyebrow">The default</div>
+        <h3>Stateless chat</h3>
+        <ul class="compare-list">
+          <li><i data-lucide="x" width="14" height="14"></i> New chat = blank slate. Re-explain everything.</li>
+          <li><i data-lucide="x" width="14" height="14"></i> Context window truncates older messages silently.</li>
+          <li><i data-lucide="x" width="14" height="14"></i> Switch from Cursor to Claude Desktop, lose history.</li>
+          <li><i data-lucide="x" width="14" height="14"></i> Reviewer patterns and team norms live only in your head.</li>
+        </ul>
+      </div>
+      <div class="compare-card good fade-in">
+        <div class="compare-eyebrow">With Fossel</div>
+        <h3>Memory that just works</h3>
+        <ul class="compare-list">
+          <li><i data-lucide="check" width="14" height="14"></i> Say <code>remember this</code>. Fossel infers type, tags, and repo.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> One canonical repo key — aliases collapse automatically.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> Same memory across Cursor, Claude Desktop, any MCP client.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> SQLite + FTS5 on your laptop. Zero cloud, zero accounts.</li>
+        </ul>
+      </div>
     </div>
-    <ul class="pain-list fade-in" role="list">
-      <li class="pain-item">
-        <i data-lucide="rotate-ccw" width="16" height="16" class="pain-icon"></i>
-        <div>
-          <div class="pain-title">Endless re-explaining</div>
-          <div class="pain-desc">New chat = blank slate. You type the same codebase context every single session.</div>
-        </div>
-      </li>
-      <li class="pain-item">
-        <i data-lucide="scissors" width="16" height="16" class="pain-icon"></i>
-        <div>
-          <div class="pain-title">Context window cuts off</div>
-          <div class="pain-desc">Long sessions silently truncate older context. The AI forgets what you said 2 hours ago.</div>
-        </div>
-      </li>
-      <li class="pain-item">
-        <i data-lucide="shuffle" width="16" height="16" class="pain-icon"></i>
-        <div>
-          <div class="pain-title">Tool switching = memory loss</div>
-          <div class="pain-desc">Move from Cursor to Claude Desktop? Start over. No shared history between tools.</div>
-        </div>
-      </li>
-      <li class="pain-item">
-        <i data-lucide="users" width="16" height="16" class="pain-icon"></i>
-        <div>
-          <div class="pain-title">Onboarding teammates is painful</div>
-          <div class="pain-desc">6 months of accumulated knowledge lives in your head. No way to share it.</div>
-        </div>
-      </li>
-    </ul>
   </div>
 </section>
 
-<div class="section-divider"></div>
+<hr class="rule">
 
-<!-- HOW IT WORKS -->
-<section class="how" id="how">
-  <div class="how-inner">
-    <div class="fade-in">
-      <div class="section-label">
-        <i data-lucide="cpu" width="12" height="12"></i> How it works
-      </div>
-      <h2 class="section-heading">Simple by design.<br>Powerful in practice.</h2>
+<!-- ─────────── how it works ─────────── -->
+<section id="how" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>How it works</span><span>[02 / 06]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">Four primitives.<br>One local file.</h2>
+      <p>Fossel sits in <code>~/.fossel/memory.db</code>. Migrations run on startup. Every tool is non-breaking; the simple ones are enough for 80% of cases.</p>
     </div>
+
     <div class="steps">
       <div class="step fade-in">
-        <div class="step-num">01</div>
-        <div class="step-icon"><i data-lucide="download" width="18" height="18"></i></div>
-        <h3>Install in 30 seconds</h3>
-        <p>Run <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">npx -y fossel init</code> for guided setup, then use <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">npx -y fossel</code> as your MCP server. No accounts, no cloud, no data leaving your machine.</p>
+        <div class="step-num"><span>01</span> &nbsp;·&nbsp; INSTALL</div>
+        <h3>30 seconds, no global install</h3>
+        <p>One <code>npx</code> command sets up the local database, prints the MCP config snippet for Cursor and Claude Desktop, and runs migrations.</p>
+        <div class="step-code"><span class="accent">$</span> npx -y fossel init</div>
       </div>
       <div class="step fade-in">
-        <div class="step-num">02</div>
-        <div class="step-icon"><i data-lucide="brain" width="18" height="18"></i></div>
-        <h3>Just say "remember this"</h3>
-        <p>The <code style="font-family:var(--font-mono);font-size:0.9em;color:var(--color-primary)">remember</code> tool auto-infers the memory type, generates tags, and merges near-duplicates so you never store the same idea twice. SQLite + FTS5 under the hood.</p>
+        <div class="step-num"><span>02</span> &nbsp;·&nbsp; REMEMBER</div>
+        <h3>Natural-language save</h3>
+        <p>The <code>remember</code> tool auto-infers <code>memory_type</code>, generates 2–5 tags, resolves the repo, and merges near-duplicates instead of creating a second row.</p>
+        <div class="step-code">remember(<span class="accent">"JWT lives in localStorage; 401 → /login"</span>)</div>
       </div>
       <div class="step fade-in">
-        <div class="step-num">03</div>
-        <div class="step-icon"><i data-lucide="sparkles" width="18" height="18"></i></div>
-        <h3>Context loads on every chat</h3>
-        <p>One canonical repo key per workspace — aliases like <code style="font-family:var(--font-mono);font-size:0.9em">studentmanager</code> and <code style="font-family:var(--font-mono);font-size:0.9em">owner/student-manager</code> collapse automatically. Fossel surfaces pinned + recent + matching memories on every new chat.</p>
+        <div class="step-num"><span>03</span> &nbsp;·&nbsp; RETRIEVE</div>
+        <h3>Pinned, recent, matching</h3>
+        <p><code>get_context</code> returns pinned first, then recent, then FTS matches when a query is provided. Default limit is tuned for direct LLM injection.</p>
+        <div class="step-code">get_context({ query: <span class="accent">"auth"</span> })</div>
+      </div>
+      <div class="step fade-in">
+        <div class="step-num"><span>04</span> &nbsp;·&nbsp; STAY CLEAN</div>
+        <h3>Dedupe and doctor</h3>
+        <p><code>dedupe_repo</code> merges near-duplicates with a changelog audit trail. <code>fossel doctor --fix</code> cleans repo-key sprawl, stale alias mentions, and exact duplicates in one shot.</p>
+        <div class="step-code"><span class="accent">$</span> npx -y fossel doctor --fix</div>
+      </div>
+    </div>
+
+    <div class="stats fade-in">
+      <div>
+        <div class="stat-num"><em>&lt;100ms</em></div>
+        <div class="stat-lbl">get_context · 1k memories</div>
+      </div>
+      <div>
+        <div class="stat-num"><em>0</em></div>
+        <div class="stat-lbl">cloud calls</div>
+      </div>
+      <div>
+        <div class="stat-num"><em>30+</em></div>
+        <div class="stat-lbl">unit tests · CI gated</div>
+      </div>
+      <div>
+        <div class="stat-num"><em>MIT</em></div>
+        <div class="stat-lbl">open-source license</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- MEMORIES -->
-<section class="memories" id="memories">
-  <div class="fade-in">
-    <div class="section-label">
-      <i data-lucide="layers" width="12" height="12"></i> Memory types
+<hr class="rule">
+
+<!-- ─────────── memory types ─────────── -->
+<section id="types" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>Memory types</span><span>[03 / 06]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">Every kind of<br>repo knowledge.</h2>
+      <p>Fossel auto-classifies into one of six types so retrieval can group by intent. Override the inferred type when you want — the tools still accept explicit values.</p>
     </div>
-    <h2 class="section-heading">Every kind of knowledge,<br>preserved.</h2>
-  </div>
-  <div class="memory-grid">
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="book-open" width="10" height="10"></i>&nbsp;convention</div>
-      <h3>Coding Conventions</h3>
-      <p>Uses Blaze, not React. Components live in <code style="font-family:var(--font-mono);font-size:0.85em">client/</code>. Avoid TypeScript generics in PR descriptions.</p>
-      <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;RocketChat/Rocket.Chat</div>
-    </div>
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="user-check" width="10" height="10"></i>&nbsp;reviewer_pattern</div>
-      <h3>Reviewer Preferences</h3>
-      <p>Guilherme Gazzo prefers PRs under 200 lines. Sing Li always asks for edge case tests. Don't merge without approval from both.</p>
-      <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;RocketChat/Rocket.Chat</div>
-    </div>
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="bug" width="10" height="10"></i>&nbsp;bug_fix</div>
-      <h3>Bug Fixes & Root Causes</h3>
-      <p>Subscription calls in RoomHeaderToolbar need debouncing — fires 3× on re-render without it. Fixed with 200ms delay.</p>
-      <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;RocketChat/Rocket.Chat</div>
-    </div>
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="compass" width="10" height="10"></i>&nbsp;decision</div>
-      <h3>Architectural Decisions</h3>
-      <p>Decided NOT to use Prisma here — too much overhead for the read-heavy query pattern. Sticking with raw SQL.</p>
-      <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;expressjs/express</div>
-    </div>
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="hash" width="10" height="10"></i>&nbsp;issue</div>
-      <h3>Issue Context</h3>
-      <p>Issue #892 — tried fixing in RoomHeader.js but conflicted with i18n module. Next step: try RoomHeaderToolbar.js instead.</p>
-      <div class="memory-repo"><i data-lucide="git-branch" width="10" height="10"></i>&nbsp;RocketChat/Rocket.Chat</div>
-    </div>
-    <div class="memory-card fade-in">
-      <div class="memory-tag"><i data-lucide="pin" width="10" height="10"></i>&nbsp;pin_memory</div>
-      <h3>Pinned Priorities</h3>
-      <p>Pin critical memories so they always appear first in repo context. Keep high-impact conventions and decisions impossible to miss.</p>
-      <div class="memory-repo"><i data-lucide="users" width="10" height="10"></i>&nbsp;Any repo · Priority context</div>
+
+    <div class="feat-grid">
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="book-open" width="11" height="11"></i> convention</span>
+        <h3>Coding conventions</h3>
+        <p>Uses Blaze, not React. Components live in <code>client/</code>. Avoid TypeScript generics in PR descriptions.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="user-check" width="11" height="11"></i> reviewer_pattern</span>
+        <h3>Reviewer preferences</h3>
+        <p>Reviewer A wants PRs under 200 lines. Reviewer B asks for edge-case tests. Don't merge without both.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="bug" width="11" height="11"></i> bug_fix</span>
+        <h3>Bug fixes & root causes</h3>
+        <p>Subscription calls in the toolbar fired 3× on re-render without debouncing. Fixed with a 200ms delay.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="compass" width="11" height="11"></i> decision</span>
+        <h3>Architectural decisions</h3>
+        <p>Decided NOT to use Prisma here — too much overhead for the read-heavy query pattern. Sticking with raw SQL.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="hash" width="11" height="11"></i> issue</span>
+        <h3>Issue context</h3>
+        <p>Issue #892 — tried fixing in <code>RoomHeader.js</code> but conflicts with the i18n module. Try <code>Toolbar.js</code> next.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="layers" width="11" height="11"></i> general</span>
+        <h3>Anything else</h3>
+        <p>Notes that don't fit cleanly anywhere else still get FTS-searchable, repo-scoped, and pinnable.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<div class="section-divider"></div>
+<hr class="rule">
 
-<!-- INSTALL -->
-<section class="install" id="install">
-  <div class="install-inner">
-    <div class="fade-in">
-      <div class="section-label">
-        <i data-lucide="terminal" width="12" height="12"></i> Installation
-      </div>
-      <h2 class="section-heading">Up in 30 seconds.<br>Works everywhere.</h2>
+<!-- ─────────── install ─────────── -->
+<section id="install" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>Install</span><span>[04 / 06]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">Up in 30 seconds.<br>Works everywhere.</h2>
+      <p>Node.js 18+ is the only requirement. Data lives in <code>~/.fossel/memory.db</code> (override with <code>FOSSEL_DB_PATH</code>). Set <code>FOSSEL_WORKSPACE</code> in your MCP config to pin Fossel to the right project root.</p>
     </div>
-    <div class="install-grid">
-      <div class="install-steps fade-in">
-        <div class="install-step">
-          <div class="install-step-num">1</div>
-          <div class="install-step-body">
+
+    <div class="split">
+      <div class="install-list fade-in">
+        <div class="install-item">
+          <span class="install-pill">1</span>
+          <div>
             <h4>Initialize via npx</h4>
-            <p>No global install needed. Works with Node.js 18+. All data stored locally at <code style="font-family:var(--font-mono);font-size:0.9em">~/.fossel/memory.db</code>.</p>
+            <p>No global install needed. Detects your canonical repo key, prints copy-paste MCP config, and inserts a starter memory if the DB is empty.</p>
           </div>
         </div>
-        <div class="install-step">
-          <div class="install-step-num">2</div>
-          <div class="install-step-body">
-            <h4>Use generated MCP config</h4>
-            <p>Copy the Cursor and Claude Desktop snippets printed by <code style="font-family:var(--font-mono);font-size:0.9em">fossel init</code>, then restart your tool once.</p>
+        <div class="install-item">
+          <span class="install-pill">2</span>
+          <div>
+            <h4>Paste the MCP config</h4>
+            <p>Drop the JSON into Cursor's <code>~/.cursor/mcp.json</code> or Claude Desktop settings. Restart the client once.</p>
           </div>
         </div>
-        <div class="install-step">
-          <div class="install-step-num">3</div>
-          <div class="install-step-body">
-            <h4>Talk to your repo, naturally</h4>
-            <p>Ask <em>"what does Fossel remember about auth here?"</em> or say <em>"remember: API base URL is /api/v2"</em>. No type or tags required. Power tools (<code style="font-family:var(--font-mono);font-size:0.9em">store_context</code>, <code style="font-family:var(--font-mono);font-size:0.9em">pin_memory</code>, <code style="font-family:var(--font-mono);font-size:0.9em">summarize_repo_context</code>) stay available when you want them.</p>
+        <div class="install-item">
+          <span class="install-pill">3</span>
+          <div>
+            <h4>Talk to your repo</h4>
+            <p>Ask "what does Fossel remember about auth here?" or say "remember: API base is /api/v2." No type or tags required.</p>
+          </div>
+        </div>
+        <div class="install-item">
+          <span class="install-pill">4</span>
+          <div>
+            <h4>Stay tidy</h4>
+            <p>Run <code>npx fossel doctor</code> any time to spot duplicate clusters, repo-key sprawl, or stale alias mentions. Add <code>--fix</code> to auto-clean.</p>
           </div>
         </div>
       </div>
+
       <div class="fade-in" style="display:flex;flex-direction:column;gap:var(--space-4)">
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>Terminal</span>
-            <button class="copy-btn" onclick="copyCode(this, 'npx -y fossel init')">
-              <i data-lucide="copy" width="11" height="11"></i> copy
-            </button>
+        <div class="code">
+          <div class="code-head">
+            <div class="code-tabs" data-tabs="onboard">
+              <button class="code-tab active" data-tab="install">terminal</button>
+              <button class="code-tab" data-tab="cursor">cursor mcp</button>
+              <button class="code-tab" data-tab="claude">claude desktop</button>
+            </div>
+            <button class="code-copy" onclick="copyActiveTab(this)"><i data-lucide="copy" width="11" height="11"></i> copy</button>
           </div>
-          <pre><span class="kw">$</span> npx -y fossel init
-<span class="t-success" style="color:#6daa45">✓ Fossel initialized for this repo</span>
-<span class="cmt">  Generated MCP config snippets</span>
-<span class="cmt">  Created sample convention memory</span></pre>
-        </div>
-        <div class="code-block">
-          <div class="code-block-header">
-            <span>~/.cursor/mcp.json</span>
-            <button class="copy-btn" onclick="copyCode(this, JSON.stringify({mcpServers:{fossel:{command:'npx',args:['-y','fossel']}}},null,2))">
-              <i data-lucide="copy" width="11" height="11"></i> copy
-            </button>
+
+          <div class="panel active" data-panel="install">
+<pre><span class="kw">$</span> npx -y fossel init
+<span class="cmt"># Canonical repo key: 7vignesh/fossel</span>
+<span class="cmt">#   source: git-remote</span>
+<span class="cmt">#   git remote: https://github.com/7vignesh/fossel.git</span>
+<span class="cmt">#</span>
+<span class="cmt"># MCP config printed below — paste into your client.</span>
+<span class="cmt"># DB path: ~/.fossel/memory.db</span></pre>
           </div>
-          <pre>{
+
+          <div class="panel" data-panel="cursor">
+<pre>{
   <span class="key">"mcpServers"</span>: {
     <span class="key">"fossel"</span>: {
       <span class="key">"command"</span>: <span class="str">"npx"</span>,
-      <span class="key">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"fossel"</span>]
+      <span class="key">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"fossel"</span>],
+      <span class="key">"env"</span>: {
+        <span class="key">"FOSSEL_WORKSPACE"</span>: <span class="str">"${workspaceFolder}"</span>
+      }
     }
   }
 }</pre>
+          </div>
+
+          <div class="panel" data-panel="claude">
+<pre>{
+  <span class="key">"mcpServers"</span>: {
+    <span class="key">"fossel"</span>: {
+      <span class="key">"command"</span>: <span class="str">"npx"</span>,
+      <span class="key">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"fossel"</span>],
+      <span class="key">"env"</span>: {
+        <span class="key">"FOSSEL_WORKSPACE"</span>: <span class="str">"/path/to/your/project"</span>
+      }
+    }
+  }
+}</pre>
+          </div>
+        </div>
+
+        <div class="code">
+          <div class="code-head">
+            <span style="font-family:var(--font-mono);font-size:var(--text-xs)">first call · in chat</span>
+            <button class="code-copy" onclick="copyText(this, 'remember: API base URL is /api/v2 and 401 redirects to /login')"><i data-lucide="copy" width="11" height="11"></i> copy</button>
+          </div>
+<pre><span class="cmt"># Just paste this into Cursor or Claude.</span>
+remember: API base URL is /api/v2
+and 401 redirects to /login</pre>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- TOOLS -->
-<section class="tools" id="tools">
-  <div class="fade-in">
-    <div class="section-label">
-      <i data-lucide="wrench" width="12" height="12"></i> MCP tools
+<hr class="rule">
+
+<!-- ─────────── tools ─────────── -->
+<section id="tools" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>MCP tools</span><span>[05 / 06]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">Twelve tools.<br>Two for daily use.</h2>
+      <p><code>remember</code> and <code>get_context</code> cover the 80% case. The rest are still here for power users — explicit saves, pinning, search with FTS, and maintenance commands.</p>
     </div>
-    <h2 class="section-heading">Built-in tools.<br>Ready now.</h2>
+
+    <div class="tool-grid">
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">remember</span><span class="tool-status new">new</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">get_context</span><span class="tool-status new">new</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status new">new</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status new">new</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">store_context</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">ready</span></div>
+      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">ready</span></div>
+    </div>
+
+    <p style="margin-top: var(--space-8); font-size: var(--text-sm); color: var(--text-muted);">
+      Works in Cursor, Claude Desktop, and any stdio MCP client. <a href="https://github.com/7vignesh/fossel#readme" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: none;">Full tool reference →</a>
+    </p>
   </div>
-  <div class="tools-grid">
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">remember</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">get_context</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status">✓ new</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">store_context</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">✓ ready</span></div>
-    <div class="tool-pill fade-in"><span class="tool-pill-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">✓ ready</span></div>
-  </div>
-  <p class="fade-in" style="margin-top:var(--space-8);font-size:var(--text-sm);color:var(--color-text-muted)">
-    Works in Cursor, Claude Desktop, and any MCP-compatible client over stdio.
-  </p>
 </section>
 
-<div class="section-divider"></div>
+<hr class="rule">
 
-<!-- CTA -->
-<section class="cta-section">
-  <div class="fade-in">
-    <h2>Stop re-explaining.<br><em style="font-family:var(--font-display);font-style:italic">Start building.</em></h2>
-    <p>Free, open-source, and fully local. Your memories never leave your machine.</p>
+<!-- ─────────── final CTA ─────────── -->
+<section class="cta">
+  <div class="cta-inner">
+    <div class="chapter" style="margin: 0 auto var(--space-6); justify-self: center;"><span>Ship it</span><span>[06 / 06]</span></div>
+    <h2 class="display">Stop re-explaining.<br><em>Start building.</em></h2>
+    <p>Free, open-source, fully local. Your memories never leave your machine.</p>
     <div class="cta-btns">
-      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn-primary">
-        <i data-lucide="github" width="15" height="15"></i> View on GitHub
-      </a>
-      <a href="#install" class="btn-ghost">
-        <i data-lucide="book-open" width="15" height="15"></i> Read the docs
-      </a>
+      <a href="#install" class="btn btn-accent"><i data-lucide="terminal" width="14" height="14"></i> Install Fossel</a>
+      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer" class="btn btn-ghost"><i data-lucide="github" width="14" height="14"></i> Read the source</a>
     </div>
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- ─────────── footer ─────────── -->
 <footer>
-  <a href="#" class="footer-logo">
-    <svg width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-      <circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
-      <circle cx="14" cy="14" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M14 7 C10 9 8 12 10 14 C12 16 16 16 18 14 C20 12 18 9 14 7Z" fill="currentColor" opacity="0.8"/>
-      <circle cx="14" cy="14" r="2" fill="var(--color-bg)"/>
-    </svg>
-    Fossel
-  </a>
-  <div class="footer-links">
-    <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer">GitHub</a>
-    <a href="#install">Docs</a>
-    <a href="#how">How it works</a>
+  <div class="foot">
+    <a href="#" class="brand" style="font-size: var(--text-base);"><span class="brand-mark">Fo</span> Fossel</a>
+    <div class="links">
+      <a href="https://github.com/7vignesh/fossel" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://www.npmjs.com/package/fossel" target="_blank" rel="noopener noreferrer">npm</a>
+      <a href="https://github.com/7vignesh/fossel/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
+      <a href="https://github.com/7vignesh/fossel/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+    </div>
+    <span>MIT · © Fossel</span>
   </div>
-  <span class="footer-copy">Open-source · MIT License</span>
 </footer>
 
 <script>
-(function(){
-  const t = document.querySelector('[data-theme-toggle]');
-  const r = document.documentElement;
-  let d = localStorage ? null : null;
-  d = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  // default to dark for dev tools
-  d = 'dark';
-  r.setAttribute('data-theme', d);
-  if(t) t.addEventListener('click', () => {
-    d = d === 'dark' ? 'light' : 'dark';
-    r.setAttribute('data-theme', d);
-    t.innerHTML = d === 'dark'
-      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
-      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
-  });
+(function() {
+  const root = document.documentElement;
+  const toggle = document.querySelector('[data-theme-toggle]');
+  const STORAGE_KEY = 'fossel-theme';
+
+  function readTheme() {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch (_) {}
+    return matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function paintIcon(theme) {
+    if (!toggle) return;
+    const moon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+    const sun  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
+    toggle.innerHTML = theme === 'dark' ? moon : sun;
+  }
+
+  function setTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    paintIcon(theme);
+    try { localStorage.setItem(STORAGE_KEY, theme); } catch (_) {}
+  }
+
+  setTheme(readTheme());
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+    });
+  }
 })();
 
-function copyCode(btn, text) {
+// Tabbed code blocks (cursor / claude / terminal panels).
+document.querySelectorAll('.code-tabs').forEach((tabs) => {
+  const code = tabs.closest('.code');
+  tabs.querySelectorAll('.code-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      tabs.querySelectorAll('.code-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.getAttribute('data-tab');
+      code.querySelectorAll('.panel').forEach((panel) => {
+        panel.classList.toggle('active', panel.getAttribute('data-panel') === target);
+      });
+    });
+  });
+});
+
+function copyText(btn, text) {
   navigator.clipboard.writeText(text).then(() => {
+    const original = btn.innerHTML;
     btn.innerHTML = '<i data-lucide="check" width="11" height="11"></i> copied';
-    lucide.createIcons();
+    if (window.lucide) window.lucide.createIcons();
     setTimeout(() => {
-      btn.innerHTML = '<i data-lucide="copy" width="11" height="11"></i> copy';
-      lucide.createIcons();
-    }, 2000);
+      btn.innerHTML = original;
+      if (window.lucide) window.lucide.createIcons();
+    }, 1600);
   });
 }
 
-lucide.createIcons();
+function copyActiveTab(btn) {
+  const code = btn.closest('.code');
+  const active = code.querySelector('.panel.active pre');
+  if (!active) return;
+  copyText(btn, active.innerText);
+}
+
+if (window.lucide) window.lucide.createIcons();
 </script>
+
 </body>
 </html>
