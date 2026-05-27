@@ -551,9 +551,20 @@
       border-radius: var(--radius-md);
       background: var(--surface);
       font-size: var(--text-sm);
-      transition: border-color var(--transition);
+      transition: border-color var(--transition), background var(--transition), color var(--transition);
+      text-align: left;
+      cursor: pointer;
+      width: 100%;
+      font-family: inherit;
+      color: var(--text);
     }
     .tool:hover { border-color: var(--border-hi); }
+    .tool[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+    .tool[aria-pressed="true"] .tool-status,
+    .tool[aria-pressed="true"] .tool-name { color: var(--text); }
     .tool-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
     .tool-name { font-family: var(--font-mono); font-size: var(--text-xs); }
     .tool-status {
@@ -564,6 +575,55 @@
       text-transform: uppercase;
     }
     .tool-status.new { color: var(--accent); }
+
+    /* tool detail panel */
+    .tool-detail {
+      margin-top: var(--space-6);
+      padding: var(--space-6);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-6);
+      align-items: start;
+    }
+    @media (max-width: 760px) { .tool-detail { grid-template-columns: 1fr; } }
+    .tool-detail-head {
+      display: flex; align-items: center; gap: var(--space-3);
+      margin-bottom: var(--space-3);
+      flex-wrap: wrap;
+    }
+    .tool-detail-name {
+      font-family: var(--font-mono); font-size: var(--text-base);
+      color: var(--text);
+    }
+    .tool-detail-tag {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: var(--radius-full);
+      background: var(--accent-soft); color: var(--accent);
+    }
+    .tool-detail-tag.muted { background: var(--surface-2); color: var(--text-muted); }
+    .tool-detail p {
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+      line-height: 1.65;
+      max-width: none;
+      margin: 0;
+    }
+    .tool-detail-example {
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg);
+      border: 1px solid var(--divider);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      color: var(--text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .tool-detail-example .accent { color: var(--accent); }
+    .tool-detail-example .cmt { color: var(--text-faint); }
 
     /* ─────────── divider ─────────── */
     .rule {
@@ -975,19 +1035,33 @@ and 401 redirects to /login</pre>
       <p><code>remember</code> and <code>get_context</code> cover the 80% case. The rest are still here for power users — explicit saves, pinning, search with FTS, and maintenance commands.</p>
     </div>
 
-    <div class="tool-grid">
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">remember</span><span class="tool-status new">new</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">get_context</span><span class="tool-status new">new</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status new">new</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status new">new</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">store_context</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">ready</span></div>
-      <div class="tool fade-in"><span class="tool-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">ready</span></div>
+    <div class="tool-grid" role="tablist" aria-label="Fossel MCP tools">
+      <button class="tool fade-in" data-tool="remember" role="tab" aria-pressed="true"><span class="tool-dot"></span><span class="tool-name">remember</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="get_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">get_context</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="resolve_repo" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="dedupe_repo" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="store_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">store_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="get_repo_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="search_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="summarize_repo_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="pin_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="unpin_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="update_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="delete_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">ready</span></button>
+    </div>
+
+    <div class="tool-detail" role="tabpanel" aria-live="polite" id="tool-detail">
+      <div>
+        <div class="tool-detail-head">
+          <span class="tool-detail-name" data-detail="name">remember</span>
+          <span class="tool-detail-tag" data-detail="tag">new</span>
+        </div>
+        <p data-detail="desc">Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, and merges near-duplicates instead of storing them twice.</p>
+      </div>
+      <div>
+        <div class="tool-detail-example" data-detail="example"><span class="cmt"># in chat</span>
+remember: <span class="accent">JWT lives in localStorage; 401 → /login</span></div>
+      </div>
     </div>
 
     <p style="margin-top: var(--space-8); font-size: var(--text-sm); color: var(--text-muted);">
@@ -1075,6 +1149,97 @@ document.querySelectorAll('.code-tabs').forEach((tabs) => {
     });
   });
 });
+
+// Tool detail panel: a single panel updates as the user clicks a tool button.
+const TOOL_INFO = {
+  remember: {
+    tag: 'new',
+    desc: 'Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, and merges near-duplicates instead of storing them twice.',
+    example: '<span class="cmt"># in chat</span>\nremember: <span class="accent">JWT lives in localStorage; 401 → /login</span>'
+  },
+  get_context: {
+    tag: 'new',
+    desc: 'Unified retrieval. Returns pinned memories first, then recent ones, then FTS matches when a query is provided. Default limit is tuned for direct LLM-context injection.',
+    example: 'get_context({ query: <span class="accent">"auth"</span>, format: <span class="accent">"markdown"</span> })'
+  },
+  resolve_repo: {
+    tag: 'new',
+    desc: 'Show which canonical repo key Fossel will target for the current workspace, plus its aliases and detected git remote. Useful when memories seem to land in the wrong place.',
+    example: 'resolve_repo()\n<span class="cmt"># → { canonical: "owner/repo", aliases: [...], gitRemote }</span>'
+  },
+  dedupe_repo: {
+    tag: 'new',
+    desc: 'Scan a repo for near-duplicate memories. Dry-run by default; pass apply=true to merge with a changelog entry written to metadata_json.',
+    example: 'dedupe_repo({ apply: <span class="accent">true</span>, threshold: <span class="accent">0.85</span> })'
+  },
+  store_context: {
+    tag: 'ready',
+    desc: 'Explicit save with memory_type and tags. Prefer remember for everyday use; reach for store_context when you want full control.',
+    example: 'store_context({ type: <span class="accent">"convention"</span>,\n  note: <span class="accent">"Use pnpm workspaces"</span>,\n  tags: [<span class="accent">"pnpm"</span>] })'
+  },
+  get_repo_context: {
+    tag: 'ready',
+    desc: 'Recent memories for the current repo, grouped by memory_type and headed by pinned items. Good when you want a structured overview rather than ranked context.',
+    example: 'get_repo_context({ limit: <span class="accent">10</span> })'
+  },
+  search_memory: {
+    tag: 'ready',
+    desc: 'Full-text search across notes with optional repo filter. Tokenizes punctuation-heavy queries (e.g. /api/auth) and falls back to recent + pinned context if there are no exact matches.',
+    example: 'search_memory({ query: <span class="accent">"/api/auth jwt"</span> })'
+  },
+  summarize_repo_context: {
+    tag: 'ready',
+    desc: 'Generate a markdown brief of all memories for a repo, grouped by type with pinned items at the top. PR-ready. Drop directly into a description.',
+    example: 'summarize_repo_context({ repo: <span class="accent">"owner/repo"</span> })'
+  },
+  pin_memory: {
+    tag: 'ready',
+    desc: 'Pin a memory so it always appears first in get_context and get_repo_context. Accepts numeric row id or legacy string id.',
+    example: 'pin_memory({ id: <span class="accent">12</span> })'
+  },
+  unpin_memory: {
+    tag: 'ready',
+    desc: 'Reverse a pin. Same id format as pin_memory; the row stays in the database, it just stops floating to the top.',
+    example: 'unpin_memory({ id: <span class="accent">12</span> })'
+  },
+  update_memory: {
+    tag: 'ready',
+    desc: 'Edit an existing memory by id. Pass content, memory_type, or both. note_normalized is updated automatically so dedupe stays accurate.',
+    example: 'update_memory({ id: <span class="accent">12</span>,\n  content: <span class="accent">"Use pnpm @ workspace root only"</span> })'
+  },
+  delete_memory: {
+    tag: 'ready',
+    desc: 'Remove a memory permanently. Accepts either the numeric row id or the legacy string id, so paste whichever you have in front of you.',
+    example: 'delete_memory({ id: <span class="accent">12</span> })'
+  }
+};
+
+(function() {
+  const buttons = document.querySelectorAll('.tool[data-tool]');
+  const nameEl    = document.querySelector('[data-detail="name"]');
+  const tagEl     = document.querySelector('[data-detail="tag"]');
+  const descEl    = document.querySelector('[data-detail="desc"]');
+  const exampleEl = document.querySelector('[data-detail="example"]');
+  if (!buttons.length || !nameEl || !descEl || !exampleEl || !tagEl) return;
+
+  function selectTool(name) {
+    const info = TOOL_INFO[name];
+    if (!info) return;
+    nameEl.textContent = name;
+    descEl.textContent = info.desc;
+    exampleEl.innerHTML = info.example;
+    tagEl.textContent = info.tag;
+    tagEl.classList.toggle('muted', info.tag !== 'new');
+
+    buttons.forEach((btn) => {
+      btn.setAttribute('aria-pressed', btn.dataset.tool === name ? 'true' : 'false');
+    });
+  }
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => selectTool(btn.dataset.tool));
+  });
+})();
 
 function copyText(btn, text) {
   navigator.clipboard.writeText(text).then(() => {
