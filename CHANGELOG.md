@@ -2,6 +2,52 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [1.1.1] - Phase 1 follow-ups: workspace pinning, ID parity, smarter search
+
+### Fixed
+
+- **Repo resolution under wrong cwd** — added `FOSSEL_WORKSPACE` environment
+  variable. The MCP server uses it as its workspace root before falling back
+  to `process.cwd()`. The MCP config snippet printed by `fossel init` now
+  includes `FOSSEL_WORKSPACE: "${workspaceFolder}"` so Cursor and Claude
+  Desktop pin Fossel to the right project even when they spawn the server
+  from another directory.
+- **Stale text after alias merge** — `mergeRepoKeys` now rewrites note text
+  that mentions a deprecated repo key, with the original text preserved in
+  `metadata_json.changelog`. `fossel doctor` flags any remaining stale
+  mentions.
+- **`search_memory` empty results on punctuation-heavy queries** — the FTS
+  query is now built from sanitized tokens (paths like `/api/auth` split into
+  `["api", "auth"]`). When the AND query misses, the tool retries with OR;
+  when both miss but the repo has memories, it falls back to pinned + recent
+  context with a clear "no exact match" header.
+- **Inconsistent ID types** — `delete_memory`, `pin_memory`, `unpin_memory`,
+  and `update_memory` now accept either numeric `row_id` or the legacy
+  string `id`. A new shared `findMemoryByAnyId` helper handles both.
+- **Read-time duplicates in `get_context`** — `fetchRepoContext` collapses
+  rows whose normalized note text matches, so a missed dedupe on storage
+  doesn't surface as duplicate context lines for the LLM.
+- **Outdated starter memory text** — `fossel init` seeds a fresh convention
+  pointing users at `remember` and `get_context` instead of the older tools.
+
+### Added
+
+- **`fossel doctor --fix`** — applies safe automated fixes in one shot:
+  merges sibling repo keys, rewrites stale alias mentions, and removes
+  exact-text duplicates.
+- **`fossel init --no-dedupe`** — opt out of the new automatic exact-duplicate
+  cleanup that runs at the end of `init`.
+- **`lib/workspace.ts`** — single helper (`getWorkspaceRoot`) used by every
+  tool so future workspace-detection changes stay in one place.
+- **`lib/memory.ts`** — `findMemoryByAnyId` shared helper used by all id-aware
+  tools.
+
+### Compatibility
+
+- No schema migrations in this release; existing databases continue to work.
+- All tool signatures are backwards-compatible. Numeric ID schemas widened to
+  `number | string` so previous numeric callers keep working.
+
 ## [1.1.0] - Phase 1: ambient memory
 
 ### Added

@@ -169,10 +169,15 @@ Reports on:
 
 - canonical repo key for the workspace
 - sibling keys that look like the same repo (offers a fix)
-- exact-duplicate memory clusters (suggest `dedupe_repo`)
+- exact-duplicate memory clusters (suggests `fossel doctor --fix` or `dedupe_repo`)
+- memory notes that still mention deprecated repo keys
 - detected MCP config files
 
-Exits non-zero when issues are found so it can run in CI.
+Pass `--fix` to apply safe automated cleanup in one go: merge sibling repo keys, rewrite stale alias mentions, and remove exact-text duplicates. Without `--fix` it's read-only and exits non-zero on issues so it can run in CI.
+
+### `fossel init`
+
+`fossel init` auto-deduplicates exact duplicate memories at the end of the run; pass `--no-dedupe` to opt out.
 
 ---
 
@@ -185,7 +190,10 @@ Exits non-zero when issues are found so it can run in CI.
   "mcpServers": {
     "fossel": {
       "command": "npx",
-      "args": ["-y", "fossel"]
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "${workspaceFolder}"
+      }
     }
   }
 }
@@ -198,11 +206,16 @@ Exits non-zero when issues are found so it can run in CI.
   "mcpServers": {
     "fossel": {
       "command": "npx",
-      "args": ["-y", "fossel"]
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "/absolute/path/to/your/project"
+      }
     }
   }
 }
 ```
+
+`FOSSEL_WORKSPACE` pins Fossel to your project root. Without it, the server falls back to `process.cwd()`, which is occasionally wrong — Cursor and Claude Desktop sometimes spawn MCP servers from your home directory, which would silently route memories to the wrong repo. Cursor expands `${workspaceFolder}` automatically; Claude Desktop needs an absolute path.
 
 ---
 

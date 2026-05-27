@@ -65,7 +65,6 @@ async function main(): Promise<void> {
     assertToolSuccess(storeResult, "store_context");
 
     const storedText = extractFirstText(storeResult);
-    const id = extractMemoryId(storedText);
     console.log("store_context:", storedText);
 
     // remember should auto-infer type/tags and store a fresh row.
@@ -94,6 +93,23 @@ async function main(): Promise<void> {
       throw new Error(`Expected merge but got: ${dedupedText}`);
     }
     console.log("remember (dedupe):", dedupedText);
+
+    // search_memory with a long, punctuation-heavy query should still surface
+    // results (tokenization splits /api/auth into ["api","auth"]).
+    const searchPathy = (await client.callTool({
+      name: "search_memory",
+      arguments: { query: "/api/auth jwt token", repo, limit: 5 },
+    })) as ToolResult;
+    assertToolSuccess(searchPathy, "search_memory (path query)");
+    console.log("search_memory (path query):", extractFirstText(searchPathy));
+
+    // pin_memory accepts numeric row_id.
+    const pinResult = (await client.callTool({
+      name: "pin_memory",
+      arguments: { id: 2 },
+    })) as ToolResult;
+    assertToolSuccess(pinResult, "pin_memory (numeric)");
+    console.log("pin_memory (numeric):", extractFirstText(pinResult));
 
     const getContextResult = (await client.callTool({
       name: "get_context",
@@ -132,10 +148,10 @@ async function main(): Promise<void> {
 
     const deleteResult = (await client.callTool({
       name: "delete_memory",
-      arguments: { id },
+      arguments: { id: 1 },
     })) as ToolResult;
-    assertToolSuccess(deleteResult, "delete_memory");
-    console.log("delete_memory:", extractFirstText(deleteResult));
+    assertToolSuccess(deleteResult, "delete_memory (numeric)");
+    console.log("delete_memory (numeric):", extractFirstText(deleteResult));
 
     console.log("Smoke test passed.");
   } finally {
