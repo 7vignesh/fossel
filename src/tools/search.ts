@@ -1,7 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
+import { fetchRepoContext } from "../lib/context.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 interface SearchRow extends MemoryRecord {
   rank: number;
@@ -13,18 +15,35 @@ const searchMemoryInputSchema = {
   limit: z.number().int().positive().max(50).default(5),
 };
 
-function normalizeFtsQuery(query: string): string {
-  const terms = query
-    .trim()
-    .split(/\s+/)
-    .map((term) => term.replaceAll('"', '""'))
-    .filter(Boolean);
+/**
+ * Tokenize a free-form query into FTS-safe terms. We strip punctuation, split
+ * on `/`, `_`, `-`, `.` so that paths like `/api/auth` and identifiers like
+ * `getUserName` produce useful search tokens. Tokens shorter than two chars
+ * (typical FTS noise) are dropped.
+ */
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/["()]/g, " ")
+    .split(/[\s/_\-.,;:!?]+/)
+    .map((token) => token.replace(/[^a-z0-9*]/g, ""))
+    .filter((token) => token.length >= 2);
+}
 
-  if (terms.length === 0) {
-    throw new Error("query must contain searchable text");
+function buildFtsQuery(tokens: string[]): string | null {
+  if (tokens.length === 0) {
+    return null;
   }
+  // Quote each token to prevent FTS from treating user input as syntax. AND
+  // gives narrow precision; for a backstop pass we'll fall back to OR.
+  return tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" AND ");
+}
 
-  return terms.map((term) => `"${term}"`).join(" AND ");
+function buildFtsQueryOr(tokens: string[]): string | null {
+  if (tokens.length === 0) {
+    return null;
+  }
+  return tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" OR ");
 }
 
 function parseTags(raw: string): string[] {
@@ -38,46 +57,89 @@ function parseTags(raw: string): string[] {
   }
 }
 
+function runFts(
+  ftsQuery: string,
+  resolvedRepo: string | undefined,
+  limit: number,
+): SearchRow[] {
+  const db = getDb();
+  try {
+    if (resolvedRepo) {
+      return db
+        .prepare(
+          `
+            SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags,
+                   m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
+            FROM memories_fts
+            JOIN memories AS m ON m.rowid = memories_fts.rowid
+            WHERE memories_fts MATCH ? AND m.repo = ?
+            ORDER BY rank
+            LIMIT ?
+          `,
+        )
+        .all(ftsQuery, resolvedRepo, limit) as SearchRow[];
+    }
+    return db
+      .prepare(
+        `
+          SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags,
+                 m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
+          FROM memories_fts
+          JOIN memories AS m ON m.rowid = memories_fts.rowid
+          WHERE memories_fts MATCH ?
+          ORDER BY rank
+          LIMIT ?
+        `,
+      )
+      .all(ftsQuery, limit) as SearchRow[];
+  } catch {
+    // FTS5 rejects some inputs (only-stop-character queries, leftover quote).
+    // Failing soft keeps the fallback path useful.
+    return [];
+  }
+}
+
 export function registerSearchMemoryTool(server: McpServer): void {
   server.registerTool(
     "search_memory",
     {
-      description: "Search memories using full-text search with optional repository filtering.",
+      description:
+        "Search memories using full-text search with optional repository filtering. Falls back to recent + pinned context when the query has no exact matches.",
       inputSchema: searchMemoryInputSchema,
     },
     async ({ query, repo, limit }) => {
       try {
         const db = getDb();
-        const ftsQuery = normalizeFtsQuery(query);
+        const tokens = tokenizeQuery(query);
         const resolvedRepo = repo
-          ? resolveRepoArg(repo, process.cwd(), db).canonical
+          ? resolveRepoArg(repo, getWorkspaceRoot(), db).canonical
           : undefined;
 
-        const rows = (resolvedRepo
-          ? db
-              .prepare(
-                `
-                  SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
-                  FROM memories_fts
-                  JOIN memories AS m ON m.rowid = memories_fts.rowid
-                  WHERE memories_fts MATCH ? AND m.repo = ?
-                  ORDER BY rank
-                  LIMIT ?
-                `,
-              )
-              .all(ftsQuery, resolvedRepo, limit)
-          : db
-              .prepare(
-                `
-                  SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags, m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
-                  FROM memories_fts
-                  JOIN memories AS m ON m.rowid = memories_fts.rowid
-                  WHERE memories_fts MATCH ?
-                  ORDER BY rank
-                  LIMIT ?
-                `,
-              )
-              .all(ftsQuery, limit)) as SearchRow[];
+        const andQuery = buildFtsQuery(tokens);
+        let rows: SearchRow[] = [];
+        if (andQuery) {
+          rows = runFts(andQuery, resolvedRepo, limit);
+        }
+
+        // Backstop: AND query missed but the user clearly typed something.
+        // Try OR before giving up so single-typo or extra-term queries still
+        // return useful results.
+        if (rows.length === 0 && tokens.length > 1) {
+          const orQuery = buildFtsQueryOr(tokens);
+          if (orQuery) {
+            rows = runFts(orQuery, resolvedRepo, limit);
+          }
+        }
+
+        // Last-resort fallback: surface pinned + recent for the resolved repo
+        // so a complex query never returns "no memories" when the repo has
+        // useful context. Only triggers when a repo is known.
+        let usedFallback = false;
+        if (rows.length === 0 && resolvedRepo) {
+          const fallback = fetchRepoContext(db, resolvedRepo, limit);
+          rows = fallback.map((row) => ({ ...row, rank: 0 }));
+          usedFallback = fallback.length > 0;
+        }
 
         if (rows.length === 0) {
           return {
@@ -101,11 +163,15 @@ export function registerSearchMemoryTool(server: McpServer): void {
           })
           .join("\n\n");
 
+        const header = usedFallback
+          ? `No exact match for "${query}"${resolvedRepo ? ` in ${resolvedRepo}` : ""}; showing recent + pinned context:`
+          : `Search results for "${query}"${resolvedRepo ? ` in ${resolvedRepo}` : ""}:`;
+
         return {
           content: [
             {
               type: "text",
-              text: `Search results for "${query}"${resolvedRepo ? ` in ${resolvedRepo}` : ""}:\n\n${formatted}`,
+              text: `${header}\n\n${formatted}`,
             },
           ],
         };
