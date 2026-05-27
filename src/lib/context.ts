@@ -34,6 +34,19 @@ export function parseTags(raw: string): string[] {
   }
 }
 
+/**
+ * Lightweight read-time normalizer used to collapse near-identical notes when
+ * rendering a context block. Mirrors `lib/dedupe.normalizeText` but is kept
+ * local so this module doesn't depend on the dedupe layer.
+ */
+function normalizeNoteForReadDedupe(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function buildFtsQuery(query: string): string | null {
   const terms = query
     .trim()
@@ -54,8 +67,10 @@ function buildFtsQuery(query: string): string | null {
  *   2. recent non-pinned
  *   3. FTS search hits when `query` is provided
  *
- * The returned rows are deduplicated by row_id while preserving the order
- * above so callers can format the result without further bookkeeping.
+ * The returned rows are deduplicated both by row_id and by normalized note
+ * text so the same idea never appears twice in a single context block, even
+ * if the database still has lingering near-duplicates that haven't been
+ * collapsed by `dedupe_repo`.
  */
 export function fetchRepoContext(
   db: Database.Database,
@@ -65,12 +80,24 @@ export function fetchRepoContext(
 ): ContextRow[] {
   const rows: ContextRow[] = [];
   const seen = new Set<number>();
+  const seenNormalized = new Set<string>();
 
   const push = (memory: MemoryRecord, source: ContextRow["source"], rank?: number) => {
     if (seen.has(memory.row_id)) {
       return;
     }
+    const normalized = normalizeNoteForReadDedupe(memory.note);
+    // Pinned rows always win their normalized slot, so we record them first
+    // and let recent/search rows skip when they collide. We never dedupe an
+    // empty normalized form (could happen for purely punctuation notes) so
+    // those rare rows still surface.
+    if (normalized && seenNormalized.has(normalized)) {
+      return;
+    }
     seen.add(memory.row_id);
+    if (normalized) {
+      seenNormalized.add(normalized);
+    }
     rows.push({ ...memory, source, rank });
   };
 
