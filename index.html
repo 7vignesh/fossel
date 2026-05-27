@@ -541,7 +541,7 @@
 
     /* ─────────── tools ─────────── */
     .tool-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
       gap: var(--space-3); margin-top: var(--space-12);
     }
     .tool {
@@ -555,6 +555,8 @@
       text-align: left;
       cursor: pointer;
       width: 100%;
+      min-width: 0; /* allow flex children to shrink rather than overflow */
+      overflow: hidden;
       font-family: inherit;
       color: var(--text);
     }
@@ -566,9 +568,16 @@
     .tool[aria-pressed="true"] .tool-status,
     .tool[aria-pressed="true"] .tool-name { color: var(--text); }
     .tool-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
-    .tool-name { font-family: var(--font-mono); font-size: var(--text-xs); }
+    .tool-name {
+      font-family: var(--font-mono); font-size: var(--text-xs);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .tool-status {
       margin-left: auto;
+      flex-shrink: 0; /* never let the status pill be cut off */
       font-family: var(--font-mono); font-size: 0.7rem;
       color: var(--text-faint);
       letter-spacing: 0.06em;
