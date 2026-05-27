@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .fossel/
+.vscode/
 *.log
 *.tgz
 npm-debug.log*
