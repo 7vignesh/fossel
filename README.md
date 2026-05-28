@@ -196,10 +196,6 @@ Reports on:
 
 Pass `--fix` to apply safe automated cleanup in one go: merge sibling repo keys, rewrite stale alias mentions, and remove exact-text duplicates. Without `--fix` it's read-only and exits non-zero on issues so it can run in CI.
 
-### `fossel init`
-
-`fossel init` auto-deduplicates exact duplicate memories at the end of the run; pass `--no-dedupe` to opt out.
-
 ---
 
 ## Cursor MCP config
