@@ -20,7 +20,31 @@
    npx -y fossel
    ```
 
-4. In chat, just say *"remember this"* and Fossel handles the rest. See [Simple mode](#simple-mode-recommended) below.
+4. In chat, say:
+
+   ```
+   remember: [anything about this repo]
+   ```
+
+   Then ask:
+
+   ```
+   what does Fossel remember about [topic]?
+   ```
+
+5. **Verify it works** — paste this in your AI chat:
+
+   ```
+   remember: Fossel is working in this repo
+   ```
+
+   Then immediately ask:
+
+   ```
+   what does Fossel remember?
+   ```
+
+   You should see your memory returned.
 
 **Database path:** `~/.fossel/memory.db` (override with `FOSSEL_DB_PATH`).
 
@@ -76,17 +100,14 @@ Every original tool is still available for power users.
 
 | Tool | Purpose |
 |------|---------|
-| `remember` | Natural-language save with auto-type/tags/dedupe (preferred). |
-| `get_context` | Unified pinned + recent + FTS retrieval. |
-| `resolve_repo` | Show canonical key, aliases, detected git remote. |
-| `dedupe_repo` | Find or merge near-duplicate memories. |
-| `store_context` | Explicit save with `type` and `tags`. |
-| `get_repo_context` | Recent memories grouped by type (pinned first). |
-| `search_memory` | FTS search, optional repo filter. |
-| `summarize_repo_context` | Markdown brief for a repo. |
-| `pin_memory` / `unpin_memory` | Pin important items. |
-| `update_memory` | Partial update by numeric id. |
-| `delete_memory` | Delete by legacy string id. |
+| `remember` | Save a memory in natural language — auto-infers type, tags, and repo |
+| `get_context` | Retrieve relevant memories, pinned first then recent |
+| `search_memory` | FTS search across notes, optional repo filter |
+| `pin_memory` / `unpin_memory` | Pin important memories to always appear first |
+| `delete_memory` | Delete by id |
+| `update_memory` | Edit an existing memory by id |
+| `dedupe_repo` | Merge near-duplicate memories |
+| `summarize_repo_context` | Markdown summary — useful for PR descriptions |
 
 ### Memory types
 
@@ -208,7 +229,7 @@ Pass `--fix` to apply safe automated cleanup in one go: merge sibling repo keys,
       "command": "npx",
       "args": ["-y", "fossel"],
       "env": {
-        "FOSSEL_WORKSPACE": "/absolute/path/to/your/project"
+        "FOSSEL_WORKSPACE": "/path/to/your/project"
       }
     }
   }
