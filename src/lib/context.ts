@@ -4,6 +4,8 @@ import {
   type MemoryRecord,
   type MemoryType,
 } from "../db/client.js";
+import { embeddingsEnabled } from "./embeddings.js";
+import { vectorSearch } from "./vector-index.js";
 
 export interface ContextRow extends MemoryRecord {
   source: "pinned" | "recent" | "search";
@@ -116,7 +118,13 @@ export function fetchRepoContext(
     push(row, "pinned");
   }
 
-  if (rows.length < limit) {
+  // Recent backfill. When a query is present we defer this until AFTER search
+  // so relevant matches lead and recent rows only fill leftover slots; without
+  // a query, recent fills immediately (pinned + recent context block).
+  const pushRecent = () => {
+    if (rows.length >= limit) {
+      return;
+    }
     const recent = db
       .prepare(
         `
@@ -127,14 +135,22 @@ export function fetchRepoContext(
           LIMIT ?
         `,
       )
-      .all(repo, limit - rows.length) as MemoryRecord[];
+      .all(repo, limit) as MemoryRecord[];
     for (const row of recent) {
       push(row, "recent");
+      if (rows.length >= limit) {
+        break;
+      }
     }
+  };
+
+  if (!query) {
+    pushRecent();
   }
 
   if (query && rows.length < limit) {
     const ftsQuery = buildFtsQuery(query);
+    const ftsRows: FtsRow[] = [];
     if (ftsQuery) {
       try {
         const matches = db
@@ -150,17 +166,70 @@ export function fetchRepoContext(
             `,
           )
           .all(ftsQuery, repo, limit) as FtsRow[];
-        for (const row of matches) {
-          push(row, "search", row.rank);
-          if (rows.length >= limit) {
-            break;
-          }
-        }
+        ftsRows.push(...matches);
       } catch {
         // FTS rejects some inputs (e.g. only stop characters). Failing soft
         // here keeps the pinned/recent results useful.
       }
     }
+
+    // Hybrid retrieval: when embeddings are enabled, run a semantic vector
+    // search alongside FTS and fuse the two ranked lists with Reciprocal Rank
+    // Fusion (RRF). RRF rewards rows that rank highly in either list without
+    // needing the two score scales to be comparable. When embeddings are
+    // disabled this collapses to the original FTS-only behavior.
+    const vectorRows = embeddingsEnabled()
+      ? vectorSearch(db, repo, query, limit)
+      : [];
+
+    if (vectorRows.length > 0) {
+      const RRF_K = 60;
+      const fused = new Map<
+        number,
+        { memory: MemoryRecord; score: number; rank?: number }
+      >();
+      const accumulate = (
+        list: MemoryRecord[],
+        rankOf?: (m: MemoryRecord, index: number) => number | undefined,
+      ) => {
+        list.forEach((memory, index) => {
+          const contribution = 1 / (RRF_K + index + 1);
+          const prior = fused.get(memory.row_id);
+          if (prior) {
+            prior.score += contribution;
+          } else {
+            fused.set(memory.row_id, {
+              memory,
+              score: contribution,
+              rank: rankOf?.(memory, index),
+            });
+          }
+        });
+      };
+      accumulate(ftsRows, (m) => (m as FtsRow).rank);
+      accumulate(vectorRows);
+
+      const ordered = Array.from(fused.values()).sort(
+        (a, b) => b.score - a.score,
+      );
+      for (const { memory, rank } of ordered) {
+        push(memory, "search", rank);
+        if (rows.length >= limit) {
+          break;
+        }
+      }
+    } else {
+      for (const row of ftsRows) {
+        push(row, "search", row.rank);
+        if (rows.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    // Backfill any slots search didn't fill with recent memories so a query
+    // with few/no matches still returns useful context.
+    pushRecent();
   }
 
   return rows.slice(0, limit);

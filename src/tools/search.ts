@@ -2,7 +2,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
 import { fetchRepoContext } from "../lib/context.js";
+import { embeddingsEnabled } from "../lib/embeddings.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { vectorSearch } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
 interface SearchRow extends MemoryRecord {
@@ -129,6 +131,17 @@ export function registerSearchMemoryTool(server: McpServer): void {
           if (orQuery) {
             rows = runFts(orQuery, resolvedRepo, limit);
           }
+        }
+
+        // Semantic backstop: when keyword search finds nothing but embeddings
+        // are enabled, fall back to vector similarity so paraphrased queries
+        // still surface relevant memories. Only runs with a known repo.
+        if (rows.length === 0 && resolvedRepo && embeddingsEnabled()) {
+          const semantic = vectorSearch(db, resolvedRepo, query, limit);
+          rows = semantic.map(({ score, ...row }) => ({
+            ...row,
+            rank: score,
+          }));
         }
 
         // Last-resort fallback: surface pinned + recent for the resolved repo
