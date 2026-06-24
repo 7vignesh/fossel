@@ -2,6 +2,40 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [1.2.0] - Hybrid semantic search
+
+### Added
+
+- **Optional hybrid semantic search** — set `FOSSEL_EMBEDDINGS=1` to retrieve
+  memories by meaning, not just shared keywords. A query like "how does auth
+  work?" now surfaces a note that says "JWT lives in localStorage" even though
+  they share no words. Keyword (FTS5) and semantic results are fused with
+  Reciprocal Rank Fusion, so exact-match precision for file paths, identifiers,
+  and ticket numbers is preserved while semantic recall is added on top.
+- **Local, dependency-free embeddings** — vectors are computed with a
+  deterministic feature-hashing of token unigrams/bigrams. No model download,
+  no native dependency, no network. Fully offline, instant, and true to
+  Fossel's local-first promise. The `embedText` seam (`src/lib/embeddings.ts`)
+  is pluggable so a stronger embedder can be swapped in later; bump
+  `EMBEDDING_VERSION` to trigger automatic re-indexing.
+- **Self-healing index** — memories created before enabling the flag are
+  embedded on demand the first time their repo is searched. Vectors live in a
+  `memory_embeddings` side table (migration 007) and are cleaned up via trigger
+  when a memory is deleted.
+
+### Changed
+
+- **Retrieval leads with relevance when a query is present.** `get_context`
+  and `search` now place matching results ahead of merely-recent ones (recent
+  memories backfill any leftover slots) instead of relegating matches below
+  recent. This applies to the default FTS-only path too. Pinned memories still
+  lead. With no query, behavior is unchanged (pinned + recent).
+
+### Notes
+
+- The feature is **opt-in**. With `FOSSEL_EMBEDDINGS` unset, no vectors are
+  written and retrieval is FTS-only — identical to 1.1.1.
+
 ## [1.1.1] - Phase 1 follow-ups: workspace pinning, ID parity, smarter search
 
 ### Fixed
