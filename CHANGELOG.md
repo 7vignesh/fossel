@@ -2,6 +2,14 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [1.2.1] - Metadata refresh
+
+### Changed
+
+- **Package description and keywords** now mention hybrid keyword + semantic
+  search so the npm listing reflects 1.2.0's headline feature. Added
+  `semantic-search` and `embeddings` keywords. No code changes.
+
 ## [1.2.0] - Hybrid semantic search
 
 ### Added

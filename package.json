@@ -1,7 +1,7 @@
 {
   "name": "fossel",
-  "version": "1.2.0",
-  "description": "Local-first MCP memory for Cursor & Claude: repo context in SQLite, FTS5 search, pins, PR summaries. No cloud.",
+  "version": "1.2.1",
+  "description": "Local-first MCP memory for Cursor & Claude: repo context in SQLite with hybrid keyword + semantic search, pins, PR summaries. No cloud.",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -11,6 +11,8 @@
     "memory",
     "sqlite",
     "fts5",
+    "semantic-search",
+    "embeddings",
     "open-source",
     "contributors",
     "local-first",
