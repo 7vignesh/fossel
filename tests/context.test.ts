@@ -46,10 +46,12 @@ test("fetchRepoContext folds search results below pinned/recent without dupes", 
     assert.equal(new Set(ids).size, ids.length);
     // Pinned still leads.
     assert.equal(rows[0]?.row_id, c);
-    // The webhook row is present somewhere.
-    assert.ok(ids.includes(b));
-    // The unrelated row a is also returned (filling recent slots before search).
-    assert.ok(ids.includes(a));
+    // When a query is present, the matching row leads the non-pinned results
+    // (search-first ordering), ahead of the unrelated recent row.
+    const bIndex = ids.indexOf(b);
+    const aIndex = ids.indexOf(a);
+    assert.ok(bIndex !== -1 && aIndex !== -1, "both rows present");
+    assert.ok(bIndex < aIndex, "the matching webhook row precedes the unrelated row");
   } finally {
     ctx.cleanup();
   }
