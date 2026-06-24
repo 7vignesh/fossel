@@ -252,9 +252,53 @@ npm run ci           # typecheck + tests + build + smoke
 ## Notes
 
 - **Local-first:** data stays on your machine.
-- **Search:** FTS5 (no `sqlite-vec` in v1).
+- **Search:** FTS5 keyword search by default. Optional **hybrid semantic search**
+  via `FOSSEL_EMBEDDINGS=1` (see below).
 - **`FOSSEL_DB_PATH`:** optional override for DB location (e.g. tests).
 - **Schema:** migrations live in `src/db/migrate.ts`; reference shape in `src/db/schema.sql`.
+
+## Hybrid semantic search (optional)
+
+By default Fossel retrieves memories with FTS5 keyword search. Keyword search
+misses paraphrases — a query like "how does authentication work?" won't match a
+note that says "JWT lives in localStorage" because they share no words.
+
+Set `FOSSEL_EMBEDDINGS=1` to enable **hybrid retrieval**: a local, dependency-free
+embedding is computed for every memory and fused with the keyword results
+(Reciprocal Rank Fusion). This adds semantic recall while keeping FTS5's exact-
+match precision for identifiers, file paths, and ticket numbers.
+
+```json
+{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "${workspaceFolder}",
+        "FOSSEL_EMBEDDINGS": "1"
+      }
+    }
+  }
+}
+```
+
+Properties:
+
+- **Zero install weight / fully offline.** The embedding is a deterministic
+  feature-hashing of token unigrams and bigrams — no model download, no native
+  dependency, no network. It runs instantly and keeps the local-first promise.
+- **Opt-in.** With the flag unset, Fossel behaves exactly as before: no vectors
+  are written and retrieval is FTS-only.
+- **Self-healing index.** Memories created before enabling the flag are embedded
+  on demand the first time the repo is searched.
+- **Pluggable.** `embedText` in `src/lib/embeddings.ts` is the single entry
+  point, so a stronger embedder (transformers.js, ONNX, or a remote model) can
+  be swapped in later without touching callers. Bump `EMBEDDING_VERSION` to
+  trigger automatic re-indexing of stale vectors.
+
+Vectors are stored in a `memory_embeddings` side table keyed by memory rowid and
+cleaned up via trigger when a memory is deleted.
 
 ## Community
 
