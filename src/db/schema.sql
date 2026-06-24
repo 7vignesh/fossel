@@ -29,6 +29,24 @@ CREATE TABLE IF NOT EXISTS repo_aliases (
 CREATE INDEX IF NOT EXISTS idx_repo_aliases_canonical
   ON repo_aliases (canonical);
 
+-- Optional semantic index. One row per memory that has been embedded; absent
+-- when semantic search (FOSSEL_EMBEDDINGS) has never run for that memory.
+-- `vector` is a BLOB of little-endian float32 values; `dim`/`version` allow
+-- stale-vector detection and re-indexing. Populated by src/lib/vector-index.ts.
+-- A trigger (not a FK) cascades deletes, because `memories.rowid` is the
+-- implicit rowid alias and SQLite FKs can't reference it.
+CREATE TABLE IF NOT EXISTS memory_embeddings (
+  memory_rowid INTEGER PRIMARY KEY,
+  dim INTEGER NOT NULL,
+  version INTEGER NOT NULL,
+  vector BLOB NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS memories_embeddings_ad AFTER DELETE ON memories BEGIN
+  DELETE FROM memory_embeddings WHERE memory_rowid = old.rowid;
+END;
+
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   repo,
   note,

@@ -149,6 +149,37 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: "007_add_memory_embeddings",
+    apply: (db) => {
+      // Vectors are stored in a side table keyed by the memory rowid so the
+      // base `memories` table and its FTS triggers stay untouched. A row here
+      // is optional: it only exists when semantic indexing has run for that
+      // memory. `dim` and `version` let us detect and re-index stale vectors
+      // if the embedding algorithm changes. The vector itself is a BLOB of
+      // little-endian float32 values.
+      //
+      // We cannot use a SQLite FOREIGN KEY here: `memories.rowid` is an alias
+      // for the implicit rowid (the declared PK is the TEXT `id`), and FKs may
+      // only reference a column with a PRIMARY KEY / UNIQUE constraint. Instead
+      // a trigger removes the embedding when its memory is deleted, mirroring
+      // the existing FTS delete-trigger pattern.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_embeddings (
+          memory_rowid INTEGER PRIMARY KEY,
+          dim INTEGER NOT NULL,
+          version INTEGER NOT NULL,
+          vector BLOB NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+
+        CREATE TRIGGER IF NOT EXISTS memories_embeddings_ad
+        AFTER DELETE ON memories BEGIN
+          DELETE FROM memory_embeddings WHERE memory_rowid = old.rowid;
+        END;
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
