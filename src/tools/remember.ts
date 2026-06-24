@@ -5,6 +5,7 @@ import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { findDuplicate, normalizeText } from "../lib/dedupe.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { indexMemoryEmbedding } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const rememberInputSchema = {
@@ -121,6 +122,9 @@ export function registerRememberTool(server: McpServer): void {
             existing.row_id,
           );
 
+          // Re-index: the merged note text changed, so its vector must too.
+          indexMemoryEmbedding(db, existing.row_id, longerNote);
+
           return {
             content: [
               {
@@ -168,6 +172,10 @@ export function registerRememberTool(server: McpServer): void {
         const inserted = db
           .prepare("SELECT rowid AS row_id FROM memories WHERE id = ?")
           .get(id) as { row_id: number } | undefined;
+
+        if (inserted) {
+          indexMemoryEmbedding(db, inserted.row_id, note);
+        }
 
         return {
           content: [

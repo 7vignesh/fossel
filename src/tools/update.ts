@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
 import { findMemoryByAnyId } from "../lib/memory.js";
+import { indexMemoryEmbedding } from "../lib/vector-index.js";
 
 interface MemoryRow {
   row_id: number;
@@ -111,6 +112,8 @@ export function registerUpdateMemoryTool(server: McpServer): void {
               WHERE rowid = ?
             `,
           ).run(nextType, nextNote, nextNormalized, now, existing.row_id);
+          // Note text changed, so the stored vector is stale; re-index.
+          indexMemoryEmbedding(db, existing.row_id, nextNote);
         } else {
           db.prepare(
             `

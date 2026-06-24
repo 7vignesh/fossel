@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, MEMORY_TYPES } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { indexMemoryEmbedding } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const storeContextInputSchema = {
@@ -56,6 +57,10 @@ export function registerStoreContextTool(server: McpServer): void {
             `,
           )
           .get(id) as { row_id: number; id: string } | undefined;
+
+        if (stored) {
+          indexMemoryEmbedding(db, stored.row_id, note);
+        }
 
         return {
           content: [
