@@ -58,6 +58,7 @@
 | **Repo-scoped memory** | One canonical key per repo; aliases collapse automatically. |
 | **Find anything** | FTS5 search across notes; pin what matters; summarize for PRs. |
 | **Ambient capture** | Natural-language `remember`; dedupes near-duplicates on save. |
+| **Conflict review** | Flags related memories on save so the agent can reconcile contradictions. |
 | **Evolving schema** | Startup migrations keep upgrades safe for existing databases. |
 
 ---
@@ -87,6 +88,25 @@ Pinned first, then recent, then FTS matches if you pass a `query`. Default limit
 > **Fossel:** returns a markdown block ready to drop into the system prompt.
 
 That's it for daily use. The repo is detected from your `cwd` automatically.
+
+### Conflict review on save
+
+When you save a note that *relates to but does not duplicate* an existing
+memory, `remember` appends a short notice listing the related memories — and
+flags ones that look like they may be contradicted or superseded (e.g. you say
+you *no longer* use something). The new memory is always stored; the notice is
+advisory so your AI assistant can decide whether to revise the old memory
+(`update_memory`) or remove it (`delete_memory`).
+
+> **You:** Remember: JWT no longer lives in localStorage; we moved it to httpOnly cookies.
+>
+> **Fossel:** Stored memory 3 …
+> Related existing memories you may want to reconcile:
+> - #2 (similarity 0.50) ⚠ may contradict/supersede: JWT lives in localStorage and 401 redirects to /login.
+
+This keeps memory from silently accumulating contradictions over time. Fossel
+stays dependency-free: it surfaces the candidates and lets the MCP client's own
+model make the judgment, rather than embedding an LLM in the server.
 
 ### Zero-prompt usage in Cursor
 

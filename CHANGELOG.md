@@ -2,6 +2,24 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [1.3.0] - Conflict review on save
+
+### Added
+
+- **Conflict review on `remember`** — when a saved note relates to but does not
+  duplicate existing memories, the response now lists those related memories so
+  the MCP client's model can reconcile them. Notes carrying negation/replacement
+  language ("no longer", "replaced", "deprecated", …) that overlap an existing
+  memory are flagged as possible contradictions, prompting the agent to revise
+  (`update_memory`) or remove (`delete_memory`) the superseded memory. This
+  keeps memory from silently accumulating contradictions over time.
+- The new memory is **always stored**; the notice is advisory. Fossel stays
+  dependency-free — it surfaces candidates and delegates the judgment to the
+  client's existing LLM rather than embedding one in the server.
+- `findRelatedCandidates` (`src/lib/dedupe.ts`) detects the mid-band between
+  "near-duplicate" (auto-merged) and "unrelated", calibrated against the blended
+  word + trigram similarity metric.
+
 ## [1.2.1] - Metadata refresh
 
 ### Changed
