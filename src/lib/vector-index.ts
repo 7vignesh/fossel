@@ -9,8 +9,7 @@
 import type Database from "better-sqlite3";
 import type { MemoryRecord } from "../db/client.js";
 import {
-  EMBEDDING_DIM,
-  EMBEDDING_VERSION,
+  activeEmbeddingMeta,
   bufferToVector,
   cosineSimilarity,
   embedText,
@@ -35,6 +34,7 @@ export function indexMemoryEmbedding(
     return;
   }
   const vector = embedText(note);
+  const { dim, version } = activeEmbeddingMeta();
   db.prepare(
     `
       INSERT INTO memory_embeddings (memory_rowid, dim, version, vector, updated_at)
@@ -47,8 +47,8 @@ export function indexMemoryEmbedding(
     `,
   ).run(
     rowId,
-    EMBEDDING_DIM,
-    EMBEDDING_VERSION,
+    dim,
+    version,
     vectorToBuffer(vector),
     Math.floor(Date.now() / 1000),
   );
@@ -67,6 +67,7 @@ export function backfillRepoEmbeddings(
     return 0;
   }
 
+  const { dim, version } = activeEmbeddingMeta();
   const rows = db
     .prepare(
       `
@@ -77,7 +78,7 @@ export function backfillRepoEmbeddings(
           AND (e.memory_rowid IS NULL OR e.version != ? OR e.dim != ?)
       `,
     )
-    .all(repo, EMBEDDING_VERSION, EMBEDDING_DIM) as Array<{
+    .all(repo, version, dim) as Array<{
     row_id: number;
     note: string;
   }>;
@@ -124,6 +125,7 @@ export function vectorSearch(
     return [];
   }
 
+  const { dim, version } = activeEmbeddingMeta();
   const rows = db
     .prepare(
       `
@@ -134,7 +136,7 @@ export function vectorSearch(
         WHERE m.repo = ? AND e.dim = ? AND e.version = ?
       `,
     )
-    .all(repo, EMBEDDING_DIM, EMBEDDING_VERSION) as Array<
+    .all(repo, dim, version) as Array<
     MemoryRecord & { vector: Buffer }
   >;
 
