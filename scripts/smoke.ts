@@ -94,6 +94,23 @@ async function main(): Promise<void> {
     }
     console.log("remember (dedupe):", dedupedText);
 
+    // A related-but-not-duplicate note that supersedes the prior one should
+    // store a fresh row AND surface a conflict-review notice naming the
+    // related memory, so the agent can reconcile it.
+    const conflictResult = (await client.callTool({
+      name: "remember",
+      arguments: {
+        repo,
+        note: "JWT no longer lives in localStorage; we moved it to httpOnly cookies and 401 redirects to /login.",
+      },
+    })) as ToolResult;
+    assertToolSuccess(conflictResult, "remember (conflict)");
+    const conflictText = extractFirstText(conflictResult);
+    if (!/Related existing memories/.test(conflictText)) {
+      throw new Error(`Expected a conflict-review notice but got: ${conflictText}`);
+    }
+    console.log("remember (conflict):", conflictText);
+
     // search_memory with a long, punctuation-heavy query should still surface
     // results (tokenization splits /api/auth into ["api","auth"]).
     const searchPathy = (await client.callTool({
