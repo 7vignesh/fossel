@@ -111,6 +111,47 @@ async function main(): Promise<void> {
     }
     console.log("remember (conflict):", conflictText);
 
+    // Temporal grounding: a relative date in the note should be resolved to an
+    // absolute date and stored as part of the note text.
+    const temporalResult = (await client.callTool({
+      name: "remember",
+      arguments: {
+        repo,
+        note: "Migrated the cron scheduler to a queue last week.",
+      },
+    })) as ToolResult;
+    assertToolSuccess(temporalResult, "remember (temporal)");
+    console.log("remember (temporal):", extractFirstText(temporalResult));
+    const groundedSearch = (await client.callTool({
+      name: "search_memory",
+      arguments: { query: "cron scheduler queue", repo, limit: 3 },
+    })) as ToolResult;
+    assertToolSuccess(groundedSearch, "search_memory (temporal)");
+    const groundedText = extractFirstText(groundedSearch);
+    if (!/last week = \d{4}-\d{2}-\d{2}/.test(groundedText)) {
+      throw new Error(`Expected a grounded absolute date but got: ${groundedText}`);
+    }
+    console.log("search_memory (temporal): grounded date present");
+
+    // infer=false stores the note verbatim without heuristic type/tag
+    // inference (the agent supplied a pre-extracted fact).
+    const verbatim = (await client.callTool({
+      name: "remember",
+      arguments: {
+        repo,
+        note: "Build artifacts are uploaded to the releases bucket.",
+        type: "convention",
+        tags: ["build", "release"],
+        infer: false,
+      },
+    })) as ToolResult;
+    assertToolSuccess(verbatim, "remember (infer=false)");
+    const verbatimText = extractFirstText(verbatim);
+    if (!/type convention/.test(verbatimText)) {
+      throw new Error(`Expected supplied type to be used but got: ${verbatimText}`);
+    }
+    console.log("remember (infer=false):", verbatimText);
+
     // search_memory with a long, punctuation-heavy query should still surface
     // results (tokenization splits /api/auth into ["api","auth"]).
     const searchPathy = (await client.callTool({
