@@ -108,6 +108,35 @@ This keeps memory from silently accumulating contradictions over time. Fossel
 stays dependency-free: it surfaces the candidates and lets the MCP client's own
 model make the judgment, rather than embedding an LLM in the server.
 
+### Temporal grounding
+
+Relative dates rot: "fixed it last week" is useless six months later. When you
+save a note, Fossel resolves common relative-date phrases to absolute dates and
+appends them to the stored note, so the memory stays meaningful over time.
+
+> **You:** Remember: migrated the cron scheduler to a queue last week.
+>
+> **Stored as:** "migrated the cron scheduler to a queue last week (last week = 2026-06-19)"
+
+It handles `yesterday`/`today`/`tomorrow`, `last`/`next week`/`month`,
+`N days/weeks/months ago`, and `in N days/weeks/months`. Vague phrases
+("recently", "soon") are left untouched rather than guessed at. No dependency.
+
+### High-quality fact extraction (`infer`)
+
+For the best memories, have your AI assistant extract a single clean,
+self-contained fact (resolving pronouns and vague references) before calling
+`remember`, and pass an explicit `type`/`tags` with `infer: false` to store it
+verbatim:
+
+```json
+{ "note": "Build artifacts are uploaded to the releases bucket.", "type": "convention", "tags": ["build", "release"], "infer": false }
+```
+
+This delegates extraction to the LLM the client already has — getting
+high-quality, atomic facts without adding an LLM dependency to Fossel. Omit
+`infer` (the default) to let Fossel's built-in heuristics infer type and tags.
+
 ### Zero-prompt usage in Cursor
 
 Fossel exposes a static MCP resource at `fossel://context/current-repo`. Cursor and Claude Desktop list resources on session start, so Fossel's pinned + recent memories show up before you type anything. Clients that don't list resources can still call `get_context` from the agent's first turn — that's all the prompting needed.
@@ -319,6 +348,32 @@ Properties:
 
 Vectors are stored in a `memory_embeddings` side table keyed by memory rowid and
 cleaned up via trigger when a memory is deleted.
+
+### Plugging in a stronger embedder (optional)
+
+The built-in hashed embedder catches lexical and n-gram overlap but not pure
+synonyms. For higher-quality semantic recall, point `FOSSEL_EMBEDDER_CMD` at a
+command that reads the text to embed on **stdin** and prints a **JSON array of
+numbers** (the vector) on **stdout**:
+
+```json
+{
+  "env": {
+    "FOSSEL_EMBEDDINGS": "1",
+    "FOSSEL_EMBEDDER_CMD": "node /path/to/my-embedder.js"
+  }
+}
+```
+
+Properties:
+
+- **You own the model.** Fossel stays dependency-free; the embedder is your
+  script (a transformers.js/ONNX runner, a local model server CLI, etc.).
+- **Isolated vectors.** External vectors are tagged with a distinct version so
+  they never get compared against the built-in hashed vectors. Switching
+  embedders re-indexes automatically on next search.
+- **Graceful degradation.** If the command fails, times out, or returns invalid
+  output, Fossel falls back to the built-in embedder so a write is never lost.
 
 ## Community
 

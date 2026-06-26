@@ -2,6 +2,29 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [1.4.0] - Temporal grounding, agent-extracted facts, pluggable embedder
+
+### Added
+
+- **Temporal grounding** — relative dates in a note ("last week", "3 days ago",
+  "in 2 months", "yesterday") are resolved to absolute dates and appended to
+  the stored note, so memories stay meaningful after the relative reference
+  goes stale. Vague phrases ("recently", "soon") are deliberately left alone.
+  Applies to both `remember` and `store_context`. Dependency-free.
+- **`infer` parameter on `remember`** — set `infer: false` to store an
+  agent-supplied fact verbatim with the supplied `type`/`tags`, skipping
+  heuristic inference. The tool description now guides the client's model to
+  extract a single clean, self-contained fact before calling — delegating
+  high-quality fact extraction to the LLM the client already has, without
+  adding an LLM dependency to Fossel. Mirrors mem0's `infer` escape hatch.
+- **Optional external embedder** — set `FOSSEL_EMBEDDER_CMD` to a command that
+  reads text on stdin and prints a JSON vector on stdout, to plug in a stronger
+  model (transformers.js, ONNX, a local server CLI) for better semantic recall.
+  Its vectors are tagged with a distinct version so they never mix with the
+  built-in hashed vectors, and a failed/misconfigured embedder degrades
+  gracefully to the built-in one. Default stays the zero-dependency hashed
+  embedder. Requires `FOSSEL_EMBEDDINGS=1`.
+
 ## [1.3.0] - Conflict review on save
 
 ### Added
