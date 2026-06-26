@@ -151,3 +151,94 @@ export function findDuplicate(
 
   return best;
 }
+
+/** Lower bound for "related" candidates surfaced for conflict review.
+ * Calibrated against the blended word+trigram similarity metric: unrelated
+ * notes score well below 0.2, while same-topic notes with different wording
+ * land around 0.3. Below this floor, notes are too unrelated to flag. */
+const DEFAULT_RELATED_FLOOR = 0.28;
+
+/**
+ * Lightweight negation/contradiction cue detection. We can't truly reason
+ * about contradictions without an LLM, so we surface a hint when one note
+ * carries negation/replacement language the other lacks, on top of a
+ * meaningful similarity overlap. The client's model makes the final call.
+ */
+const CONTRADICTION_CUES =
+  /\b(?:no longer|not|never|stop|stopped|deprecated|removed?|drop(?:ped)?|replace[ds]?|switch(?:ed)?|migrat(?:e|ed|ing)|instead|abandon(?:ed)?|don't|doesn't|won't|isn't|aren't)\b/i;
+
+export interface RelatedCandidate {
+  memory: MemoryRecord;
+  similarity: number;
+  /** True when negation/replacement language suggests the new note may
+   * supersede or contradict this one. Advisory only. */
+  possibleContradiction: boolean;
+}
+
+export interface RelatedOptions extends DedupeOptions {
+  /** Inclusive lower similarity bound for "related". */
+  floor?: number;
+  /** Exclusive upper bound; matches at/above this are duplicates handled by
+   * findDuplicate, so they are excluded here. Defaults to the dedup threshold. */
+  ceiling?: number;
+  /** Max number of related candidates to return. */
+  max?: number;
+}
+
+/**
+ * Find memories that are *related but not duplicates* of `note` — the mid-band
+ * between "clearly the same idea" (handled by findDuplicate) and "unrelated".
+ * These are candidates the calling agent may want to update or delete if the
+ * new note supersedes or contradicts them.
+ *
+ * This is the dependency-free analogue of mem0's LLM ADD/UPDATE/DELETE step:
+ * Fossel surfaces the candidates and lets the MCP client's own model decide.
+ * Returns best-first, highest similarity first.
+ */
+export function findRelatedCandidates(
+  db: Database.Database,
+  repo: string,
+  note: string,
+  options: RelatedOptions = {},
+): RelatedCandidate[] {
+  const floor = options.floor ?? DEFAULT_RELATED_FLOOR;
+  const ceiling = options.ceiling ?? DEFAULT_THRESHOLD;
+  const limit = options.candidateLimit ?? DEFAULT_CANDIDATE_LIMIT;
+  const max = options.max ?? 3;
+  const normalized = normalizeText(note);
+
+  if (!normalized || floor >= ceiling) {
+    return [];
+  }
+
+  const candidates = db
+    .prepare(
+      `
+        SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
+        FROM memories
+        WHERE repo = ?
+        ORDER BY updated_at DESC
+        LIMIT ?
+      `,
+    )
+    .all(repo, limit) as MemoryRecord[];
+
+  const noteHasCue = CONTRADICTION_CUES.test(note);
+  const related: RelatedCandidate[] = [];
+  for (const candidate of candidates) {
+    const score = similarity(note, candidate.note);
+    if (score >= floor && score < ceiling) {
+      // Flag a possible contradiction when negation/replacement language is
+      // present in exactly one of the two notes (a likely supersede signal).
+      const candidateHasCue = CONTRADICTION_CUES.test(candidate.note);
+      related.push({
+        memory: candidate,
+        similarity: score,
+        possibleContradiction: noteHasCue !== candidateHasCue,
+      });
+    }
+  }
+
+  related.sort((a, b) => b.similarity - a.similarity);
+  return related.slice(0, max);
+}
