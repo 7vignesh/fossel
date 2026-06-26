@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, MEMORY_TYPES } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { groundTemporalReferences } from "../lib/temporal.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
@@ -22,10 +23,12 @@ export function registerStoreContextTool(server: McpServer): void {
         "Store repository-specific contributor context such as bug fixes, conventions, and decisions. The repo argument is resolved to a canonical key automatically; pass it explicitly only when targeting a different repo than the current workspace.",
       inputSchema: storeContextInputSchema,
     },
-    async ({ repo, type, note, tags }) => {
+    async ({ repo, type, note: rawNote, tags }) => {
       try {
         const db = getDb();
         const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
+        // Ground relative dates so the memory stays meaningful over time.
+        const note = groundTemporalReferences(rawNote);
         const now = Math.floor(Date.now() / 1000);
         const id = nanoid();
         const normalizedTags = Array.from(

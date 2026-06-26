@@ -10,6 +10,7 @@ import {
 } from "../lib/dedupe.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { resolveRepoArg } from "../lib/repo.js";
+import { groundTemporalReferences } from "../lib/temporal.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
@@ -18,6 +19,11 @@ const rememberInputSchema = {
   repo: z.string().trim().min(1).optional(),
   type: z.enum(MEMORY_TYPES).optional(),
   tags: z.array(z.string().trim().min(1)).optional(),
+  // When true (default), Fossel infers memory_type and tags from the note. Set
+  // false when the calling agent has already extracted a clean atomic fact and
+  // supplied type/tags itself, so Fossel stores the note verbatim without
+  // re-inferring. Mirrors mem0's `infer` escape hatch.
+  infer: z.boolean().optional(),
 };
 
 interface MetadataChangelogEntry {
@@ -75,14 +81,21 @@ export function registerRememberTool(server: McpServer): void {
     "remember",
     {
       description:
-        "Save a memory using only a natural-language note. Fossel infers memory_type, generates tags, resolves the repo, and merges into an existing memory when the note is a near-duplicate. When the note relates to (but does not duplicate) existing memories, the response lists them so you can reconcile contradictions — call update_memory to revise or delete_memory to remove a superseded memory. Prefer this tool over store_context for everyday use.",
+        "Save a memory from a natural-language note. By default Fossel infers memory_type and generates tags. For best quality, extract a single clean, self-contained fact before calling (resolve pronouns and vague references), and you may pass an explicit type and tags. Set infer=false when you have already supplied type/tags and want the note stored verbatim. Relative dates in the note (\"last week\", \"3 days ago\") are grounded to absolute dates automatically. Fossel resolves the repo, merges near-duplicates, and lists related memories so you can reconcile contradictions — call update_memory to revise or delete_memory to remove a superseded memory. Prefer this tool over store_context for everyday use.",
       inputSchema: rememberInputSchema,
     },
-    async ({ note, repo, type, tags }) => {
+    async ({ note: rawNote, repo, type, tags, infer }) => {
       try {
         const db = getDb();
         const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
-        const inferred = inferMemoryFromNote(note);
+        // Ground relative dates so the memory stays meaningful over time.
+        const note = groundTemporalReferences(rawNote);
+        // Skip heuristic inference when the agent opted out (infer=false),
+        // falling back to "general" type and the supplied tags only.
+        const shouldInfer = infer !== false;
+        const inferred = shouldInfer
+          ? inferMemoryFromNote(note)
+          : { type: "general" as MemoryType, tags: [] as string[] };
 
         const finalType: MemoryType = type ?? inferred.type;
         const finalTags = mergeTagLists(tags, inferred.tags).slice(0, 5);
