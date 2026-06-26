@@ -2,7 +2,12 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
-import { findDuplicate, normalizeText } from "../lib/dedupe.js";
+import {
+  findDuplicate,
+  findRelatedCandidates,
+  normalizeText,
+  type RelatedCandidate,
+} from "../lib/dedupe.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
@@ -70,7 +75,7 @@ export function registerRememberTool(server: McpServer): void {
     "remember",
     {
       description:
-        "Save a memory using only a natural-language note. Fossel infers memory_type, generates tags, resolves the repo, and merges into an existing memory when the note is a near-duplicate. Prefer this tool over store_context for everyday use.",
+        "Save a memory using only a natural-language note. Fossel infers memory_type, generates tags, resolves the repo, and merges into an existing memory when the note is a near-duplicate. When the note relates to (but does not duplicate) existing memories, the response lists them so you can reconcile contradictions — call update_memory to revise or delete_memory to remove a superseded memory. Prefer this tool over store_context for everyday use.",
       inputSchema: rememberInputSchema,
     },
     async ({ note, repo, type, tags }) => {
@@ -177,13 +182,21 @@ export function registerRememberTool(server: McpServer): void {
           indexMemoryEmbedding(db, inserted.row_id, note);
         }
 
+        // Conflict-review hint: surface related-but-not-duplicate memories so
+        // the client's model can decide whether the new note supersedes or
+        // contradicts them (calling update_memory / delete_memory). Fossel
+        // stays dependency-free by delegating the judgment to the agent.
+        const related = findRelatedCandidates(db, resolved.canonical, note);
+        const conflictNotice = formatConflictNotice(related);
+
         return {
           content: [
             {
               type: "text",
               text:
                 `Stored memory ${inserted?.row_id ?? "?"} for ${resolved.canonical} ` +
-                `(type ${finalType}, tags: ${finalTags.join(", ") || "none"}).`,
+                `(type ${finalType}, tags: ${finalTags.join(", ") || "none"}).` +
+                conflictNotice,
             },
           ],
         };
@@ -206,4 +219,41 @@ export function registerRememberTool(server: McpServer): void {
 
 interface MemoryRowWithMetadata {
   metadata_json?: string;
+}
+
+/**
+ * Build an advisory notice listing related-but-not-duplicate memories so the
+ * MCP client's model can reconcile them. Returns an empty string when there
+ * is nothing to flag, so the common case adds no noise.
+ */
+function formatConflictNotice(related: RelatedCandidate[]): string {
+  if (related.length === 0) {
+    return "";
+  }
+
+  const lines = related.map((candidate) => {
+    const flag = candidate.possibleContradiction
+      ? " ⚠ may contradict/supersede"
+      : "";
+    const snippet =
+      candidate.memory.note.length > 100
+        ? `${candidate.memory.note.slice(0, 97)}...`
+        : candidate.memory.note;
+    return `  - #${candidate.memory.row_id} (similarity ${candidate.similarity.toFixed(
+      2,
+    )})${flag}: ${snippet}`;
+  });
+
+  const anyContradiction = related.some((c) => c.possibleContradiction);
+  const guidance = anyContradiction
+    ? "If this new note replaces or contradicts any of them, call update_memory " +
+      "to revise the existing memory or delete_memory to remove the stale one. " +
+      "Otherwise no action is needed."
+    : "If this new note updates any of them, consider update_memory; otherwise " +
+      "keeping both is fine.";
+
+  return (
+    `\n\nRelated existing memories you may want to reconcile:\n` +
+    `${lines.join("\n")}\n${guidance}`
+  );
 }
