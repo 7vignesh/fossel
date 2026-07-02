@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fossel — Local-first MCP memory for your repos</title>
-  <meta name="description" content="Fossel is a local-first MCP memory server. Say 'remember this' and your editor's AI just knows. SQLite, FTS5, no cloud, no accounts." />
-  <meta name="keywords" content="MCP, Model Context Protocol, Cursor, Claude Desktop, SQLite, FTS5, memory, local-first, open source, fossel" />
+  <meta name="description" content="Fossel is a local-first MCP memory server with hybrid keyword + semantic search. Say 'remember this' and your editor's AI just knows. SQLite, FTS5, no cloud, no accounts." />
+  <meta name="keywords" content="MCP, Model Context Protocol, Cursor, Claude Desktop, SQLite, FTS5, semantic search, embeddings, memory, local-first, open source, fossel" />
   <meta property="og:title" content="Fossel — Local-first MCP memory for your repos" />
   <meta property="og:description" content="Stop re-explaining your repos to AI. Say 'remember this' and Fossel resolves the repo, infers the type and tags, and merges duplicates. 100% local." />
   <meta property="og:type" content="website" />
@@ -713,6 +713,7 @@
       <a href="#problem">Problem</a>
       <a href="#how">How</a>
       <a href="#types">Memories</a>
+      <a href="#whats-new">New</a>
       <a href="#install">Install</a>
       <a href="#tools">Tools</a>
     </div>
@@ -731,8 +732,8 @@
 <section class="hero">
   <div class="container hero-inner">
     <a href="https://github.com/7vignesh/fossel/releases" target="_blank" rel="noopener noreferrer" class="ann">
-      <span class="ann-tag">v1.1.1</span>
-      <span>Ambient memory: just say <em style="font-style:italic">remember this</em></span>
+      <span class="ann-tag">v1.4.0</span>
+      <span>Now with <em style="font-style:italic">hybrid semantic search</em></span>
     </a>
 
     <h1>
@@ -785,7 +786,7 @@
 <!-- ─────────── problem ─────────── -->
 <section id="problem" class="section-pad">
   <div class="container">
-    <div class="chapter"><span>The problem</span><span>[01 / 06]</span></div>
+    <div class="chapter"><span>The problem</span><span>[01 / 07]</span></div>
 
     <div class="head-row">
       <h2 class="display">AI is brilliant.<br>And painfully forgetful.</h2>
@@ -808,7 +809,8 @@
         <h3>Memory that just works</h3>
         <ul class="compare-list">
           <li><i data-lucide="check" width="14" height="14"></i> Say <code>remember this</code>. Fossel infers type, tags, and repo.</li>
-          <li><i data-lucide="check" width="14" height="14"></i> One canonical repo key — aliases collapse automatically.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> Finds memories by meaning, not just keywords — hybrid search.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> Flags contradictions so old memories don't go stale.</li>
           <li><i data-lucide="check" width="14" height="14"></i> Same memory across Cursor, Claude Desktop, any MCP client.</li>
           <li><i data-lucide="check" width="14" height="14"></i> SQLite + FTS5 on your laptop. Zero cloud, zero accounts.</li>
         </ul>
@@ -822,7 +824,7 @@
 <!-- ─────────── how it works ─────────── -->
 <section id="how" class="section-pad">
   <div class="container">
-    <div class="chapter"><span>How it works</span><span>[02 / 06]</span></div>
+    <div class="chapter"><span>How it works</span><span>[02 / 07]</span></div>
 
     <div class="head-row">
       <h2 class="display">Four primitives.<br>One local file.</h2>
@@ -882,7 +884,7 @@
 <!-- ─────────── memory types ─────────── -->
 <section id="types" class="section-pad">
   <div class="container">
-    <div class="chapter"><span>Memory types</span><span>[03 / 06]</span></div>
+    <div class="chapter"><span>Memory types</span><span>[03 / 07]</span></div>
 
     <div class="head-row">
       <h2 class="display">Every kind of<br>repo knowledge.</h2>
@@ -926,10 +928,47 @@
 
 <hr class="rule">
 
+<!-- ─────────── what's new ─────────── -->
+<section id="whats-new" class="section-pad">
+  <div class="container">
+    <div class="chapter"><span>What's new</span><span>[04 / 07]</span></div>
+
+    <div class="head-row">
+      <h2 class="display">Memory that<br>gets smarter.</h2>
+      <p>Recent releases borrow the quality of heavyweight memory engines — by leaning on the LLM your editor already has, so Fossel stays local and dependency-free.</p>
+    </div>
+
+    <div class="feat-grid">
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="search" width="11" height="11"></i> hybrid search</span>
+        <h3>Finds by meaning</h3>
+        <p>Ask "how does auth work?" and it surfaces the note about <code>JWT in localStorage</code> — even with no shared keywords. Semantic + keyword results, fused. Opt in with <code>FOSSEL_EMBEDDINGS=1</code>.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="git-compare" width="11" height="11"></i> conflict review</span>
+        <h3>No stale memories</h3>
+        <p>Say "we dropped Redis, now on Postgres" and Fossel flags the contradicted memory so your assistant can revise or remove it. Memory stops silently accumulating conflicts.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="calendar" width="11" height="11"></i> temporal grounding</span>
+        <h3>Dates that last</h3>
+        <p>"Fixed it last week" is stored as <code>last week = 2026-06-19</code>, so a memory still makes sense six months later instead of rotting.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="plug" width="11" height="11"></i> pluggable embedder</span>
+        <h3>Bring your own model</h3>
+        <p>Point <code>FOSSEL_EMBEDDER_CMD</code> at any command that returns a vector to plug in a stronger model. Falls back gracefully; the default stays zero-dependency.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
 <!-- ─────────── install ─────────── -->
 <section id="install" class="section-pad">
   <div class="container">
-    <div class="chapter"><span>Install</span><span>[04 / 06]</span></div>
+    <div class="chapter"><span>Install</span><span>[05 / 07]</span></div>
 
     <div class="head-row">
       <h2 class="display">Up in 30 seconds.<br>Works everywhere.</h2>
@@ -1037,10 +1076,10 @@ and 401 redirects to /login</pre>
 <!-- ─────────── tools ─────────── -->
 <section id="tools" class="section-pad">
   <div class="container">
-    <div class="chapter"><span>MCP tools</span><span>[05 / 06]</span></div>
+    <div class="chapter"><span>MCP tools</span><span>[06 / 07]</span></div>
 
     <div class="head-row">
-      <h2 class="display">Three tools.<br>One command.</h2>
+      <h2 class="display">Two tools daily.<br>The rest on tap.</h2>
       <p><code>remember</code> and <code>get_context</code> are all you need. <code>doctor</code> keeps things clean. Advanced tools are documented in the README.</p>
     </div>
 
@@ -1080,7 +1119,7 @@ remember: <span class="accent">JWT lives in localStorage; 401 → /login</span><
 <!-- ─────────── final CTA ─────────── -->
 <section class="cta">
   <div class="cta-inner">
-    <div class="chapter" style="margin: 0 auto var(--space-6); justify-self: center;"><span>Ship it</span><span>[06 / 06]</span></div>
+    <div class="chapter" style="margin: 0 auto var(--space-6); justify-self: center;"><span>Ship it</span><span>[07 / 07]</span></div>
     <h2 class="display">Stop re-explaining.<br><em>Start building.</em></h2>
     <p>Free, open-source, fully local. Your memories never leave your machine.</p>
     <div class="cta-btns">
@@ -1159,12 +1198,12 @@ document.querySelectorAll('.code-tabs').forEach((tabs) => {
 const TOOL_INFO = {
   remember: {
     tag: 'new',
-    desc: 'Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, and merges near-duplicates instead of storing them twice.',
+    desc: 'Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, grounds relative dates ("last week" → an absolute date), merges near-duplicates, and flags related memories so contradictions can be reconciled.',
     example: '<span class="cmt"># in chat</span>\nremember: <span class="accent">JWT lives in localStorage; 401 → /login</span>'
   },
   get_context: {
     tag: 'new',
-    desc: 'Unified retrieval. Returns pinned memories first, then recent ones, then FTS matches when a query is provided. Default limit is tuned for direct LLM-context injection.',
+    desc: 'Unified retrieval. Returns pinned memories first, then the most relevant matches (hybrid keyword + semantic search when embeddings are enabled), then recent context. Default limit is tuned for direct LLM-context injection.',
     example: 'get_context({ query: <span class="accent">"auth"</span>, format: <span class="accent">"markdown"</span> })'
   },
   resolve_repo: {
@@ -1189,7 +1228,7 @@ const TOOL_INFO = {
   },
   search_memory: {
     tag: 'ready',
-    desc: 'Full-text search across notes with optional repo filter. Tokenizes punctuation-heavy queries (e.g. /api/auth) and falls back to recent + pinned context if there are no exact matches.',
+    desc: 'Full-text search across notes with optional repo filter, fused with semantic vector search when embeddings are enabled. Tokenizes punctuation-heavy queries (e.g. /api/auth) and falls back to recent + pinned context if there are no matches.',
     example: 'search_memory({ query: <span class="accent">"/api/auth jwt"</span> })'
   },
   summarize_repo_context: {
