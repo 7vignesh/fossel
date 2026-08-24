@@ -44,16 +44,16 @@
     "ci": "npm run typecheck && npm run test && npm run build && npm run smoke"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "latest",
-    "better-sqlite3": "latest",
-    "nanoid": "latest",
-    "zod": "latest"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "better-sqlite3": "^12.9.0",
+    "nanoid": "^5.1.9",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "latest",
-    "@types/node": "latest",
-    "tsup": "latest",
-    "tsx": "latest",
-    "typescript": "latest"
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }
