@@ -375,6 +375,51 @@ Properties:
 - **Graceful degradation.** If the command fails, times out, or returns invalid
   output, Fossel falls back to the built-in embedder so a write is never lost.
 
+## Repository intake / reproducible setup
+
+### Build the Docker image
+
+```bash
+docker build -t fossel:local .
+```
+
+This runs the full CI pipeline (typecheck, test, build, smoke) during the build
+stage. If the image builds successfully, the repo is validated.
+
+### Run validation inside Docker
+
+The multi-stage build validates during `docker build`. If the image builds
+successfully, all checks have already passed. To inspect the runtime image:
+
+```bash
+docker run --rm fossel:local node -e "require('./dist/index.js')"
+```
+
+To re-run the full CI pipeline in a fresh container (without layer cache):
+
+```bash
+docker build --no-cache --target builder -t fossel:ci .
+```
+
+### Commands expected to pass
+
+| Command | Purpose |
+|---------|----------|
+| `npm run typecheck` | TypeScript strict-mode type checking |
+| `npm run test` | Unit tests (node:test via tsx) |
+| `npm run build` | Production build via tsup |
+| `npm run smoke` | End-to-end MCP roundtrip against a temp DB |
+| `npm run ci` | All of the above in sequence |
+
+### Assumptions
+
+- Node 22.x (pinned in Dockerfile as `node:22.12.0-bookworm-slim`)
+- No network access required at runtime or during tests
+- No environment variables required for validation (test DB is ephemeral via `FOSSEL_DB_PATH`)
+- `better-sqlite3` requires native compilation (build tools present in builder stage)
+
+---
+
 ## Community
 
-If Fossel saves you time, **[star the repo](https://github.com/7vignesh/fossel)** and **[open an issue](https://github.com/7vignesh/fossel/issues)** for bugs or ideas — that helps others discover it too.
+If Fossel saves you time, **[star the repo](https://github.com/7vignesh/fossel)** and **[open an issue](https://github.com/7vignesh/fossel/issues)** for bugs or ideas - that helps others discover it too.
