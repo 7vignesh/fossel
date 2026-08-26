@@ -13,9 +13,12 @@ import {
   bufferToVector,
   cosineSimilarity,
   embedText,
+  embedTextHashed,
   embeddingsEnabled,
+  externalEmbedderConfigured,
   vectorToBuffer,
 } from "./embeddings.js";
+import { computeRepoIdf } from "./idf.js";
 
 export interface VectorMatch extends MemoryRecord {
   score: number;
@@ -115,7 +118,16 @@ export function vectorSearch(
   // Make sure anything written before the feature was enabled is searchable.
   backfillRepoEmbeddings(db, repo);
 
-  const queryVector = embedText(query);
+  // Weight the *query* by inverse document frequency so common words contribute
+  // less of its direction. Stored vectors stay unweighted pure-TF — see
+  // lib/idf.ts for why weighting both sides would force a full re-index. An
+  // external embedder owns its own weighting, so IDF only applies to the
+  // built-in hashed path.
+  const queryVector = externalEmbedderConfigured()
+    ? embedText(query)
+    : embedTextHashed(query, {
+        featureWeight: computeRepoIdf(db, repo).weightFor,
+      });
   // An all-zero query vector (empty/punctuation-only) can't match anything.
   let queryNorm = 0;
   for (let i = 0; i < queryVector.length; i += 1) {
