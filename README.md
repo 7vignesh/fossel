@@ -122,6 +122,27 @@ It handles `yesterday`/`today`/`tomorrow`, `last`/`next week`/`month`,
 `N days/weeks/months ago`, and `in N days/weeks/months`. Vague phrases
 ("recently", "soon") are left untouched rather than guessed at. No dependency.
 
+### Git-aware staleness
+
+Temporal grounding for *code*. When a memory mentions a source file, Fossel
+records that file's git blob sha at write time. On retrieval, if the file has
+changed since — whether committed or sitting uncommitted in your working tree —
+the memory is flagged:
+
+> **You:** what does Fossel remember about auth?
+>
+> **Fossel:**
+> - (12) Auth is enforced in `middleware.ts` before every route. ⚠ may be stale: middleware.ts changed since this was written
+
+The memory is never auto-deleted or auto-edited — the marker is advisory, so
+your AI assistant can decide whether the note still holds after reading the
+current file. This is the same "flag it, let the model judge" pattern as conflict
+review.
+
+It fails safe end to end: outside a git repo, without git installed, or for a
+file that isn't tracked, Fossel simply records no reference and shows no marker —
+the feature is invisible until it has something real to say.
+
 ### High-quality fact extraction (`infer`)
 
 For the best memories, have your AI assistant extract a single clean,

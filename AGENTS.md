@@ -46,53 +46,21 @@ either uses a heuristic or hands the judgment back to the client's own model.
 
 ## Roadmap
 
-Phases 0–3 are done and pushed: defect fixes (stale dedupe vector, per-command
+Phases 0–4 are done and pushed: defect fixes (stale dedupe vector, per-command
 embedder versioning), the benchmark harness, retrieval quality (shared FTS with
-OR + stemmed-prefix tiers, weighted RRF, query-side IDF, character n-grams), and
-the external-embedder batch protocol.
+OR + stemmed-prefix tiers, weighted RRF, query-side IDF, character n-grams), the
+external-embedder batch protocol, and git-aware memory (blob-sha file references
+recorded on write, code-drift staleness advisories in `get_context`).
 
-### Phase 4 — Git-aware memory (the differentiator)
+### Phase 4 — Git-aware memory (the differentiator) — DONE
 
-This is the feature competitors structurally cannot copy, because they are not
-local and repo-scoped. It extends the repo-identity work that is already the best
-in the category into retrieval and correctness.
-
-**4a. Git introspection helpers (`src/lib/git.ts`).**
-- `headSha(cwd)` → current `HEAD` commit sha, or null.
-- `fileBlobSha(cwd, path)` → `git rev-parse HEAD:<path>`, the blob sha of a file
-  at HEAD, or null if the file is untracked/absent.
-- `changedFiles(cwd)` → files differing from HEAD (`git status --porcelain` +
-  optionally the current diff), normalized to repo-relative paths.
-- All must fail safe: return null / empty when git is absent, the cwd is not a
-  repo, or the command errors. Never throw into a tool. Use `spawnSync` with a
-  short timeout, mirroring `repo.ts`.
-- Unit tests build real temporary git repos (init, commit, mutate) rather than
-  mocking git.
-
-**4b. Record file references on write (migration 008).**
-- New table `memory_file_refs(memory_rowid, path, blob_sha)` with a
-  delete-cascade trigger mirroring the `memory_embeddings` pattern (trigger, not
-  FK, because `memories.rowid` is the implicit rowid).
-- On `remember` / `store_context`, extract file-path-like tokens from the note
-  (reuse the path/identifier extraction already in `inference.ts`), and for each
-  path that exists at HEAD, record its current blob sha.
-- Keep this behind the same "fail safe when not a git repo" guard — a
-  non-git workspace simply records no refs.
-
-**4c. Code-drift staleness detection.**
-- On retrieval, for memories that reference files, compare the recorded blob sha
-  against the current `fileBlobSha`. When they differ, the code the memory talks
-  about has changed since the memory was written.
-- Surface this as an **advisory marker** in `get_context` output (e.g. a `⚠ may
-  be stale: middleware.ts changed since this was written` line), following the
-  existing conflict-review notice pattern in `remember.ts`: Fossel flags the
-  candidate and lets the client's model judge. Do **not** auto-delete or
-  auto-edit.
-- This is the temporal-grounding idea (already shipped for dates) applied to
-  code. Consider prioritising memories whose referenced files are in
-  `changedFiles` — those are the most relevant to what the agent is doing right
-  now — but measure any ranking change on the benchmark first (the eval set will
-  need git-aware fixtures, or a separate dataset).
+Shipped in `src/lib/git.ts` (headSha, fileBlobSha, changedFiles; all fail safe),
+`src/lib/file-refs.ts` (extractFilePaths, recordFileRefs, findStaleFileRefs), and
+migration 008 (`memory_file_refs` with a delete-cascade trigger). References are
+recorded on `remember`, `store_context` and `update_memory`; `get_context`
+surfaces an advisory marker for any memory whose referenced file has drifted.
+Ranking by `changedFiles` was left for later — it needs git-aware benchmark
+fixtures before any ranking change can be measured.
 
 ### Phase 5 — Completeness
 

@@ -47,6 +47,26 @@ CREATE TRIGGER IF NOT EXISTS memories_embeddings_ad AFTER DELETE ON memories BEG
   DELETE FROM memory_embeddings WHERE memory_rowid = old.rowid;
 END;
 
+-- Git-aware file references. One row per (memory, file) pair recording the blob
+-- sha the file had when the memory was written, so retrieval can flag a memory
+-- as possibly stale when the file's content has since changed. Populated by
+-- src/lib/file-refs.ts, and only in a git workspace; a non-git workspace records
+-- nothing. Cascade-deleted via trigger for the same reason as memory_embeddings.
+CREATE TABLE IF NOT EXISTS memory_file_refs (
+  memory_rowid INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  blob_sha TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (memory_rowid, path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_file_refs_path
+  ON memory_file_refs (path);
+
+CREATE TRIGGER IF NOT EXISTS memories_file_refs_ad AFTER DELETE ON memories BEGIN
+  DELETE FROM memory_file_refs WHERE memory_rowid = old.rowid;
+END;
+
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   repo,
   note,

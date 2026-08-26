@@ -6,6 +6,19 @@ All notable changes to Fossel are recorded in this file.
 
 ### Added
 
+- **Git-aware memory (staleness detection).** When a memory mentions a source
+  file, Fossel now records that file's blob sha at write time (migration 008,
+  `memory_file_refs`). On `get_context`, any memory whose referenced file has
+  changed since — committed or uncommitted — is flagged with an advisory marker
+  (`⚠ may be stale: middleware.ts changed since this was written`). This is the
+  temporal-grounding idea, already shipped for relative dates, applied to code.
+  Like the conflict-review notice, it only flags; the client's model decides
+  whether the memory needs revising. All git access fails safe: a non-git
+  workspace, an absent git binary, or an untracked path simply records no
+  references and produces no advisories, identical to the feature being off.
+  New `src/lib/git.ts` (headSha, fileBlobSha, changedFiles) and
+  `src/lib/file-refs.ts`.
+
 - **Batch protocol for external embedders.** `FOSSEL_EMBEDDER_CMD` previously
   spawned one process per text, so backfilling N memories cost N spawns — and for
   a real model, N model loads — which made the escape hatch impractical at any

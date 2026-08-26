@@ -2,8 +2,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
+import { recordFileRefs } from "../lib/file-refs.js";
 import { findMemoryByAnyId } from "../lib/memory.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
+import { getWorkspaceRoot } from "../lib/workspace.js";
 
 interface MemoryRow {
   row_id: number;
@@ -114,6 +116,8 @@ export function registerUpdateMemoryTool(server: McpServer): void {
           ).run(nextType, nextNote, nextNormalized, now, existing.row_id);
           // Note text changed, so the stored vector is stale; re-index.
           indexMemoryEmbedding(db, existing.row_id, nextNote);
+          // The set of referenced files may have changed too; re-record.
+          recordFileRefs(db, existing.row_id, nextNote, getWorkspaceRoot());
         } else {
           db.prepare(
             `

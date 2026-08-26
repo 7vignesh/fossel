@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { fetchRepoContext, formatContext } from "../lib/context.js";
+import { findStaleFileRefs } from "../lib/file-refs.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
@@ -25,10 +26,18 @@ export function registerGetContextTool(server: McpServer): void {
         const db = getDb();
         const resolved = resolveRepoArg(repo, getWorkspaceRoot(), db);
         const rows = fetchRepoContext(db, resolved.canonical, limit, query);
+        // Flag any memory whose referenced files have changed since it was
+        // written. Fails safe to no advisories outside a git repo.
+        const staleRefs = findStaleFileRefs(
+          db,
+          rows.map((row) => row.row_id),
+          getWorkspaceRoot(),
+        );
         const text = formatContext(rows, {
           repo: resolved.canonical,
           query,
           format,
+          staleRefs,
         });
 
         return {

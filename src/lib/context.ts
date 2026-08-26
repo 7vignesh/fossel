@@ -5,6 +5,7 @@ import {
   type MemoryType,
 } from "../db/client.js";
 import { embeddingsEnabled } from "./embeddings.js";
+import type { StaleFileRef } from "./file-refs.js";
 import { searchFts, type FtsRow } from "./fts.js";
 import {
   DEFAULT_FUSION_WEIGHTS,
@@ -213,6 +214,11 @@ export interface FormatContextOptions {
   repo: string;
   query?: string;
   format?: "text" | "markdown";
+  /** Per-memory staleness advisories: files a memory references whose content
+   * has changed since the memory was written. Rendered as an advisory marker,
+   * following the conflict-review pattern — Fossel flags, the client's model
+   * judges. */
+  staleRefs?: Map<number, StaleFileRef[]>;
 }
 
 /**
@@ -224,7 +230,7 @@ export function formatContext(
   rows: ContextRow[],
   options: FormatContextOptions,
 ): string {
-  const { repo, query, format = "text" } = options;
+  const { repo, query, format = "text", staleRefs } = options;
 
   if (rows.length === 0) {
     if (format === "markdown") {
@@ -234,21 +240,47 @@ export function formatContext(
   }
 
   if (format === "markdown") {
-    return formatMarkdown(rows, repo, query);
+    return formatMarkdown(rows, repo, query, staleRefs);
   }
 
-  return formatText(rows, repo, query);
+  return formatText(rows, repo, query, staleRefs);
 }
 
-function formatMarkdown(rows: ContextRow[], repo: string, query?: string): string {
+/**
+ * Build the staleness marker for a memory, or an empty string when nothing it
+ * references has drifted. Advisory only: it names the changed files and leaves
+ * the judgment to the reader, matching the conflict-review notice pattern.
+ */
+function staleMarker(
+  rowId: number,
+  staleRefs?: Map<number, StaleFileRef[]>,
+): string {
+  const refs = staleRefs?.get(rowId);
+  if (!refs || refs.length === 0) {
+    return "";
+  }
+  const names = refs.map((ref) => ref.path).join(", ");
+  const anyDirty = refs.some((ref) => ref.changedInWorkingTree);
+  const verb = anyDirty ? "has uncommitted changes" : "changed";
+  return ` ⚠ may be stale: ${names} ${verb} since this was written`;
+}
+
+function formatMarkdown(
+  rows: ContextRow[],
+  repo: string,
+  query?: string,
+  staleRefs?: Map<number, StaleFileRef[]>,
+): string {
   const sections: string[] = [`# Fossel context: ${repo}`];
   if (query) {
     sections.push(`Query: \`${query}\``);
   }
 
+  const render = (row: ContextRow) => renderMarkdownRow(row, staleRefs);
+
   const pinned = rows.filter((row) => row.pinned === 1);
   if (pinned.length > 0) {
-    sections.push(["## 📌 Pinned", ...pinned.map(renderMarkdownRow)].join("\n"));
+    sections.push(["## 📌 Pinned", ...pinned.map(render)].join("\n"));
   }
 
   for (const type of MEMORY_TYPES) {
@@ -257,20 +289,28 @@ function formatMarkdown(rows: ContextRow[], repo: string, query?: string): strin
       continue;
     }
     sections.push(
-      [`## ${SECTION_TITLES[type]}`, ...entries.map(renderMarkdownRow)].join("\n"),
+      [`## ${SECTION_TITLES[type]}`, ...entries.map(render)].join("\n"),
     );
   }
 
   return sections.join("\n\n");
 }
 
-function renderMarkdownRow(row: ContextRow): string {
+function renderMarkdownRow(
+  row: ContextRow,
+  staleRefs?: Map<number, StaleFileRef[]>,
+): string {
   const tags = parseTags(row.tags);
   const tagSuffix = tags.length > 0 ? ` _(${tags.join(", ")})_` : "";
-  return `- (${row.row_id}) ${row.note}${tagSuffix}`;
+  return `- (${row.row_id}) ${row.note}${tagSuffix}${staleMarker(row.row_id, staleRefs)}`;
 }
 
-function formatText(rows: ContextRow[], repo: string, query?: string): string {
+function formatText(
+  rows: ContextRow[],
+  repo: string,
+  query?: string,
+  staleRefs?: Map<number, StaleFileRef[]>,
+): string {
   const header = query
     ? `Repository context for ${repo} (query: "${query}")`
     : `Repository context for ${repo}`;
@@ -283,7 +323,7 @@ function formatText(rows: ContextRow[], repo: string, query?: string): string {
     const pinPrefix = row.pinned ? "📌 " : "";
     const sourceLabel = row.source === "search" ? " [match]" : "";
     lines.push(
-      `- (${row.row_id} | ${row.type})${sourceLabel} ${pinPrefix}${row.note}${tagSuffix}`,
+      `- (${row.row_id} | ${row.type})${sourceLabel} ${pinPrefix}${row.note}${tagSuffix}${staleMarker(row.row_id, staleRefs)}`,
     );
   }
 

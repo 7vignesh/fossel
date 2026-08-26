@@ -9,6 +9,7 @@ import {
   type RelatedCandidate,
 } from "../lib/dedupe.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
+import { recordFileRefs } from "../lib/file-refs.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { groundTemporalReferences } from "../lib/temporal.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
@@ -142,6 +143,8 @@ export function registerRememberTool(server: McpServer): void {
 
           // Re-index: the merged note text changed, so its vector must too.
           indexMemoryEmbedding(db, existing.row_id, longerNote);
+          // Re-record git file refs against the merged note.
+          recordFileRefs(db, existing.row_id, longerNote, getWorkspaceRoot());
 
           return {
             content: [
@@ -193,6 +196,7 @@ export function registerRememberTool(server: McpServer): void {
 
         if (inserted) {
           indexMemoryEmbedding(db, inserted.row_id, note);
+          recordFileRefs(db, inserted.row_id, note, getWorkspaceRoot());
         }
 
         // Conflict-review hint: surface related-but-not-duplicate memories so
