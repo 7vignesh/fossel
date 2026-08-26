@@ -12,6 +12,7 @@ import {
   activeEmbeddingMeta,
   bufferToVector,
   cosineSimilarity,
+  embedBatchExternal,
   embedText,
   embedTextHashed,
   embeddingsEnabled,
@@ -88,6 +89,43 @@ export function backfillRepoEmbeddings(
 
   if (rows.length === 0) {
     return 0;
+  }
+
+  // With an external embedder, embed the whole batch in one process spawn.
+  // Doing it per row would cost one spawn — and for a real model, one model
+  // load — per memory, which is what made the external embedder impractical to
+  // backfill at any real size. A null result means the embedder does not speak
+  // the batch protocol (or failed), so we fall through to the per-row path.
+  if (externalEmbedderConfigured() && rows.length > 1) {
+    const vectors = embedBatchExternal(rows.map((row) => row.note));
+    if (vectors && vectors.length === rows.length) {
+      const write = db.prepare(
+        `
+          INSERT INTO memory_embeddings (memory_rowid, dim, version, vector, updated_at)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT(memory_rowid) DO UPDATE SET
+            dim = excluded.dim,
+            version = excluded.version,
+            vector = excluded.vector,
+            updated_at = excluded.updated_at
+        `,
+      );
+      const now = Math.floor(Date.now() / 1000);
+      const batchTx = db.transaction(() => {
+        rows.forEach((row, index) => {
+          const vector = vectors[index];
+          write.run(
+            row.row_id,
+            vector.length,
+            version,
+            vectorToBuffer(vector),
+            now,
+          );
+        });
+      });
+      batchTx();
+      return rows.length;
+    }
   }
 
   const tx = db.transaction((batch: typeof rows) => {

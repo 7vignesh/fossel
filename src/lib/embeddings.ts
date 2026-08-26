@@ -123,11 +123,38 @@ function externalEmbeddingDim(command: string): number {
 }
 
 /**
- * Call the configured external embedder. Returns an L2-normalized vector, or
- * null when the embedder is unconfigured, errors, or returns invalid output
- * (so callers can fall back to the built-in embedder).
+ * Parse and L2-normalize one vector from already-parsed JSON. Returns null when
+ * the value is not a usable numeric array.
  */
-export function embedTextExternal(text: string): Float32Array | null {
+function normalizeParsedVector(parsed: unknown): Float32Array | null {
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    return null;
+  }
+  const vector = new Float32Array(parsed.length);
+  for (let i = 0; i < parsed.length; i += 1) {
+    const value = Number(parsed[i]);
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+    vector[i] = value;
+  }
+  // L2 normalize so cosine similarity reduces to a dot product, matching the
+  // built-in embedder's contract.
+  let norm = 0;
+  for (let i = 0; i < vector.length; i += 1) {
+    norm += vector[i] * vector[i];
+  }
+  norm = Math.sqrt(norm);
+  if (norm > 0) {
+    for (let i = 0; i < vector.length; i += 1) {
+      vector[i] /= norm;
+    }
+  }
+  return vector;
+}
+
+/** Run the configured embedder once, with `input` on stdin. */
+function runEmbedderProcess(input: string): string | null {
   const cmd = process.env.FOSSEL_EMBEDDER_CMD?.trim();
   if (!cmd) {
     return null;
@@ -137,43 +164,112 @@ export function embedTextExternal(text: string): Float32Array | null {
     // is passed on stdin (not as an argument) to avoid shell-escaping issues
     // and command-injection surface from note content.
     const result = spawnSync(cmd, {
-      input: text,
+      input,
       encoding: "utf8",
       shell: true,
-      maxBuffer: 16 * 1024 * 1024,
-      timeout: 30_000,
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 120_000,
     });
     if (result.status !== 0 || !result.stdout) {
       return null;
     }
-    const parsed = JSON.parse(result.stdout.trim());
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return null;
-    }
-    const vector = new Float32Array(parsed.length);
-    for (let i = 0; i < parsed.length; i += 1) {
-      const value = Number(parsed[i]);
-      if (!Number.isFinite(value)) {
-        return null;
-      }
-      vector[i] = value;
-    }
-    // L2 normalize so cosine similarity reduces to a dot product, matching the
-    // built-in embedder's contract.
-    let norm = 0;
-    for (let i = 0; i < vector.length; i += 1) {
-      norm += vector[i] * vector[i];
-    }
-    norm = Math.sqrt(norm);
-    if (norm > 0) {
-      for (let i = 0; i < vector.length; i += 1) {
-        vector[i] /= norm;
-      }
-    }
-    return vector;
+    return result.stdout;
   } catch {
     return null;
   }
+}
+
+/**
+ * Call the configured external embedder. Returns an L2-normalized vector, or
+ * null when the embedder is unconfigured, errors, or returns invalid output
+ * (so callers can fall back to the built-in embedder).
+ */
+export function embedTextExternal(text: string): Float32Array | null {
+  const stdout = runEmbedderProcess(text);
+  if (!stdout) {
+    return null;
+  }
+  try {
+    return normalizeParsedVector(JSON.parse(stdout.trim()));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Embed many texts with a **single** process spawn.
+ *
+ * The original contract was one text on stdin, one JSON array on stdout — which
+ * meant embedding N memories cost N process spawns. For a real model that is a
+ * model load per memory, so backfilling a few hundred memories was slow enough
+ * to make the whole external-embedder escape hatch unusable in practice. That
+ * defeated its purpose: it exists to be the way past the built-in embedder's
+ * quality ceiling.
+ *
+ * The batch contract is JSONL both ways: N lines in, each a JSON-encoded string;
+ * N lines out, each a JSON array of numbers, in the same order.
+ *
+ * Backwards compatibility is handled by validation rather than configuration.
+ * A single-text embedder handed a batch will produce something that is not N
+ * vectors — one concatenated vector, or a parse error — and we detect that and
+ * return null so the caller falls back to per-text calls. So no new environment
+ * variable, and existing embedders keep working unchanged.
+ *
+ * Returns null (not a partial result) if anything is wrong, so callers have one
+ * simple failure path.
+ */
+export function embedBatchExternal(texts: string[]): Float32Array[] | null {
+  if (texts.length === 0) {
+    return [];
+  }
+  // A single text is indistinguishable from the legacy protocol, so use the
+  // legacy path and keep old embedders on their well-tested route.
+  if (texts.length === 1) {
+    const single = embedTextExternal(texts[0]);
+    return single ? [single] : null;
+  }
+
+  const stdout = runEmbedderProcess(
+    `${texts.map((text) => JSON.stringify(text)).join("\n")}\n`,
+  );
+  if (!stdout) {
+    return null;
+  }
+
+  const lines = stdout
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length !== texts.length) {
+    // Almost certainly a legacy single-text embedder. Signal failure so the
+    // caller falls back rather than storing misaligned vectors.
+    return null;
+  }
+
+  const vectors: Float32Array[] = [];
+  let dim = 0;
+  for (const line of lines) {
+    let vector: Float32Array | null;
+    try {
+      vector = normalizeParsedVector(JSON.parse(line));
+    } catch {
+      return null;
+    }
+    if (!vector) {
+      return null;
+    }
+    // Every vector in a batch must share a dimension, or the index would end up
+    // with rows that cannot be compared against each other.
+    if (dim === 0) {
+      dim = vector.length;
+    } else if (vector.length !== dim) {
+      return null;
+    }
+    vectors.push(vector);
+  }
+
+  return vectors;
 }
 
 /**

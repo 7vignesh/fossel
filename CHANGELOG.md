@@ -6,6 +6,17 @@ All notable changes to Fossel are recorded in this file.
 
 ### Added
 
+- **Batch protocol for external embedders.** `FOSSEL_EMBEDDER_CMD` previously
+  spawned one process per text, so backfilling N memories cost N spawns — and for
+  a real model, N model loads — which made the escape hatch impractical at any
+  real size. Fossel now sends all texts in one spawn as JSONL and expects one
+  JSON vector per line back, in order. Existing single-text embedders keep working
+  unchanged: a non-batch-capable embedder returns the wrong number of lines, which
+  is detected by validation, and Fossel falls back to per-text calls. No new
+  configuration. Measured: indexing 30 additional memories costs exactly one
+  further spawn. A ready-to-use reference embedder using transformers.js ships at
+  `examples/embedder-transformers.mjs`; Fossel itself gains no dependency.
+
 - **Stemmed-prefix search tier.** FTS5 has no stemming, so queries were failing
   purely on inflection — "alerts" not matching "alert channel", "file" not
   matching ".env files", "deployment" not matching "Deploys go out". A third

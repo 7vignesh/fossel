@@ -353,9 +353,9 @@ cleaned up via trigger when a memory is deleted.
 ### Plugging in a stronger embedder (optional)
 
 The built-in hashed embedder catches lexical and n-gram overlap but not pure
-synonyms. For higher-quality semantic recall, point `FOSSEL_EMBEDDER_CMD` at a
-command that reads the text to embed on **stdin** and prints a **JSON array of
-numbers** (the vector) on **stdout**:
+synonyms — the benchmark puts that ceiling at 33% on synonym queries. For higher
+quality semantic recall, point `FOSSEL_EMBEDDER_CMD` at a command that reads text
+on **stdin** and prints vectors on **stdout**:
 
 ```json
 {
@@ -366,15 +366,47 @@ numbers** (the vector) on **stdout**:
 }
 ```
 
+A ready-to-use reference implementation is included at
+[`examples/embedder-transformers.mjs`](examples/embedder-transformers.mjs). It
+uses transformers.js with a quantized MiniLM model (~30 MB, downloaded once then
+fully offline). You install the runtime yourself:
+
+```bash
+npm i @huggingface/transformers
+```
+
+Fossel gains no dependency from this — that's the point of the hook.
+
+#### Protocol
+
+Fossel speaks two shapes, and an embedder should handle both:
+
+| Shape | stdin | stdout |
+|-------|-------|--------|
+| **Batch** (2+ texts) | one JSON-encoded string per line | one JSON array of numbers per line, same order |
+| **Single** (1 text) | the raw text | one JSON array of numbers |
+
+**Batching is not optional in practice.** Embedding is done per memory, so under
+a one-text-per-spawn protocol indexing a repo means one process spawn — and for a
+real model, one model load — per memory. Batching makes the whole index cost a
+single spawn regardless of size: in the test suite, indexing 30 additional
+memories costs exactly one further invocation.
+
+Existing single-text embedders keep working unchanged. Fossel detects a
+non-batch-capable embedder by validating that it got back exactly as many vectors
+as it sent texts, and falls back to per-text calls when it did not — so
+compatibility is handled by validation, not by extra configuration.
+
 Properties:
 
 - **You own the model.** Fossel stays dependency-free; the embedder is your
   script (a transformers.js/ONNX runner, a local model server CLI, etc.).
-- **Isolated vectors.** External vectors are tagged with a distinct version so
-  they never get compared against the built-in hashed vectors. Switching
-  embedders re-indexes automatically on next search.
-- **Graceful degradation.** If the command fails, times out, or returns invalid
-  output, Fossel falls back to the built-in embedder so a write is never lost.
+- **Isolated vectors.** External vectors are tagged with a version derived from
+  the embedder command, so they are never compared against the built-in hashed
+  vectors and switching embedders re-indexes automatically.
+- **Graceful degradation.** If the command fails, times out, mis-implements the
+  batch protocol, or returns invalid output, Fossel falls back to the built-in
+  embedder so a write is never lost.
 
 ## Repository intake / reproducible setup
 
