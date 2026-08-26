@@ -2,6 +2,95 @@
 
 All notable changes to Fossel are recorded in this file.
 
+## [Unreleased] - Measured retrieval, and the defects measuring it exposed
+
+### Added
+
+- **Stemmed-prefix search tier.** FTS5 has no stemming, so queries were failing
+  purely on inflection — "alerts" not matching "alert channel", "file" not
+  matching ".env files", "deployment" not matching "Deploys go out". A third
+  match tier applies conservative suffix stripping and FTS5 prefix matching, and
+  only ever *appends* to fill leftover result slots, so it can add recall but
+  never displace an exact-token hit. Worth **+9.1 points of hit@5** on the
+  benchmark, the single largest retrieval gain in the project. The stemmer
+  guarantees its output is a prefix of the input, which is what makes `stem*`
+  safe — a classic stemmer mapping "policies" to "policy" would break it.
+- **Query-side IDF weighting for embeddings.** The hashed embedder gave every
+  token equal weight, so "how are prices represented in the database?" spent most
+  of its vector on `how`, `are`, `in` and `the`. Corpus inverse document
+  frequency now weights the *query* vector. Applied to the query only, by design:
+  weighting stored vectors would make every vector a function of the corpus at
+  write time, so a single new memory would invalidate the whole index. Standalone
+  vector-mode MRR rose 0.519 → 0.632.
+- **Character n-gram embedding features**, so morphological variants overlap
+  instead of hashing to unrelated dimensions. `EMBEDDING_VERSION` is bumped to 2;
+  existing indexes re-embed automatically on the next search.
+- **Weighted rank fusion** (`src/lib/fusion.ts`). RRF now weights its legs
+  instead of treating a weak signal as equal to a strong one. The weight is
+  chosen by sweeping it against the benchmark (`npx tsx bench/sweep.ts`) and is
+  documented as coupled to embedder quality — it was re-swept after each
+  embedder change, and the optimum moved from 0.2 to 0.8 as the vector leg
+  improved.
+- **Retrieval benchmark** (`npm run bench`). A committed eval set of 45 memories
+  and 33 labelled queries for a fictional repo, scored with hit@k, recall@k, MRR
+  and nDCG across three modes (`fts`, `vector`, `hybrid`). Results are snapshotted
+  to `bench/results/` so a retrieval change shows up as a reviewable diff, and
+  `npm run bench:check` fails on drift. Two surfaces are reported per mode — the
+  pure search ranking and the full `get_context` output including recent-memory
+  backfill — because reporting only one would mislead. See `bench/README.md` for
+  metric definitions and the dataset design constraints.
+- **LongMemEval-S adapter** for cross-project comparability, mapping the
+  benchmark onto Fossel memories with one namespace per question. The dataset is
+  not redistributed; a small schema fixture is committed so the adapter can be
+  verified offline.
+
+### Fixed
+
+- **`get_context` returned no search results for natural-language questions.**
+  `fetchRepoContext` joined every query term with `AND`, so any question
+  containing a word absent from the corpus matched nothing and the tool fell back
+  to recent memories only. `search_memory` already had an AND→OR fallback and the
+  path/identifier-aware tokenizer; `get_context` had neither. Both now share one
+  implementation in `src/lib/fts.ts`, so they cannot drift apart again. Measured
+  effect: FTS-only hit@5 rose from 45.5% to 81.8% and MRR from 0.455 to 0.743.
+- **`dedupe_repo` left a stale vector on the surviving memory.** Applying a merge
+  rewrites the kept row's note to the longer of the two, but never re-indexed its
+  embedding, so the stored vector described text the row no longer contained.
+  `backfillRepoEmbeddings` could not repair it either, because it only re-indexes
+  vectors that are missing or tagged with a stale version — not ones whose text
+  moved on.
+- **Swapping external embedders kept stale vectors.** All external embedders
+  shared one version constant, so changing `FOSSEL_EMBEDDER_CMD` to a different
+  model of the same dimension did not trigger the re-index the docs promised. The
+  stored version is now derived from the command string. The probed dimension
+  cache was keyed globally for the same reason and is now keyed per command.
+
+### Tried and removed
+
+Three ideas were implemented, measured, and deleted because the benchmark did not
+support them. The reasoning is recorded in the source so nobody re-tries them
+blindly:
+
+- **Cosine score floor on the vector leg.** Relevant vector hits have a median
+  cosine of 0.291 (p25 0.204) and irrelevant ones 0.143 (p75 0.211) — too much
+  overlap. Every floor either changed nothing or suppressed the vector leg back
+  to FTS-only behaviour. The parameter is kept at 0 because a stronger embedder
+  would have cleaner separation.
+- **Adaptive fusion weights** keyed on whether FTS matched via AND or fell back
+  to OR. Measured completely inert: the AND-branch weight had no effect at any
+  value, and the adaptive configuration scored identically to a single fixed
+  weight.
+- **RM3 pseudo-relevance-feedback query expansion.** Identical hit@k and miss
+  count, with hybrid MRR slightly down. The queries that still miss return no
+  relevant row at all, so the feedback set is entirely irrelevant documents and
+  expansion just drifts the query.
+
+### Changed
+
+- Repo-wide near-duplicate merging moved from `src/tools/dedupe-repo.ts` into
+  `src/lib/merge.ts`, leaving the tool as a thin wrapper like every other tool
+  and making the planning and apply steps unit-testable.
+
 ## [1.4.0] - Temporal grounding, agent-extracted facts, pluggable embedder
 
 ### Added

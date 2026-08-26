@@ -293,6 +293,7 @@ npm run dev          # MCP server over stdio
 npm run typecheck
 npm test             # unit tests (node:test via tsx)
 npm run smoke        # end-to-end MCP roundtrip
+npm run bench        # retrieval benchmark (see bench/README.md)
 npm run build
 npm run start        # node dist/index.js
 npm run ci           # typecheck + tests + build + smoke
@@ -417,6 +418,65 @@ docker build --no-cache --target builder -t fossel:ci .
 - No network access required at runtime or during tests
 - No environment variables required for validation (test DB is ephemeral via `FOSSEL_DB_PATH`)
 - `better-sqlite3` requires native compilation (build tools present in builder stage)
+
+---
+
+## Benchmarks
+
+Retrieval quality is measured, not asserted. `npm run bench` runs a committed
+eval set of 45 memories and 33 labelled queries for a fictional repo and reports
+hit@k, recall@k, MRR and nDCG for each retrieval mode.
+
+Search surface (pure ranked search contribution), limit 10:
+
+| Mode | hit@1 | hit@3 | hit@5 | hit@10 | recall@5 | MRR | nDCG@10 |
+|------|-------|-------|-------|--------|----------|-----|---------|
+| `fts` | 72.7% | 87.9% | **90.9%** | 90.9% | **85.6%** | 0.794 | 0.792 |
+| `vector` | 51.5% | 69.7% | 72.7% | 84.9% | 70.2% | 0.632 | 0.668 |
+| `hybrid` | **78.8%** | 87.9% | 87.9% | 90.9% | 82.6% | **0.832** | **0.809** |
+
+hit@5 by query category:
+
+| Category | `fts` | `vector` | `hybrid` |
+|----------|-------|----------|----------|
+| exact | 100% | 100% | 100% |
+| identifier | 100% | 100% | 100% |
+| path | 100% | 100% | 100% |
+| ticket | 100% | 100% | 100% |
+| superseded | 100% | 100% | 100% |
+| multi | 100% | 66.7% | 100% |
+| paraphrase | 90.0% | 50.0% | 80.0% |
+| synonym | 33.3% | 0% | 33.3% |
+
+What these numbers say, including the parts that aren't flattering:
+
+- **Keyword search carries most of the weight.** BM25 plus a three-tier match
+  strategy — AND, then OR, then stemmed-prefix — reaches 90.9% hit@5 on its own.
+  The stemmed-prefix tier alone was worth +9.1 points of hit@5: FTS5 has no
+  stemming, so queries were failing purely on inflection ("alerts" not matching
+  "alert channel").
+- **Hybrid buys the top slot, and costs a little breadth.** It wins hit@1 by 6.1
+  points and has clearly the best MRR and nDCG@10, which is what matters when the
+  result is injected into a prompt and the first entry gets read most carefully.
+  It is 3 points *behind* FTS-only at hit@5 and recall@5, because the built-in
+  hashed embedder is still the weaker signal and fusing it in displaces some good
+  keyword hits. That trade is deliberate and measured, not accidental.
+- **Synonym queries are still the weak spot.** Connecting "why is this still one
+  deployable unit?" to a note about *microservices* needs real semantic
+  understanding, which feature-hashed embeddings do not have. 33% is the honest
+  ceiling of the zero-dependency approach; a stronger embedder via
+  `FOSSEL_EMBEDDER_CMD` is the way past it.
+
+Three ideas were implemented, measured, and **removed** because the numbers did
+not support them: a cosine score floor on the vector leg, adaptive fusion weights
+keyed on FTS match strength, and RM3 pseudo-relevance-feedback query expansion.
+The reasoning for each is recorded in `src/lib/fusion.ts` and `src/lib/fts.ts` so
+nobody re-tries them blindly.
+
+A [LongMemEval-S](https://huggingface.co/datasets/xiaowu0162/longmemeval)
+adapter is included for cross-project comparability; that dataset is not
+redistributed and must be downloaded. See [`bench/README.md`](bench/README.md)
+for metric definitions, the dataset design constraints, and how to run it.
 
 ---
 
