@@ -27,12 +27,46 @@ import { spawnSync } from "node:child_process";
 export const EMBEDDING_DIM = 256;
 
 /** Bumped whenever the embedding algorithm changes so stale vectors can be
- * detected and re-indexed. Stored alongside each vector. */
-export const EMBEDDING_VERSION = 1;
+ * detected and re-indexed. Stored alongside each vector.
+ *
+ * v2 added character n-gram features, which changes every stored vector, so
+ * existing indexes re-embed automatically on the next search via
+ * `backfillRepoEmbeddings`. */
+export const EMBEDDING_VERSION = 2;
 
-/** Version marker for externally-embedded vectors, kept distinct from the
- * built-in hashed version so the two never get compared against each other. */
+/** Base version marker for externally-embedded vectors, kept well clear of the
+ * built-in hashed version so the two never get compared against each other.
+ * The effective version is this base plus a hash of the embedder command — see
+ * `externalEmbeddingVersion`. */
 export const EXTERNAL_EMBEDDING_VERSION = 1000;
+
+/** Size of the version space reserved for external embedders. Every external
+ * version lands in [EXTERNAL_EMBEDDING_VERSION, +EXTERNAL_VERSION_SPAN). */
+const EXTERNAL_VERSION_SPAN = 1_000_000;
+
+/**
+ * Effective stored version for a given external embedder command.
+ *
+ * Tagging every external embedder with one shared constant was not enough:
+ * swapping between two different models of the *same* dimension left the old
+ * vectors in place, because the index layer only re-embeds on a version or dim
+ * mismatch. Deriving the version from the command string means changing
+ * `FOSSEL_EMBEDDER_CMD` changes the version, which makes the existing
+ * stale-vector detection in `backfillRepoEmbeddings` re-index automatically —
+ * the behaviour the docs already promise.
+ *
+ * The command string is a proxy for model identity, not a guarantee: editing
+ * the model *inside* an unchanged script still needs a manual re-index. That is
+ * the same trade-off as bumping `EMBEDDING_VERSION` by hand for the built-in
+ * embedder.
+ */
+export function externalEmbeddingVersion(command: string): number {
+  const key = command.trim();
+  if (!key) {
+    return EXTERNAL_EMBEDDING_VERSION;
+  }
+  return EXTERNAL_EMBEDDING_VERSION + (fnv1a(key) % EXTERNAL_VERSION_SPAN);
+}
 
 /**
  * Returns true when semantic/hybrid retrieval is enabled. Opt-in via env so
@@ -58,27 +92,34 @@ export function externalEmbedderConfigured(): boolean {
  * embedder. Used by the index layer so stored vectors are tagged and filtered
  * consistently with whichever embedder produced them. */
 export function activeEmbeddingMeta(): { dim: number; version: number } {
-  if (externalEmbedderConfigured()) {
+  const cmd = process.env.FOSSEL_EMBEDDER_CMD?.trim();
+  if (cmd) {
     return {
-      dim: externalEmbeddingDim(),
-      version: EXTERNAL_EMBEDDING_VERSION,
+      dim: externalEmbeddingDim(cmd),
+      version: externalEmbeddingVersion(cmd),
     };
   }
   return { dim: EMBEDDING_DIM, version: EMBEDDING_VERSION };
 }
 
-let cachedExternalDim: number | null = null;
+/** Probed dimensions, keyed by embedder command. Keying by command (rather
+ * than a single slot) matters because the command can change within a process
+ * — a shared cache would report the previous embedder's dimension. */
+const cachedExternalDims = new Map<string, number>();
 
-/** Dimension of the external embedder, determined by probing it once with a
- * fixed string and caching the result. Falls back to EMBEDDING_DIM if probing
- * fails (the external path will then also fail and we degrade to hashed). */
-function externalEmbeddingDim(): number {
-  if (cachedExternalDim !== null) {
-    return cachedExternalDim;
+/** Dimension of the external embedder, determined by probing it once per
+ * command with a fixed string and caching the result. Falls back to
+ * EMBEDDING_DIM if probing fails (the external path will then also fail and we
+ * degrade to hashed). */
+function externalEmbeddingDim(command: string): number {
+  const cached = cachedExternalDims.get(command);
+  if (cached !== undefined) {
+    return cached;
   }
   const probe = embedTextExternal("dimension probe");
-  cachedExternalDim = probe ? probe.length : EMBEDDING_DIM;
-  return cachedExternalDim;
+  const dim = probe ? probe.length : EMBEDDING_DIM;
+  cachedExternalDims.set(command, dim);
+  return dim;
 }
 
 /**
@@ -155,7 +196,7 @@ function fnv1a(str: string): number {
  * case, strip punctuation, collapse whitespace. Keeps embeddings aligned with
  * the FTS/dedup token space.
  */
-function tokenize(text: string): string[] {
+export function tokenizeForEmbedding(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, " ")
@@ -163,6 +204,42 @@ function tokenize(text: string): string[] {
     .trim()
     .split(" ")
     .filter((token) => token.length >= 2);
+}
+
+/** Relative weight of a bigram feature against a unigram feature. */
+const BIGRAM_WEIGHT = 0.6;
+
+/**
+ * Character n-gram size and weight.
+ *
+ * Word-level features alone cannot relate `migrate`, `migration` and
+ * `migrating` — they hash to three unrelated dimensions. Character n-grams give
+ * those forms overlapping features, which is the same trick `lib/dedupe.ts`
+ * already uses successfully with trigrams for near-duplicate detection. The
+ * weight is low because n-grams are numerous: a 40-character note produces ~38
+ * of them against a handful of words, so at equal weight they would drown out
+ * the word-level signal entirely.
+ */
+const CHAR_NGRAM_SIZE = 4;
+const CHAR_NGRAM_WEIGHT = 0.25;
+
+/** Only n-gram tokens long enough for it to mean something. Below this the
+ * n-grams just reproduce the token. */
+const MIN_TOKEN_FOR_NGRAMS = 6;
+
+export interface HashedEmbeddingOptions {
+  /**
+   * Per-feature multiplier, applied on top of the base unigram/bigram weights.
+   * Used to apply inverse document frequency to a *query* vector so common words
+   * stop dominating the direction.
+   *
+   * Deliberately not applied when embedding documents: stored vectors must stay
+   * a pure function of their own text, or every vector in the database would go
+   * stale the moment corpus statistics shifted, forcing a full re-index on every
+   * write. Weighting only the query side is a standard asymmetric tf-idf variant
+   * and costs nothing in storage correctness.
+   */
+  featureWeight?: (feature: string) => number;
 }
 
 /**
@@ -186,27 +263,47 @@ export function embedText(text: string): Float32Array {
 }
 
 /** Built-in dependency-free feature-hashed embedding. */
-export function embedTextHashed(text: string): Float32Array {
+export function embedTextHashed(
+  text: string,
+  options: HashedEmbeddingOptions = {},
+): Float32Array {
   const vector = new Float32Array(EMBEDDING_DIM);
-  const tokens = tokenize(text);
+  const tokens = tokenizeForEmbedding(text);
 
   if (tokens.length === 0) {
     return vector;
   }
 
+  const featureWeight = options.featureWeight;
+
   const addFeature = (feature: string, weight: number) => {
+    const scale = featureWeight ? featureWeight(feature) : 1;
+    if (scale === 0) {
+      return;
+    }
     const h = fnv1a(feature);
     const index = h % EMBEDDING_DIM;
     // Second hash bit decides the sign to spread collisions across +/-.
     const sign = (fnv1a(`#${feature}`) & 1) === 0 ? 1 : -1;
-    vector[index] += sign * weight;
+    vector[index] += sign * weight * scale;
   };
 
   for (let i = 0; i < tokens.length; i += 1) {
-    addFeature(tokens[i], 1);
+    const token = tokens[i];
+    addFeature(token, 1);
     if (i + 1 < tokens.length) {
       // Bigrams capture local word order ("not allowed" vs "allowed").
-      addFeature(`${tokens[i]} ${tokens[i + 1]}`, 0.6);
+      addFeature(`${token} ${tokens[i + 1]}`, BIGRAM_WEIGHT);
+    }
+    // Character n-grams let morphological variants overlap. Padding with a
+    // boundary marker keeps prefixes and suffixes distinguishable from the
+    // middle of a word, so "migrat" at the start scores differently from the
+    // same run of letters inside a longer token.
+    if (token.length >= MIN_TOKEN_FOR_NGRAMS) {
+      const padded = `^${token}$`;
+      for (let j = 0; j + CHAR_NGRAM_SIZE <= padded.length; j += 1) {
+        addFeature(padded.slice(j, j + CHAR_NGRAM_SIZE), CHAR_NGRAM_WEIGHT);
+      }
     }
   }
 

@@ -7,6 +7,7 @@ import {
   EXTERNAL_EMBEDDING_VERSION,
   embedText,
   externalEmbedderConfigured,
+  externalEmbeddingVersion,
 } from "../src/lib/embeddings.js";
 
 const originalCmd = process.env.FOSSEL_EMBEDDER_CMD;
@@ -74,6 +75,60 @@ test("external embedder output is L2-normalized", () => {
   assert.ok(Math.abs(Math.sqrt(norm) - 1) < 1e-6, "external vector must be L2-normalized");
 
   const meta = activeEmbeddingMeta();
-  assert.equal(meta.version, EXTERNAL_EMBEDDING_VERSION);
+  assert.ok(
+    meta.version >= EXTERNAL_EMBEDDING_VERSION,
+    "external vectors must be tagged in the external version range",
+  );
+  assert.equal(
+    meta.version,
+    externalEmbeddingVersion(FAKE_EMBEDDER),
+    "active version must be the one derived from the configured command",
+  );
   assert.equal(meta.dim, 8);
+});
+
+test("externalEmbeddingVersion is stable for the same command", () => {
+  assert.equal(
+    externalEmbeddingVersion("node my-embedder.js"),
+    externalEmbeddingVersion("node my-embedder.js"),
+  );
+  // Surrounding whitespace must not change identity, since the env var is
+  // trimmed everywhere else too.
+  assert.equal(
+    externalEmbeddingVersion("  node my-embedder.js  "),
+    externalEmbeddingVersion("node my-embedder.js"),
+  );
+});
+
+test("swapping embedder commands changes the version so stale vectors re-index", () => {
+  const first = externalEmbeddingVersion("node embedder-a.js");
+  const second = externalEmbeddingVersion("node embedder-b.js");
+  assert.notEqual(
+    first,
+    second,
+    "two different embedders must not share a version, even at equal dimension",
+  );
+});
+
+test("external versions never collide with the built-in hashed version", () => {
+  for (const cmd of ["a", "node b.js", "python -m embed", "./e --dim 384"]) {
+    const version = externalEmbeddingVersion(cmd);
+    assert.ok(
+      version >= EXTERNAL_EMBEDDING_VERSION,
+      `${cmd} produced ${version}, which is outside the external range`,
+    );
+    assert.notEqual(version, EMBEDDING_VERSION);
+  }
+});
+
+test("activeEmbeddingMeta reflects a command swap within one process", () => {
+  process.env.FOSSEL_EMBEDDER_CMD = "node -e \"process.stdout.write('[1,2,3,4]')\"";
+  const a = activeEmbeddingMeta();
+  assert.equal(a.dim, 4);
+
+  process.env.FOSSEL_EMBEDDER_CMD =
+    "node -e \"process.stdout.write('[1,2,3,4,5,6]')\"";
+  const b = activeEmbeddingMeta();
+  assert.equal(b.dim, 6, "the probed dimension must not be cached across commands");
+  assert.notEqual(a.version, b.version);
 });
