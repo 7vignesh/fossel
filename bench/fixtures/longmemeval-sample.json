@@ -1,0 +1,62 @@
+[
+  {
+    "question_id": "fixture-001",
+    "question_type": "single-session-user",
+    "question": "What did I say my daughter is allergic to?",
+    "answer": "peanuts",
+    "haystack_session_ids": ["s1", "s2", "s3"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I booked a flight to Lisbon for March.",
+          "has_answer": false
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "My daughter is allergic to peanuts so we avoid Thai food.",
+          "has_answer": true
+        },
+        {
+          "role": "assistant",
+          "content": "Noted, I will keep that in mind.",
+          "has_answer": false
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "Can you recommend a good mechanical keyboard?",
+          "has_answer": false
+        }
+      ]
+    ],
+    "answer_session_ids": ["s2"]
+  },
+  {
+    "question_id": "fixture-002",
+    "question_type": "multi-session",
+    "question": "Which framework did I pick for the dashboard?",
+    "answer": "Svelte",
+    "haystack_session_ids": ["t1", "t2"],
+    "haystack_sessions": [
+      [
+        {
+          "role": "user",
+          "content": "I decided to build the dashboard in Svelte after all.",
+          "has_answer": true
+        }
+      ],
+      [
+        {
+          "role": "user",
+          "content": "The weather in Oslo was terrible last week.",
+          "has_answer": false
+        }
+      ]
+    ],
+    "answer_session_ids": ["t1"]
+  }
+]

@@ -1,0 +1,485 @@
+{
+  "name": "fossel-repo-memory-v1",
+  "description": "Repo-memory retrieval eval for a fictional e-commerce codebase (acme/storefront). 45 memories, 33 labelled queries. Query categories are chosen to be fair rather than flattering: 'exact', 'identifier', 'path' and 'ticket' are cases keyword search should win outright, 'paraphrase' and 'synonym' are cases keyword search should lose, 'multi' checks multi-answer recall, and 'superseded' plants an outdated memory as a distractor that outranks the current one lexically. Memory array order is recency order (first entry is newest); rarely-queried memories are placed first on purpose so the recent-memory backfill in get_context cannot inflate scores by luck.",
+  "repo": "acme/storefront",
+  "memories": [
+    {
+      "key": "m-commit",
+      "note": "Commit messages follow Conventional Commits and the release job derives the next version from them.",
+      "type": "convention",
+      "tags": ["git", "release"]
+    },
+    {
+      "key": "m-branch",
+      "note": "Feature branches are named feat/<ticket>-<slug> and squash-merged into main.",
+      "type": "convention",
+      "tags": ["git", "branch"]
+    },
+    {
+      "key": "m-tests-colo",
+      "note": "Unit tests live next to the file under test as *.test.ts, not in a separate top-level tests directory.",
+      "type": "convention",
+      "tags": ["testing"]
+    },
+    {
+      "key": "m-nobarrel",
+      "note": "Do not add barrel re-export files; import from the concrete module path instead.",
+      "type": "convention",
+      "tags": ["imports"]
+    },
+    {
+      "key": "m-tz",
+      "note": "Store all timestamps in UTC and convert to local time only in the render layer.",
+      "type": "convention",
+      "tags": ["time", "database"]
+    },
+    {
+      "key": "m-featureflag",
+      "note": "New user-facing features ship behind a flag in flags.ts and default to off.",
+      "type": "convention",
+      "tags": ["feature-flags"]
+    },
+    {
+      "key": "m-cartrace",
+      "note": "Fixed a cart race condition by making the addToCart mutation idempotent on the client-generated line id.",
+      "type": "bug_fix",
+      "tags": ["cart", "race-condition"]
+    },
+    {
+      "key": "m-checkoutsafari",
+      "note": "Checkout froze on Safari 16 because of a nested form element; fixed by hoisting the submit button out.",
+      "type": "bug_fix",
+      "tags": ["frontend", "safari"]
+    },
+    {
+      "key": "m-postgres",
+      "note": "We chose Postgres over DynamoDB for the order store because the reporting queries need joins.",
+      "type": "decision",
+      "tags": ["database"]
+    },
+    {
+      "key": "m-nextjs",
+      "note": "We chose the Next.js App Router over Remix; the deciding factor was the existing Vercel deployment.",
+      "type": "decision",
+      "tags": ["frontend", "framework"]
+    },
+    {
+      "key": "m-logs",
+      "note": "Structured logs go to stdout as JSON; the collector attaches trace ids, so do not log them yourself.",
+      "type": "convention",
+      "tags": ["logging"]
+    },
+    {
+      "key": "m-oldjwt",
+      "note": "Before the 3.2 release the session JWT was kept in localStorage.",
+      "type": "convention",
+      "tags": ["auth", "jwt"]
+    },
+    {
+      "key": "m-oldstyling",
+      "note": "styled-components was the styling system until the 4.0 refactor.",
+      "type": "convention",
+      "tags": ["frontend", "css"]
+    },
+    {
+      "key": "m-pnpm",
+      "note": "Use pnpm workspaces for all package scripts; npm and yarn lockfiles are rejected by CI.",
+      "type": "convention",
+      "tags": ["pnpm", "workspaces", "ci"]
+    },
+    {
+      "key": "m-biome",
+      "note": "Lint and format with Biome before pushing; there is no ESLint or Prettier config in this repo.",
+      "type": "convention",
+      "tags": ["lint", "biome"]
+    },
+    {
+      "key": "m-envvars",
+      "note": "All environment variables must be declared in env.schema.ts and are validated at boot.",
+      "type": "convention",
+      "tags": ["config", "env"]
+    },
+    {
+      "key": "m-money",
+      "note": "Monetary amounts are persisted as integer minor units, never as floating point values.",
+      "type": "convention",
+      "tags": ["money", "database"]
+    },
+    {
+      "key": "m-jwt",
+      "note": "The session JWT is kept in an httpOnly cookie named sf_session and never in localStorage.",
+      "type": "convention",
+      "tags": ["auth", "jwt", "cookie"]
+    },
+    {
+      "key": "m-401",
+      "note": "A 401 response from the API triggers a redirect to /login with the current path in the next query param.",
+      "type": "convention",
+      "tags": ["auth", "routing"]
+    },
+    {
+      "key": "m-refresh",
+      "note": "Access tokens live 15 minutes and are renewed by the silent refresh worker in refreshWorker.ts.",
+      "type": "convention",
+      "tags": ["auth", "token"]
+    },
+    {
+      "key": "m-rbac",
+      "note": "Permission checks go through canAccess() in src/auth/rbac.ts; never read the role claim directly.",
+      "type": "convention",
+      "tags": ["auth", "security"]
+    },
+    {
+      "key": "m-restpath",
+      "note": "Public API routes are mounted under /api/v2; /api/v1 is frozen and receives security fixes only.",
+      "type": "decision",
+      "tags": ["api", "routing"]
+    },
+    {
+      "key": "m-pagination",
+      "note": "List endpoints use cursor pagination with an opaque cursor, not limit and offset.",
+      "type": "decision",
+      "tags": ["api", "pagination"]
+    },
+    {
+      "key": "m-idempotency",
+      "note": "POST /api/v2/orders requires an Idempotency-Key header and replays the stored response on a repeat.",
+      "type": "convention",
+      "tags": ["api", "orders"]
+    },
+    {
+      "key": "m-ratelimit",
+      "note": "Rate limiting is enforced at the edge worker, so the local development server applies no limits at all.",
+      "type": "convention",
+      "tags": ["api", "performance"]
+    },
+    {
+      "key": "m-migrations",
+      "note": "Run pnpm db:migrate before starting the dev server after pulling main.",
+      "type": "convention",
+      "tags": ["database", "migration"]
+    },
+    {
+      "key": "m-nodowntime",
+      "note": "Schema migrations must stay backwards compatible for one release so a rollback never needs a down migration.",
+      "type": "decision",
+      "tags": ["database", "migration"]
+    },
+    {
+      "key": "m-readreplica",
+      "note": "Analytics queries must target the read replica via withReplica(), not the primary connection.",
+      "type": "convention",
+      "tags": ["database", "performance"]
+    },
+    {
+      "key": "m-webhookdup",
+      "note": "The Stripe webhook handler was processing events twice; fixed by storing the event id and rejecting replays.",
+      "type": "bug_fix",
+      "tags": ["stripe", "webhook"]
+    },
+    {
+      "key": "m-imgleak",
+      "note": "Fixed a memory leak in the product gallery caused by an unremoved resize listener in useGallery.",
+      "type": "bug_fix",
+      "tags": ["frontend", "memory-leak"]
+    },
+    {
+      "key": "m-searchdiacritic",
+      "note": "Product search missed accented names until we normalized to NFD and stripped diacritics before indexing.",
+      "type": "bug_fix",
+      "tags": ["search"]
+    },
+    {
+      "key": "m-tzoffdate",
+      "note": "Order dates rendered one day early for users behind UTC because the value was formatted from a UTC string.",
+      "type": "bug_fix",
+      "tags": ["time", "orders"]
+    },
+    {
+      "key": "m-nplusone",
+      "note": "Resolved an N+1 query on the order history page by batching line item loads through a dataloader.",
+      "type": "bug_fix",
+      "tags": ["performance", "database"]
+    },
+    {
+      "key": "m-issue412",
+      "note": "Issue #412 tracks the flaky checkout e2e test that fails when the seeded fixture clock crosses midnight.",
+      "type": "issue",
+      "tags": ["testing", "flaky"]
+    },
+    {
+      "key": "m-issue587",
+      "note": "Issue #587: the CSV export truncates at 10000 rows and needs to stream instead.",
+      "type": "issue",
+      "tags": ["export"]
+    },
+    {
+      "key": "m-jira",
+      "note": "JIRA-2291 covers migrating the legacy admin panel off AngularJS.",
+      "type": "issue",
+      "tags": ["admin", "migration"]
+    },
+    {
+      "key": "m-notmicro",
+      "note": "We decided not to split the monolith into microservices until the team passes 25 engineers.",
+      "type": "decision",
+      "tags": ["architecture"]
+    },
+    {
+      "key": "m-tailwind",
+      "note": "Tailwind is the only styling system; styled-components was removed in the 4.0 refactor.",
+      "type": "decision",
+      "tags": ["frontend", "css"]
+    },
+    {
+      "key": "m-reviewsize",
+      "note": "Reviewers expect pull requests under 400 changed lines; larger ones get split before review starts.",
+      "type": "reviewer_pattern",
+      "tags": ["review"]
+    },
+    {
+      "key": "m-reviewtest",
+      "note": "Reviewers require a failing test in the same commit as any bug fix.",
+      "type": "reviewer_pattern",
+      "tags": ["review", "testing"]
+    },
+    {
+      "key": "m-reviewscreens",
+      "note": "Reviewers ask for before and after screenshots on any UI change.",
+      "type": "reviewer_pattern",
+      "tags": ["review", "frontend"]
+    },
+    {
+      "key": "m-deploy",
+      "note": "Deploys go out through the release workflow on tag push; nobody ships from a laptop.",
+      "type": "convention",
+      "tags": ["deployment", "ci"]
+    },
+    {
+      "key": "m-rollback",
+      "note": "Rollback is a redeploy of the previous tag, not a revert commit on main.",
+      "type": "convention",
+      "tags": ["deployment"]
+    },
+    {
+      "key": "m-oncall",
+      "note": "The on-call engineer owns the alert channel for the whole week and hands off at Monday standup.",
+      "type": "convention",
+      "tags": ["oncall"]
+    },
+    {
+      "key": "m-secrets",
+      "note": "Secrets are injected from the platform secret store at runtime; .env files are for local development only.",
+      "type": "convention",
+      "tags": ["security", "config"]
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-exact-pnpm",
+      "query": "pnpm workspaces",
+      "relevant": ["m-pnpm"],
+      "category": "exact",
+      "rationale": "Literal term match; FTS should win outright."
+    },
+    {
+      "id": "q-exact-idempotency",
+      "query": "Idempotency-Key header",
+      "relevant": ["m-idempotency"],
+      "category": "exact"
+    },
+    {
+      "id": "q-exact-cursor",
+      "query": "cursor pagination",
+      "relevant": ["m-pagination"],
+      "category": "exact"
+    },
+    {
+      "id": "q-exact-biome",
+      "query": "Biome",
+      "relevant": ["m-biome"],
+      "category": "exact",
+      "rationale": "Single rare token; tests that a one-word query still works."
+    },
+    {
+      "id": "q-exact-dataloader",
+      "query": "dataloader batching",
+      "relevant": ["m-nplusone"],
+      "category": "exact"
+    },
+    {
+      "id": "q-id-canaccess",
+      "query": "canAccess",
+      "relevant": ["m-rbac"],
+      "category": "identifier",
+      "rationale": "camelCase symbol; embeddings cannot help, tokenization must."
+    },
+    {
+      "id": "q-id-refreshworker",
+      "query": "refreshWorker.ts",
+      "relevant": ["m-refresh"],
+      "category": "identifier"
+    },
+    {
+      "id": "q-id-usegallery",
+      "query": "useGallery",
+      "relevant": ["m-imgleak"],
+      "category": "identifier"
+    },
+    {
+      "id": "q-id-envschema",
+      "query": "env.schema.ts",
+      "relevant": ["m-envvars"],
+      "category": "identifier"
+    },
+    {
+      "id": "q-id-withreplica",
+      "query": "withReplica",
+      "relevant": ["m-readreplica"],
+      "category": "identifier"
+    },
+    {
+      "id": "q-path-apiv2",
+      "query": "/api/v2",
+      "relevant": ["m-restpath", "m-idempotency"],
+      "category": "path",
+      "rationale": "Path tokenization; two memories legitimately mention it."
+    },
+    {
+      "id": "q-path-rbac",
+      "query": "src/auth/rbac.ts",
+      "relevant": ["m-rbac"],
+      "category": "path"
+    },
+    {
+      "id": "q-ticket-412",
+      "query": "issue #412",
+      "relevant": ["m-issue412"],
+      "category": "ticket"
+    },
+    {
+      "id": "q-ticket-jira",
+      "query": "JIRA-2291",
+      "relevant": ["m-jira"],
+      "category": "ticket"
+    },
+    {
+      "id": "q-ticket-587",
+      "query": "#587",
+      "relevant": ["m-issue587"],
+      "category": "ticket"
+    },
+    {
+      "id": "q-para-auth",
+      "query": "how does authentication work here?",
+      "relevant": ["m-jwt", "m-401", "m-refresh", "m-rbac"],
+      "category": "paraphrase",
+      "rationale": "The canonical hybrid-search motivating case: zero token overlap with any auth memory."
+    },
+    {
+      "id": "q-para-prices",
+      "query": "how are prices represented in the database?",
+      "relevant": ["m-money"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-afterpull",
+      "query": "what should I do before starting the dev server after a git pull?",
+      "relevant": ["m-migrations"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-locallimits",
+      "query": "are there limits on how many requests I can make locally?",
+      "relevant": ["m-ratelimit"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-bigreview",
+      "query": "how big can a code review be?",
+      "relevant": ["m-reviewsize"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-monolith",
+      "query": "why is this still one deployable unit?",
+      "relevant": ["m-notmicro"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-doublecharge",
+      "query": "customers were charged twice",
+      "relevant": ["m-webhookdup"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-wrongdates",
+      "query": "dates showing up wrong for some customers",
+      "relevant": ["m-tzoffdate"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-slowpage",
+      "query": "why was the order history slow?",
+      "relevant": ["m-nplusone"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-para-accents",
+      "query": "search cannot find products with accented characters",
+      "relevant": ["m-searchdiacritic"],
+      "category": "paraphrase"
+    },
+    {
+      "id": "q-syn-baddeploy",
+      "query": "what happens when a deploy goes wrong?",
+      "relevant": ["m-rollback"],
+      "category": "synonym",
+      "rationale": "Requires connecting 'goes wrong' to 'rollback'. Hard for lexical and for hashed embeddings alike; included to show the ceiling honestly."
+    },
+    {
+      "id": "q-syn-alerts",
+      "query": "who watches alerts?",
+      "relevant": ["m-oncall"],
+      "category": "synonym"
+    },
+    {
+      "id": "q-syn-password",
+      "query": "can I put a password in a file in the repo?",
+      "relevant": ["m-secrets"],
+      "category": "synonym"
+    },
+    {
+      "id": "q-multi-deployment",
+      "query": "deployment process",
+      "relevant": ["m-deploy", "m-rollback"],
+      "category": "multi"
+    },
+    {
+      "id": "q-multi-migrations",
+      "query": "database migrations",
+      "relevant": ["m-migrations", "m-nodowntime"],
+      "category": "multi"
+    },
+    {
+      "id": "q-multi-review",
+      "query": "what do reviewers expect?",
+      "relevant": ["m-reviewsize", "m-reviewtest", "m-reviewscreens"],
+      "category": "multi"
+    },
+    {
+      "id": "q-super-jwt",
+      "query": "where is the session JWT stored?",
+      "relevant": ["m-jwt"],
+      "category": "superseded",
+      "rationale": "m-oldjwt is an outdated memory that shares more surface terms with the query than the current answer does. A retriever that ignores recency will rank the wrong one first."
+    },
+    {
+      "id": "q-super-styling",
+      "query": "which styling system should I use?",
+      "relevant": ["m-tailwind"],
+      "category": "superseded",
+      "rationale": "m-oldstyling is the outdated distractor."
+    }
+  ]
+}

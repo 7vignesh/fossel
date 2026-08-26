@@ -41,7 +41,10 @@
     "smoke": "tsx scripts/smoke.ts",
     "test": "tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "ci": "npm run typecheck && npm run test && npm run build && npm run smoke"
+    "typecheck:bench": "tsc --noEmit -p bench/tsconfig.json",
+    "bench": "tsx bench/run.ts",
+    "bench:check": "tsx bench/run.ts --check",
+    "ci": "npm run typecheck && npm run typecheck:bench && npm run test && npm run build && npm run smoke"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
