@@ -14,11 +14,16 @@ import { registerDeleteMemoryTool } from "./tools/delete.js";
 import { registerGetContextTool } from "./tools/get-context.js";
 import { registerGetRepoContextTool } from "./tools/get-repo.js";
 import { registerPinMemoryTool, registerUnpinMemoryTool } from "./tools/pin.js";
+import {
+  registerExportMemoriesTool,
+  registerImportMemoriesTool,
+} from "./tools/portability.js";
 import { registerRememberTool } from "./tools/remember.js";
 import { registerResolveRepoTool } from "./tools/resolve-repo.js";
 import { registerSearchMemoryTool } from "./tools/search.js";
 import { registerStoreContextTool } from "./tools/store.js";
 import { registerSummarizeRepoContextTool } from "./tools/summarize.js";
+import { registerSupersedeMemoryTool } from "./tools/supersede.js";
 import { registerUpdateMemoryTool } from "./tools/update.js";
 
 export function resolveDbPath(): string {
@@ -100,9 +105,12 @@ export async function startServer(): Promise<void> {
   registerSearchMemoryTool(server);
   registerDeleteMemoryTool(server);
   registerUpdateMemoryTool(server);
+  registerSupersedeMemoryTool(server);
   registerPinMemoryTool(server);
   registerUnpinMemoryTool(server);
   registerSummarizeRepoContextTool(server);
+  registerExportMemoriesTool(server);
+  registerImportMemoriesTool(server);
 
   registerStartupContextResource(server);
 

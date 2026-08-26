@@ -121,7 +121,7 @@ function runMatch(
                    m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
             FROM memories_fts
             JOIN memories AS m ON m.rowid = memories_fts.rowid
-            WHERE memories_fts MATCH ? AND m.repo = ?
+            WHERE memories_fts MATCH ? AND m.repo = ? AND m.valid_to IS NULL
             ORDER BY rank
             LIMIT ?
           `,
@@ -135,7 +135,7 @@ function runMatch(
                  m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
           FROM memories_fts
           JOIN memories AS m ON m.rowid = memories_fts.rowid
-          WHERE memories_fts MATCH ?
+          WHERE memories_fts MATCH ? AND m.valid_to IS NULL
           ORDER BY rank
           LIMIT ?
         `,

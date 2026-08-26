@@ -36,7 +36,7 @@ function setPinnedState(rowId: number, pinned: 0 | 1): MemoryPinRow | null {
       `
         SELECT rowid AS row_id, note, pinned
         FROM memories
-        WHERE rowid = ?
+        WHERE rowid = ? AND valid_to IS NULL
       `,
     )
     .get(rowId) as MemoryPinRow;

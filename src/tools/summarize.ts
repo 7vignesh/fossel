@@ -40,7 +40,7 @@ export function registerSummarizeRepoContextTool(server: McpServer): void {
             `
               SELECT rowid AS row_id, type, note, pinned
               FROM memories
-              WHERE repo = ?
+              WHERE repo = ? AND valid_to IS NULL
               ORDER BY pinned DESC, updated_at DESC
             `,
           )

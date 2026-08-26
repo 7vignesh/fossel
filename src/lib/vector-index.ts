@@ -183,7 +183,7 @@ export function vectorSearch(
                m.created_at, m.updated_at, m.pinned, e.vector AS vector
         FROM memory_embeddings AS e
         JOIN memories AS m ON m.rowid = e.memory_rowid
-        WHERE m.repo = ? AND e.dim = ? AND e.version = ?
+        WHERE m.repo = ? AND e.dim = ? AND e.version = ? AND m.valid_to IS NULL
       `,
     )
     .all(repo, dim, version) as Array<

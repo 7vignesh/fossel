@@ -207,6 +207,41 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    name: "009_add_memories_validity",
+    apply: (db) => {
+      // Bi-temporal validity for fact supersession. `valid_to IS NULL` means the
+      // memory is live; setting it to a timestamp tombstones the memory — it
+      // stops surfacing in live reads but the row (and its history) survives.
+      // This is the Zep invalidate-never-delete pattern. valid_from defaults to
+      // the memory's creation time so existing rows are all live.
+      if (!hasColumn(db, "memories", "valid_from")) {
+        db.exec(`
+          ALTER TABLE memories
+          ADD COLUMN valid_from INTEGER NOT NULL DEFAULT 0;
+        `);
+        db.exec(`
+          UPDATE memories SET valid_from = created_at WHERE valid_from = 0;
+        `);
+      }
+      if (!hasColumn(db, "memories", "valid_to")) {
+        // Nullable: NULL is the live state, so no default backfill is needed and
+        // every existing memory stays live.
+        db.exec(`
+          ALTER TABLE memories
+          ADD COLUMN valid_to INTEGER;
+        `);
+      }
+      // Partial index over live rows — the common read path filters valid_to IS
+      // NULL, and a partial index keeps that lookup cheap without indexing
+      // tombstoned rows.
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_memories_live
+          ON memories (repo, updated_at DESC)
+          WHERE valid_to IS NULL;
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

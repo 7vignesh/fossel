@@ -44,7 +44,7 @@ export function registerGetRepoContextTool(server: McpServer): void {
             `
               SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
               FROM memories
-              WHERE repo = ?
+              WHERE repo = ? AND valid_to IS NULL
               ORDER BY pinned DESC, updated_at DESC
               LIMIT ?
             `,

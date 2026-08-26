@@ -114,7 +114,7 @@ export function fetchRepoContext(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
         FROM memories
-        WHERE repo = ? AND pinned = 1
+        WHERE repo = ? AND pinned = 1 AND valid_to IS NULL
         ORDER BY updated_at DESC
         LIMIT ?
       `,
@@ -136,7 +136,7 @@ export function fetchRepoContext(
         `
           SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
           FROM memories
-          WHERE repo = ? AND pinned = 0
+          WHERE repo = ? AND pinned = 0 AND valid_to IS NULL
           ORDER BY updated_at DESC
           LIMIT ?
         `,

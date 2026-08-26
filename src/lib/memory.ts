@@ -24,7 +24,7 @@ export function findMemoryByAnyId(
         `
           SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
           FROM memories
-          WHERE rowid = ?
+          WHERE rowid = ? AND valid_to IS NULL
         `,
       )
       .get(numeric) as MemoryRecord | undefined;
@@ -45,7 +45,7 @@ export function findMemoryByAnyId(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
         FROM memories
-        WHERE id = ?
+        WHERE id = ? AND valid_to IS NULL
       `,
     )
     .get(stringInput) as MemoryRecord | undefined;

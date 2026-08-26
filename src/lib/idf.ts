@@ -80,7 +80,7 @@ export function clearIdfCache(): void {
  */
 export function computeRepoIdf(db: Database.Database, repo: string): RepoIdf {
   const countRow = db
-    .prepare("SELECT COUNT(*) AS count FROM memories WHERE repo = ?")
+    .prepare("SELECT COUNT(*) AS count FROM memories WHERE repo = ? AND valid_to IS NULL")
     .get(repo) as { count: number };
   const documentCount = countRow.count;
 
@@ -100,7 +100,7 @@ export function computeRepoIdf(db: Database.Database, repo: string): RepoIdf {
   }
 
   const rows = db
-    .prepare("SELECT note FROM memories WHERE repo = ?")
+    .prepare("SELECT note FROM memories WHERE repo = ? AND valid_to IS NULL")
     .all(repo) as Array<{ note: string }>;
 
   const frequencies = new Map<string, number>();

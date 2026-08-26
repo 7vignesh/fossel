@@ -86,7 +86,7 @@ export function fetchMergeCandidates(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned, metadata_json
         FROM memories
-        WHERE repo = ?
+        WHERE repo = ? AND valid_to IS NULL
         ORDER BY updated_at DESC
       `,
     )

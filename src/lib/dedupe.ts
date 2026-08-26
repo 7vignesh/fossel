@@ -118,7 +118,7 @@ export function findDuplicate(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
         FROM memories
-        WHERE repo = ? AND note_normalized = ?
+        WHERE repo = ? AND note_normalized = ? AND valid_to IS NULL
         ORDER BY updated_at DESC
         LIMIT 1
       `,
@@ -134,7 +134,7 @@ export function findDuplicate(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
         FROM memories
-        WHERE repo = ?
+        WHERE repo = ? AND valid_to IS NULL
         ORDER BY updated_at DESC
         LIMIT ?
       `,
@@ -216,7 +216,7 @@ export function findRelatedCandidates(
       `
         SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
         FROM memories
-        WHERE repo = ?
+        WHERE repo = ? AND valid_to IS NULL
         ORDER BY updated_at DESC
         LIMIT ?
       `,
