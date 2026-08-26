@@ -2,7 +2,7 @@
 
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { statSync } from "node:fs";
+import { existsSync, readFileSync, appendFileSync, statSync } from "node:fs";
 import { nanoid } from "nanoid";
 import { closeDb, getDb, initDb } from "./db/client.js";
 import { normalizeText } from "./lib/dedupe.js";
@@ -89,7 +89,7 @@ function findMergeCandidates(canonical: string): SiblingRepo[] {
       `
         SELECT repo, COUNT(*) AS count
         FROM memories
-        WHERE repo != ?
+        WHERE repo != ? AND valid_to IS NULL
         GROUP BY repo
       `,
     )
@@ -117,7 +117,7 @@ function autoDedupeExact(repo: string): number {
       `
         SELECT note_normalized, type, COUNT(*) AS count
         FROM memories
-        WHERE repo = ? AND note_normalized != ''
+        WHERE repo = ? AND note_normalized != '' AND valid_to IS NULL
         GROUP BY note_normalized, type
         HAVING COUNT(*) > 1
       `,
@@ -136,7 +136,7 @@ function autoDedupeExact(repo: string): number {
           `
             SELECT rowid AS row_id, pinned, updated_at
             FROM memories
-            WHERE repo = ? AND note_normalized = ? AND type = ?
+            WHERE repo = ? AND note_normalized = ? AND type = ? AND valid_to IS NULL
             ORDER BY pinned DESC, updated_at DESC, rowid DESC
           `,
         )
@@ -159,6 +159,73 @@ function autoDedupeExact(repo: string): number {
   });
   tx();
   return removed;
+}
+
+const HINT_MARKER = "<!-- fossel:get_context -->";
+const HINT_LINE =
+  "At the start of a session, call the Fossel `get_context` MCP tool to load " +
+  "this repo's saved conventions, decisions and bug fixes.";
+
+/**
+ * Append a one-line get_context invocation hint to whichever agent rule files
+ * the workspace already uses (AGENTS.md, CLAUDE.md, .cursor/rules*). This is the
+ * difference between Fossel being installed and being actually used — clients
+ * read these files on session start.
+ *
+ * Rules:
+ *  - **Idempotent.** A marker comment is written alongside the hint; if the
+ *    marker is already present the file is left untouched, so re-running init
+ *    never duplicates the line.
+ *  - **Never clobbers.** The hint is *appended* as a marked block; existing
+ *    content is never rewritten.
+ *  - **Only touches files that already exist.** We do not create rule files a
+ *    project has not opted into. If none exist, nothing is written.
+ *
+ * Returns a comma-separated list of the files written to, or null when there was
+ * nothing to do.
+ */
+export function writeInvocationHint(cwd: string): string | null {
+  const candidates = [
+    join(cwd, "AGENTS.md"),
+    join(cwd, "CLAUDE.md"),
+    join(cwd, ".cursor", "rules"),
+    join(cwd, ".cursor", "rules.md"),
+  ];
+
+  const block = `\n\n${HINT_MARKER}\n${HINT_LINE}\n`;
+  const written: string[] = [];
+
+  for (const path of candidates) {
+    let isFile = false;
+    try {
+      isFile = statSync(path).isFile();
+    } catch {
+      isFile = false;
+    }
+    if (!isFile) {
+      continue;
+    }
+
+    let existing = "";
+    try {
+      existing = readFileSync(path, "utf8");
+    } catch {
+      continue;
+    }
+    // Idempotent: skip if the marker is already there.
+    if (existing.includes(HINT_MARKER)) {
+      continue;
+    }
+
+    try {
+      appendFileSync(path, block, "utf8");
+      written.push(path);
+    } catch {
+      // A read-only or otherwise unwritable rule file is not fatal to init.
+    }
+  }
+
+  return written.length > 0 ? written.join(", ") : null;
 }
 
 function runInit(options: { autoDedupe: boolean }): void {
@@ -235,6 +302,14 @@ function runInit(options: { autoDedupe: boolean }): void {
   console.log("");
   console.log("Set FOSSEL_WORKSPACE in your MCP config to your project root if Fossel detects the wrong repo.");
 
+  // 5c: write a get_context invocation hint into agent rule files so the agent
+  // actually uses Fossel on session start rather than just having it installed.
+  const hintResult = writeInvocationHint(process.cwd());
+  if (hintResult) {
+    console.log("");
+    console.log(`Added get_context invocation hint to ${hintResult}.`);
+  }
+
   closeDb();
 }
 
@@ -300,7 +375,7 @@ function gatherDoctorReport(): DoctorReport {
       `
         SELECT note_normalized, COUNT(*) AS count
         FROM memories
-        WHERE repo = ? AND note_normalized != ''
+        WHERE repo = ? AND note_normalized != '' AND valid_to IS NULL
         GROUP BY note_normalized
         HAVING COUNT(*) > 1
       `,
@@ -429,10 +504,19 @@ async function main(): Promise<void> {
   process.exit(1);
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Fossel command failed: ${message}`);
-  process.exit(1);
-});
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
+
+const __filename = fileURLToPath(import.meta.url);
+const isDirectEntry =
+  process.argv[1] && resolve(process.argv[1]) === __filename;
+
+if (isDirectEntry) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Fossel command failed: ${message}`);
+    process.exit(1);
+  });
+}
 
 export { runDoctor, runInit };
