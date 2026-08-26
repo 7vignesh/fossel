@@ -143,6 +143,47 @@ It fails safe end to end: outside a git repo, without git installed, or for a
 file that isn't tracked, Fossel simply records no reference and shows no marker —
 the feature is invisible until it has something real to say.
 
+### Fact supersession (`supersede_memory`)
+
+When a memory becomes outdated, use `supersede_memory` instead of deleting it.
+The memory stops surfacing in live retrieval but the row and its history are
+preserved - this is the Zep invalidate-never-delete pattern. Optionally point at
+the memory that replaces it:
+
+```json
+{ "id": 2, "superseded_by": 5, "reason": "Moved JWT to httpOnly cookies" }
+```
+
+The superseded memory keeps its changelog in `metadata_json` so you can trace
+what was believed when. Use `delete_memory` only when a fact was entered by
+mistake; use `supersede_memory` when it was true but is no longer.
+
+### Export / import
+
+Your data is yours. Export everything Fossel knows as a portable JSON file:
+
+```json
+{ "repo": "7vignesh/fossel" }
+```
+
+The envelope contains memories (including superseded ones) and repo aliases.
+Embeddings are deliberately excluded - they are re-derived on import so the
+file stays small and model-agnostic.
+
+`import_memories` is additive and idempotent: it uses `INSERT OR IGNORE` on the
+source id, so re-importing the same file is a no-op and never clobbers existing
+rows. There is no replace mode; to wipe, delete the database file.
+
+### Invocation hint on `fossel init`
+
+When you run `fossel init`, Fossel detects agent rule files in your workspace
+(AGENTS.md, CLAUDE.md, .cursor/rules) and appends a one-line hint telling the
+agent to call `get_context` at the start of a session. This is the difference
+between Fossel being installed and being actually used.
+
+The hint is idempotent (a marker prevents duplicates) and never clobbers
+existing content - it only appends, and only to files that already exist.
+
 ### High-quality fact extraction (`infer`)
 
 For the best memories, have your AI assistant extract a single clean,
@@ -176,6 +217,9 @@ Every original tool is still available for power users.
 | `pin_memory` / `unpin_memory` | Pin important memories to always appear first |
 | `delete_memory` | Delete by id |
 | `update_memory` | Edit an existing memory by id |
+| `supersede_memory` | Tombstone a memory so it stops surfacing but the row survives |
+| `export_memories` | Export all memories as a portable JSON envelope |
+| `import_memories` | Import memories from a JSON envelope (additive, idempotent) |
 | `dedupe_repo` | Merge near-duplicate memories |
 | `summarize_repo_context` | Markdown summary — useful for PR descriptions |
 
