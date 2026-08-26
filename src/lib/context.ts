@@ -5,15 +5,18 @@ import {
   type MemoryType,
 } from "../db/client.js";
 import { embeddingsEnabled } from "./embeddings.js";
+import { searchFts, type FtsRow } from "./fts.js";
+import {
+  DEFAULT_FUSION_WEIGHTS,
+  DEFAULT_VECTOR_SCORE_FLOOR,
+  fuseRrf,
+  type FusionWeights,
+} from "./fusion.js";
 import { vectorSearch } from "./vector-index.js";
 
 export interface ContextRow extends MemoryRecord {
   source: "pinned" | "recent" | "search";
   rank?: number;
-}
-
-interface FtsRow extends MemoryRecord {
-  rank: number;
 }
 
 const SECTION_TITLES: Record<MemoryType, string> = {
@@ -49,18 +52,13 @@ function normalizeNoteForReadDedupe(text: string): string {
     .trim();
 }
 
-function buildFtsQuery(query: string): string | null {
-  const terms = query
-    .trim()
-    .split(/\s+/)
-    .map((term) => term.replace(/"/g, '""'))
-    .filter((term) => term.length > 0);
-
-  if (terms.length === 0) {
-    return null;
-  }
-
-  return terms.map((term) => `"${term}"`).join(" AND ");
+export interface FetchContextOptions {
+  /** Override the RRF leg weights. Exists so the benchmark can sweep them;
+   * production callers use the measured defaults. */
+  weights?: Partial<FusionWeights>;
+  /** Override the minimum cosine a vector hit needs to enter the fusion.
+   * Sweepable for the same reason. */
+  vectorScoreFloor?: number;
 }
 
 /**
@@ -79,7 +77,14 @@ export function fetchRepoContext(
   repo: string,
   limit: number,
   query?: string,
+  options: FetchContextOptions = {},
 ): ContextRow[] {
+  const weights: FusionWeights = {
+    ...DEFAULT_FUSION_WEIGHTS,
+    ...options.weights,
+  };
+  const vectorScoreFloor =
+    options.vectorScoreFloor ?? DEFAULT_VECTOR_SCORE_FLOOR;
   const rows: ContextRow[] = [];
   const seen = new Set<number>();
   const seenNormalized = new Set<string>();
@@ -149,71 +154,40 @@ export function fetchRepoContext(
   }
 
   if (query && rows.length < limit) {
-    const ftsQuery = buildFtsQuery(query);
-    const ftsRows: FtsRow[] = [];
-    if (ftsQuery) {
-      try {
-        const matches = db
-          .prepare(
-            `
-              SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags,
-                     m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
-              FROM memories_fts
-              JOIN memories AS m ON m.rowid = memories_fts.rowid
-              WHERE memories_fts MATCH ? AND m.repo = ?
-              ORDER BY rank
-              LIMIT ?
-            `,
-          )
-          .all(ftsQuery, repo, limit) as FtsRow[];
-        ftsRows.push(...matches);
-      } catch {
-        // FTS rejects some inputs (e.g. only stop characters). Failing soft
-        // here keeps the pinned/recent results useful.
-      }
-    }
+    const ftsRows = searchFts(db, query, { repo, limit }).rows;
 
     // Hybrid retrieval: when embeddings are enabled, run a semantic vector
-    // search alongside FTS and fuse the two ranked lists with Reciprocal Rank
-    // Fusion (RRF). RRF rewards rows that rank highly in either list without
-    // needing the two score scales to be comparable. When embeddings are
+    // search alongside FTS and fuse the two ranked lists with weighted
+    // Reciprocal Rank Fusion. RRF rewards rows that rank highly in either list
+    // without needing the two score scales to be comparable. The vector leg is
+    // down-weighted because it is measurably the weaker retriever — see
+    // lib/fusion.ts for the numbers behind the default. When embeddings are
     // disabled this collapses to the original FTS-only behavior.
     const vectorRows = embeddingsEnabled()
-      ? vectorSearch(db, repo, query, limit)
+      ? vectorSearch(db, repo, query, limit).filter(
+          (row) => row.score >= vectorScoreFloor,
+        )
       : [];
 
     if (vectorRows.length > 0) {
-      const RRF_K = 60;
-      const fused = new Map<
-        number,
-        { memory: MemoryRecord; score: number; rank?: number }
-      >();
-      const accumulate = (
-        list: MemoryRecord[],
-        rankOf?: (m: MemoryRecord, index: number) => number | undefined,
-      ) => {
-        list.forEach((memory, index) => {
-          const contribution = 1 / (RRF_K + index + 1);
-          const prior = fused.get(memory.row_id);
-          if (prior) {
-            prior.score += contribution;
-          } else {
-            fused.set(memory.row_id, {
-              memory,
-              score: contribution,
-              rank: rankOf?.(memory, index),
-            });
-          }
-        });
-      };
-      accumulate(ftsRows, (m) => (m as FtsRow).rank);
-      accumulate(vectorRows);
-
-      const ordered = Array.from(fused.values()).sort(
-        (a, b) => b.score - a.score,
+      const FTS_LIST = 0;
+      const fused = fuseRrf<MemoryRecord>(
+        [
+          { items: ftsRows, weight: weights.fts },
+          { items: vectorRows, weight: weights.vector },
+        ],
+        (memory) => memory.row_id,
       );
-      for (const { memory, rank } of ordered) {
-        push(memory, "search", rank);
+
+      for (const entry of fused) {
+        // Preserve the BM25 rank when the row came from the keyword leg, so
+        // callers that surface `rank` still see a meaningful value.
+        const ftsPosition = entry.positions.get(FTS_LIST);
+        const rank =
+          ftsPosition === undefined
+            ? undefined
+            : (ftsRows[ftsPosition] as FtsRow | undefined)?.rank;
+        push(entry.item, "search", rank);
         if (rows.length >= limit) {
           break;
         }

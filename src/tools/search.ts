@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
 import { fetchRepoContext } from "../lib/context.js";
 import { embeddingsEnabled } from "../lib/embeddings.js";
+import { searchFts } from "../lib/fts.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { vectorSearch } from "../lib/vector-index.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
@@ -17,37 +18,6 @@ const searchMemoryInputSchema = {
   limit: z.number().int().positive().max(50).default(5),
 };
 
-/**
- * Tokenize a free-form query into FTS-safe terms. We strip punctuation, split
- * on `/`, `_`, `-`, `.` so that paths like `/api/auth` and identifiers like
- * `getUserName` produce useful search tokens. Tokens shorter than two chars
- * (typical FTS noise) are dropped.
- */
-function tokenizeQuery(query: string): string[] {
-  return query
-    .toLowerCase()
-    .replace(/["()]/g, " ")
-    .split(/[\s/_\-.,;:!?]+/)
-    .map((token) => token.replace(/[^a-z0-9*]/g, ""))
-    .filter((token) => token.length >= 2);
-}
-
-function buildFtsQuery(tokens: string[]): string | null {
-  if (tokens.length === 0) {
-    return null;
-  }
-  // Quote each token to prevent FTS from treating user input as syntax. AND
-  // gives narrow precision; for a backstop pass we'll fall back to OR.
-  return tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" AND ");
-}
-
-function buildFtsQueryOr(tokens: string[]): string | null {
-  if (tokens.length === 0) {
-    return null;
-  }
-  return tokens.map((token) => `"${token.replace(/"/g, '""')}"`).join(" OR ");
-}
-
 function parseTags(raw: string): string[] {
   try {
     const parsed = JSON.parse(raw);
@@ -55,48 +25,6 @@ function parseTags(raw: string): string[] {
       ? parsed.filter((value): value is string => typeof value === "string")
       : [];
   } catch {
-    return [];
-  }
-}
-
-function runFts(
-  ftsQuery: string,
-  resolvedRepo: string | undefined,
-  limit: number,
-): SearchRow[] {
-  const db = getDb();
-  try {
-    if (resolvedRepo) {
-      return db
-        .prepare(
-          `
-            SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags,
-                   m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
-            FROM memories_fts
-            JOIN memories AS m ON m.rowid = memories_fts.rowid
-            WHERE memories_fts MATCH ? AND m.repo = ?
-            ORDER BY rank
-            LIMIT ?
-          `,
-        )
-        .all(ftsQuery, resolvedRepo, limit) as SearchRow[];
-    }
-    return db
-      .prepare(
-        `
-          SELECT m.rowid AS row_id, m.id, m.repo, m.type, m.note, m.tags,
-                 m.created_at, m.updated_at, m.pinned, bm25(memories_fts) AS rank
-          FROM memories_fts
-          JOIN memories AS m ON m.rowid = memories_fts.rowid
-          WHERE memories_fts MATCH ?
-          ORDER BY rank
-          LIMIT ?
-        `,
-      )
-      .all(ftsQuery, limit) as SearchRow[];
-  } catch {
-    // FTS5 rejects some inputs (only-stop-character queries, leftover quote).
-    // Failing soft keeps the fallback path useful.
     return [];
   }
 }
@@ -112,26 +40,15 @@ export function registerSearchMemoryTool(server: McpServer): void {
     async ({ query, repo, limit }) => {
       try {
         const db = getDb();
-        const tokens = tokenizeQuery(query);
         const resolvedRepo = repo
           ? resolveRepoArg(repo, getWorkspaceRoot(), db).canonical
           : undefined;
 
-        const andQuery = buildFtsQuery(tokens);
-        let rows: SearchRow[] = [];
-        if (andQuery) {
-          rows = runFts(andQuery, resolvedRepo, limit);
-        }
-
-        // Backstop: AND query missed but the user clearly typed something.
-        // Try OR before giving up so single-typo or extra-term queries still
-        // return useful results.
-        if (rows.length === 0 && tokens.length > 1) {
-          const orQuery = buildFtsQueryOr(tokens);
-          if (orQuery) {
-            rows = runFts(orQuery, resolvedRepo, limit);
-          }
-        }
+        // Narrow AND first, broadening to OR only when AND finds nothing.
+        let rows: SearchRow[] = searchFts(db, query, {
+          repo: resolvedRepo,
+          limit,
+        }).rows;
 
         // Semantic backstop: when keyword search finds nothing but embeddings
         // are enabled, fall back to vector similarity so paraphrased queries
