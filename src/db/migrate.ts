@@ -242,6 +242,47 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    name: '010_add_memory_entities',
+    apply: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_entities (
+          memory_rowid INTEGER NOT NULL,
+          entity TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          PRIMARY KEY (memory_rowid, entity)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_entities_entity
+          ON memory_entities (entity);
+
+        CREATE INDEX IF NOT EXISTS idx_memory_entities_kind
+          ON memory_entities (kind, entity);
+
+        CREATE TRIGGER IF NOT EXISTS memories_entities_ad
+        AFTER DELETE ON memories BEGIN
+          DELETE FROM memory_entities WHERE memory_rowid = old.rowid;
+        END;
+      `);
+    },
+  },
+  {
+    name: '011_add_access_tracking',
+    apply: (db) => {
+      if (!hasColumn(db, 'memories', 'last_accessed_at')) {
+        db.exec(`
+          ALTER TABLE memories ADD COLUMN last_accessed_at INTEGER NOT NULL DEFAULT 0;
+        `);
+        // Backfill: treat created_at as the initial access time
+        db.exec(`UPDATE memories SET last_accessed_at = created_at WHERE last_accessed_at = 0;`);
+      }
+      if (!hasColumn(db, 'memories', 'access_count')) {
+        db.exec(`
+          ALTER TABLE memories ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0;
+        `);
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
