@@ -69,11 +69,18 @@ export const DEFAULT_VECTOR_SCORE_FLOOR = 0;
 export interface FusionWeights {
   fts: number;
   vector: number;
+  entity?: number;
 }
+
+/** Default weight for the entity leg. Entity matches are a strong signal —
+ * sharing a named identifier or file path is high-precision — but the leg is
+ * narrower than FTS so it supplements rather than dominates. */
+export const DEFAULT_ENTITY_WEIGHT = 0.6;
 
 export const DEFAULT_FUSION_WEIGHTS: FusionWeights = {
   fts: DEFAULT_FTS_WEIGHT,
   vector: DEFAULT_VECTOR_WEIGHT,
+  entity: DEFAULT_ENTITY_WEIGHT,
 };
 
 export interface WeightedList<T> {

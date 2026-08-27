@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
+import { recordEntities } from "../lib/entities.js";
 import { recordFileRefs } from "../lib/file-refs.js";
 import { findMemoryByAnyId } from "../lib/memory.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
@@ -118,6 +119,8 @@ export function registerUpdateMemoryTool(server: McpServer): void {
           indexMemoryEmbedding(db, existing.row_id, nextNote);
           // The set of referenced files may have changed too; re-record.
           recordFileRefs(db, existing.row_id, nextNote, getWorkspaceRoot());
+          // Re-record extracted entities for the updated note.
+          recordEntities(db, existing.row_id, nextNote);
         } else {
           db.prepare(
             `

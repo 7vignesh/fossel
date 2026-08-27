@@ -8,6 +8,7 @@ import {
   normalizeText,
   type RelatedCandidate,
 } from "../lib/dedupe.js";
+import { recordEntities } from "../lib/entities.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { recordFileRefs } from "../lib/file-refs.js";
 import { resolveRepoArg } from "../lib/repo.js";
@@ -145,6 +146,8 @@ export function registerRememberTool(server: McpServer): void {
           indexMemoryEmbedding(db, existing.row_id, longerNote);
           // Re-record git file refs against the merged note.
           recordFileRefs(db, existing.row_id, longerNote, getWorkspaceRoot());
+          // Re-record extracted entities for the merged note.
+          recordEntities(db, existing.row_id, longerNote);
 
           return {
             content: [
@@ -197,6 +200,7 @@ export function registerRememberTool(server: McpServer): void {
         if (inserted) {
           indexMemoryEmbedding(db, inserted.row_id, note);
           recordFileRefs(db, inserted.row_id, note, getWorkspaceRoot());
+          recordEntities(db, inserted.row_id, note);
         }
 
         // Conflict-review hint: surface related-but-not-duplicate memories so

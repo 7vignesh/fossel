@@ -4,7 +4,9 @@ import {
   type MemoryRecord,
   type MemoryType,
 } from "../db/client.js";
+import { recordAccess } from "./access.js";
 import { embeddingsEnabled } from "./embeddings.js";
+import { extractEntities, findEntityMatches } from "./entities.js";
 import type { StaleFileRef } from "./file-refs.js";
 import { searchFts, type FtsRow } from "./fts.js";
 import {
@@ -137,7 +139,7 @@ export function fetchRepoContext(
           SELECT rowid AS row_id, id, repo, type, note, tags, created_at, updated_at, pinned
           FROM memories
           WHERE repo = ? AND pinned = 0 AND valid_to IS NULL
-          ORDER BY updated_at DESC
+          ORDER BY updated_at DESC, last_accessed_at DESC, access_count DESC
           LIMIT ?
         `,
       )
@@ -170,13 +172,27 @@ export function fetchRepoContext(
         )
       : [];
 
-    if (vectorRows.length > 0) {
+    // Entity retrieval: extract named entities from the query and find
+    // memories that share them. This is a high-precision signal — sharing a
+    // file path, function name, or ticket reference is a strong relevance
+    // indicator.
+    const queryEntities = extractEntities(query);
+    const entityRows: MemoryRecord[] =
+      queryEntities.length > 0
+        ? findEntityMatches(db, repo, queryEntities, limit)
+        : [];
+
+    if (vectorRows.length > 0 || entityRows.length > 0) {
       const FTS_LIST = 0;
+      const fusionLegs: Array<{ items: MemoryRecord[]; weight: number }> = [
+        { items: ftsRows, weight: weights.fts },
+        { items: vectorRows, weight: weights.vector },
+      ];
+      if (entityRows.length > 0) {
+        fusionLegs.push({ items: entityRows, weight: weights.entity ?? 0.6 });
+      }
       const fused = fuseRrf<MemoryRecord>(
-        [
-          { items: ftsRows, weight: weights.fts },
-          { items: vectorRows, weight: weights.vector },
-        ],
+        fusionLegs,
         (memory) => memory.row_id,
       );
 
@@ -206,6 +222,9 @@ export function fetchRepoContext(
     // with few/no matches still returns useful context.
     pushRecent();
   }
+
+  const accessedIds = rows.slice(0, limit).map(r => r.row_id);
+  recordAccess(db, accessedIds);
 
   return rows.slice(0, limit);
 }
