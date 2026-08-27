@@ -9,6 +9,7 @@ import { getDb, initDb } from "./db/client.js";
 import { fetchRepoContext, formatContext } from "./lib/context.js";
 import { resolveRepo } from "./lib/repo.js";
 import { getWorkspaceRoot } from "./lib/workspace.js";
+import { registerConsolidateTool } from "./tools/consolidate.js";
 import { registerDedupeRepoTool } from "./tools/dedupe-repo.js";
 import { registerDeleteMemoryTool } from "./tools/delete.js";
 import { registerGetContextTool } from "./tools/get-context.js";
@@ -98,6 +99,7 @@ export async function startServer(): Promise<void> {
   registerGetContextTool(server);
   registerResolveRepoTool(server);
   registerDedupeRepoTool(server);
+  registerConsolidateTool(server);
 
   // Existing power-user tools (kept for backwards compatibility)
   registerStoreContextTool(server);
