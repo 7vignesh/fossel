@@ -56,9 +56,11 @@
 |--------|---------|
 | **Local data** | SQLite + migrations; nothing leaves your disk unless you share it. |
 | **Repo-scoped memory** | One canonical key per repo; aliases collapse automatically. |
-| **Find anything** | FTS5 search across notes; pin what matters; summarize for PRs. |
+| **Find anything** | FTS5 + entity matching + optional semantic search; pin what matters. |
 | **Ambient capture** | Natural-language `remember`; dedupes near-duplicates on save. |
 | **Conflict review** | Flags related memories on save so the agent can reconcile contradictions. |
+| **Smart retrieval** | Entity-aware ranking, access frequency tiebreaker, git-staleness markers. |
+| **Proactive maintenance** | `consolidate_memory` surfaces stale, redundant, and contradicted entries. |
 | **Evolving schema** | Startup migrations keep upgrades safe for existing databases. |
 
 ---
@@ -203,6 +205,54 @@ high-quality, atomic facts without adding an LLM dependency to Fossel. Omit
 
 Fossel exposes a static MCP resource at `fossel://context/current-repo`. Cursor and Claude Desktop list resources on session start, so Fossel's pinned + recent memories show up before you type anything. Clients that don't list resources can still call `get_context` from the agent's first turn — that's all the prompting needed.
 
+### Entity-aware retrieval
+
+When you save a memory, Fossel extracts named entities from the note — file
+paths, packages, function names, services, class names, and ticket references —
+and stores them in a side table. When you query, the same extraction runs on
+your question and memories sharing entities with the query get a retrieval
+boost via a third fusion leg (alongside FTS and vector search).
+
+> **You:** what does Fossel remember about express?
+>
+> **Fossel:** boosts all memories mentioning `express` as an entity, even if
+> the word "express" doesn't appear in the FTS match.
+
+This is the same pattern Mem0 v3 uses for entity matching — adapted for code
+memory where identifiers are the entities. No LLM, no spaCy, no model download.
+Six entity kinds are extracted via regex heuristics: `file`, `package`,
+`function`, `identifier`, `service`, `ticket`.
+
+### Access tracking
+
+Fossel tracks which memories are actually useful. Every time a memory is
+returned to you (via `get_context` or `search_memory`), its `access_count` is
+incremented and `last_accessed_at` is updated. This data is used as a
+tiebreaker in retrieval — between two equally-recent memories, the one that's
+been useful before surfaces first.
+
+Access data also powers the consolidation tool (below) which identifies
+memories that were never retrieved and may be stale.
+
+### Memory consolidation (`consolidate_memory`)
+
+Over time, repos accumulate contradictions, near-duplicates, and forgotten
+memories. `consolidate_memory` is a read-only analysis tool that surfaces
+candidates for cleanup without modifying any data:
+
+> **You:** run consolidate_memory for this repo
+>
+> **Fossel:** returns a markdown report listing:
+> - 🕸️ **Stale**: never accessed, older than 90 days, not pinned
+> - 🔁 **Redundant**: ≥70% similar to another memory
+> - ⚠️ **Contradicted**: negation language overlapping with an existing fact
+>
+> Plus suggested actions for each (supersede, merge, delete).
+
+This is Fossel's version of Letta's "sleep-time compute" — without the LLM.
+The report is prompt-ready so your AI assistant can act on it immediately.
+The tool never auto-edits or auto-deletes; it flags and the model judges.
+
 ---
 
 ## Advanced mode
@@ -221,6 +271,7 @@ Every original tool is still available for power users.
 | `export_memories` | Export all memories as a portable JSON envelope |
 | `import_memories` | Import memories from a JSON envelope (additive, idempotent) |
 | `dedupe_repo` | Merge near-duplicate memories |
+| `consolidate_memory` | Surface stale, redundant, and contradicted memories for review |
 | `summarize_repo_context` | Markdown summary — useful for PR descriptions |
 
 ### Memory types
