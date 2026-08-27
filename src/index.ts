@@ -91,7 +91,7 @@ export async function startServer(): Promise<void> {
 
   const server = new McpServer({
     name: "fossel",
-    version: "1.4.0",
+    version: "2.0.0",
   });
 
   // Phase 1 ambient tools
