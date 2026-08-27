@@ -732,8 +732,8 @@
 <section class="hero">
   <div class="container hero-inner">
     <a href="https://github.com/7vignesh/fossel/releases" target="_blank" rel="noopener noreferrer" class="ann">
-      <span class="ann-tag">v1.4.0</span>
-      <span>Now with <em style="font-style:italic">hybrid semantic search</em></span>
+      <span class="ann-tag">NEW</span>
+      <span>Entity-aware retrieval, access tracking &amp; <em style="font-style:italic">memory consolidation</em></span>
     </a>
 
     <h1>
@@ -809,8 +809,8 @@
         <h3>Memory that just works</h3>
         <ul class="compare-list">
           <li><i data-lucide="check" width="14" height="14"></i> Say <code>remember this</code>. Fossel infers type, tags, and repo.</li>
-          <li><i data-lucide="check" width="14" height="14"></i> Finds memories by meaning, not just keywords — hybrid search.</li>
-          <li><i data-lucide="check" width="14" height="14"></i> Flags contradictions so old memories don't go stale.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> Finds by meaning, identifiers, and file paths — entity-aware hybrid search.</li>
+          <li><i data-lucide="check" width="14" height="14"></i> Flags contradictions and git-stale code references automatically.</li>
           <li><i data-lucide="check" width="14" height="14"></i> Same memory across Cursor, Claude Desktop, any MCP client.</li>
           <li><i data-lucide="check" width="14" height="14"></i> SQLite + FTS5 on your laptop. Zero cloud, zero accounts.</li>
         </ul>
@@ -868,12 +868,12 @@
         <div class="stat-lbl">cloud calls</div>
       </div>
       <div>
-        <div class="stat-num"><em>30+</em></div>
-        <div class="stat-lbl">unit tests · CI gated</div>
+        <div class="stat-num"><em>226</em></div>
+        <div class="stat-lbl">tests · CI gated</div>
       </div>
       <div>
-        <div class="stat-num"><em>MIT</em></div>
-        <div class="stat-lbl">open-source license</div>
+        <div class="stat-num"><em>12</em></div>
+        <div class="stat-lbl">MCP tools</div>
       </div>
     </div>
   </div>
@@ -940,9 +940,29 @@
 
     <div class="feat-grid">
       <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="tag" width="11" height="11"></i> entity matching</span>
+        <h3>Retrieval by identifiers</h3>
+        <p>Ask about <code>express</code> and Fossel boosts memories mentioning it as an entity — even with no shared keywords. File paths, packages, functions, services, and tickets are extracted and matched automatically.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="activity" width="11" height="11"></i> access tracking</span>
+        <h3>Knows what's useful</h3>
+        <p>Every retrieval increments a counter. Between two equally-recent memories, the one that's been useful before surfaces first. Powers the consolidation tool's "never accessed" detection.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="scan" width="11" height="11"></i> consolidation</span>
+        <h3>Proactive cleanup</h3>
+        <p><code>consolidate_memory</code> surfaces stale, redundant, and contradicted entries as a prompt-ready report. The tool never auto-edits — it flags, and your AI assistant decides.</p>
+      </div>
+      <div class="feat fade-in">
+        <span class="feat-tag"><i data-lucide="git-branch" width="11" height="11"></i> git staleness</span>
+        <h3>Code-drift advisories</h3>
+        <p>When a memory references <code>middleware.ts</code> and that file has changed since, retrieval flags it: "⚠ may be stale." No auto-deletion — just an advisory marker.</p>
+      </div>
+      <div class="feat fade-in">
         <span class="feat-tag"><i data-lucide="search" width="11" height="11"></i> hybrid search</span>
         <h3>Finds by meaning</h3>
-        <p>Ask "how does auth work?" and it surfaces the note about <code>JWT in localStorage</code> — even with no shared keywords. Semantic + keyword results, fused. Opt in with <code>FOSSEL_EMBEDDINGS=1</code>.</p>
+        <p>Ask "how does auth work?" and it surfaces the note about <code>JWT in localStorage</code> — even with no shared keywords. Semantic + keyword + entity results, fused. Opt in with <code>FOSSEL_EMBEDDINGS=1</code>.</p>
       </div>
       <div class="feat fade-in">
         <span class="feat-tag"><i data-lucide="git-compare" width="11" height="11"></i> conflict review</span>
@@ -955,9 +975,9 @@
         <p>"Fixed it last week" is stored as <code>last week = 2026-06-19</code>, so a memory still makes sense six months later instead of rotting.</p>
       </div>
       <div class="feat fade-in">
-        <span class="feat-tag"><i data-lucide="plug" width="11" height="11"></i> pluggable embedder</span>
-        <h3>Bring your own model</h3>
-        <p>Point <code>FOSSEL_EMBEDDER_CMD</code> at any command that returns a vector to plug in a stronger model. Falls back gracefully; the default stays zero-dependency.</p>
+        <span class="feat-tag"><i data-lucide="archive" width="11" height="11"></i> supersede &amp; export</span>
+        <h3>Data you own</h3>
+        <p><code>supersede_memory</code> tombstones outdated facts without deleting them. <code>export_memories</code> / <code>import_memories</code> move your data between machines — portable JSON, no lock-in.</p>
       </div>
     </div>
   </div>
@@ -1084,9 +1104,13 @@ and 401 redirects to /login</pre>
     </div>
 
     <div class="tool-grid" role="tablist" aria-label="Fossel MCP tools">
-      <button class="tool fade-in" data-tool="remember" role="tab" aria-pressed="true"><span class="tool-dot"></span><span class="tool-name">remember</span><span class="tool-status new">new</span></button>
-      <button class="tool fade-in" data-tool="get_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">get_context</span><span class="tool-status new">new</span></button>
-      <button class="tool fade-in" data-tool="dedupe_repo" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="remember" role="tab" aria-pressed="true"><span class="tool-dot"></span><span class="tool-name">remember</span><span class="tool-status new">core</span></button>
+      <button class="tool fade-in" data-tool="get_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">get_context</span><span class="tool-status new">core</span></button>
+      <button class="tool fade-in" data-tool="consolidate_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">consolidate_memory</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="supersede_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">supersede_memory</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="export_memories" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">export_memories</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="import_memories" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">import_memories</span><span class="tool-status new">new</span></button>
+      <button class="tool fade-in" data-tool="dedupe_repo" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">dedupe_repo</span><span class="tool-status">ready</span></button>
       <button class="tool fade-in" data-tool="search_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">search_memory</span><span class="tool-status">ready</span></button>
       <button class="tool fade-in" data-tool="pin_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">pin_memory</span><span class="tool-status">ready</span></button>
       <button class="tool fade-in" data-tool="unpin_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">ready</span></button>
@@ -1197,44 +1221,44 @@ document.querySelectorAll('.code-tabs').forEach((tabs) => {
 // Tool detail panel: a single panel updates as the user clicks a tool button.
 const TOOL_INFO = {
   remember: {
-    tag: 'new',
-    desc: 'Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, grounds relative dates ("last week" → an absolute date), merges near-duplicates, and flags related memories so contradictions can be reconciled.',
+    tag: 'core',
+    desc: 'Save a memory using only a natural-language note. Fossel infers the memory type, generates 2–5 tags, resolves the repo, grounds relative dates, extracts entities, merges near-duplicates, and flags related memories so contradictions can be reconciled.',
     example: '<span class="cmt"># in chat</span>\nremember: <span class="accent">JWT lives in localStorage; 401 → /login</span>'
   },
   get_context: {
-    tag: 'new',
-    desc: 'Unified retrieval. Returns pinned memories first, then the most relevant matches (hybrid keyword + semantic search when embeddings are enabled), then recent context. Default limit is tuned for direct LLM-context injection.',
+    tag: 'core',
+    desc: 'Unified retrieval. Returns pinned memories first, then the most relevant matches (hybrid keyword + semantic + entity search), then recent context. Flags git-stale memories. Tracks access frequency for smarter future ranking.',
     example: 'get_context({ query: <span class="accent">"auth"</span>, format: <span class="accent">"markdown"</span> })'
   },
-  resolve_repo: {
+  consolidate_memory: {
     tag: 'new',
-    desc: 'Show which canonical repo key Fossel will target for the current workspace, plus its aliases and detected git remote. Useful when memories seem to land in the wrong place.',
-    example: 'resolve_repo()\n<span class="cmt"># → { canonical: "owner/repo", aliases: [...], gitRemote }</span>'
+    desc: 'Analyze a repo for maintenance candidates: stale (never accessed, old), redundant (≥70% similar), and contradicted (negation language). Returns a prompt-ready report. Read-only — never auto-edits or auto-deletes.',
+    example: 'consolidate_memory({ stale_days: <span class="accent">90</span> })\n<span class="cmt"># → 🕸️ 3 stale · 🔁 2 redundant · ⚠️ 1 contradicted</span>'
+  },
+  supersede_memory: {
+    tag: 'new',
+    desc: 'Tombstone an outdated memory so it stops surfacing but the row and its history survive. Optionally point at the memory that replaces it. Use instead of delete when a fact was true but is no longer.',
+    example: 'supersede_memory({ id: <span class="accent">2</span>,\n  superseded_by: <span class="accent">5</span>,\n  reason: <span class="accent">"Moved JWT to httpOnly cookies"</span> })'
+  },
+  export_memories: {
+    tag: 'new',
+    desc: 'Export all memories as a portable JSON envelope. Includes superseded memories and repo aliases. Embeddings are excluded — they are re-derived on import so the file stays small and model-agnostic.',
+    example: 'export_memories({ repo: <span class="accent">"owner/repo"</span> })\n<span class="cmt"># → { format: "fossel", version: 1, memories: [...] }</span>'
+  },
+  import_memories: {
+    tag: 'new',
+    desc: 'Import memories from a JSON envelope. Additive and idempotent: uses INSERT OR IGNORE on the source id, so re-importing the same file is a no-op. Never clobbers existing rows.',
+    example: 'import_memories({ data: <span class="accent">envelopeJson</span> })\n<span class="cmt"># → Imported 12 memories, 2 aliases</span>'
   },
   dedupe_repo: {
-    tag: 'new',
+    tag: 'ready',
     desc: 'Scan a repo for near-duplicate memories. Dry-run by default; pass apply=true to merge with a changelog entry written to metadata_json.',
     example: 'dedupe_repo({ apply: <span class="accent">true</span>, threshold: <span class="accent">0.85</span> })'
   },
-  store_context: {
-    tag: 'ready',
-    desc: 'Explicit save with memory_type and tags. Prefer remember for everyday use; reach for store_context when you want full control.',
-    example: 'store_context({ type: <span class="accent">"convention"</span>,\n  note: <span class="accent">"Use pnpm workspaces"</span>,\n  tags: [<span class="accent">"pnpm"</span>] })'
-  },
-  get_repo_context: {
-    tag: 'ready',
-    desc: 'Recent memories for the current repo, grouped by memory_type and headed by pinned items. Good when you want a structured overview rather than ranked context.',
-    example: 'get_repo_context({ limit: <span class="accent">10</span> })'
-  },
   search_memory: {
     tag: 'ready',
-    desc: 'Full-text search across notes with optional repo filter, fused with semantic vector search when embeddings are enabled. Tokenizes punctuation-heavy queries (e.g. /api/auth) and falls back to recent + pinned context if there are no matches.',
+    desc: 'Full-text search across notes with optional repo filter, fused with semantic vector search and entity matching when enabled. Falls back to recent + pinned context if there are no matches.',
     example: 'search_memory({ query: <span class="accent">"/api/auth jwt"</span> })'
-  },
-  summarize_repo_context: {
-    tag: 'ready',
-    desc: 'Generate a markdown brief of all memories for a repo, grouped by type with pinned items at the top. PR-ready. Drop directly into a description.',
-    example: 'summarize_repo_context({ repo: <span class="accent">"owner/repo"</span> })'
   },
   pin_memory: {
     tag: 'ready',
@@ -1248,12 +1272,12 @@ const TOOL_INFO = {
   },
   update_memory: {
     tag: 'ready',
-    desc: 'Edit an existing memory by id. Pass content, memory_type, or both. note_normalized is updated automatically so dedupe stays accurate.',
+    desc: 'Edit an existing memory by id. Pass content, memory_type, or both. Re-indexes entities and embeddings automatically.',
     example: 'update_memory({ id: <span class="accent">12</span>,\n  content: <span class="accent">"Use pnpm @ workspace root only"</span> })'
   },
   delete_memory: {
     tag: 'ready',
-    desc: 'Remove a memory permanently. Accepts either the numeric row id or the legacy string id, so paste whichever you have in front of you.',
+    desc: 'Remove a memory permanently. Use only when a fact was entered by mistake. For outdated facts, prefer supersede_memory — the history survives.',
     example: 'delete_memory({ id: <span class="accent">12</span> })'
   }
 };
