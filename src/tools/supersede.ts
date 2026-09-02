@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
-import { findMemoryById } from "../lib/memory.js";
+import { findMemoryByAnyId } from "../lib/memory.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const supersedeMemoryInputSchema = {
@@ -54,7 +54,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
         // the other tools, even though the row lookup is id-based.
         getWorkspaceRoot();
         const db = getDb();
-        const memory = findMemoryById(db, id);
+        const memory = findMemoryByAnyId(db, id);
 
         if (!memory) {
           return {
@@ -108,7 +108,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
         };
 
         if (superseded_by !== undefined) {
-          const supersededMemory = findMemoryById(db, superseded_by);
+          const supersededMemory = findMemoryByAnyId(db, superseded_by);
           if (!supersededMemory) {
             return {
               isError: true,
