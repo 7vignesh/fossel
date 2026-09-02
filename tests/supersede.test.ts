@@ -17,6 +17,13 @@ afterEach(() => {
 });
 
 function supersede(rowId: number, supersededBy?: number): void {
+  if (supersededBy !== undefined) {
+    const target = findMemoryByAnyId(ctx.db, supersededBy);
+    if (!target) {
+      throw new Error(`Memory ${supersededBy} not found.`);
+    }
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const row = ctx.db
     .prepare("SELECT metadata_json FROM memories WHERE rowid = ?")
@@ -91,7 +98,6 @@ test("the row itself survives supersession (never deleted)", () => {
 test("superseding is idempotent — a second call does not error", () => {
   const id = insertMemory(ctx.db, REPO, "old");
   supersede(id);
-  // Trying again hits the early "already superseded" path in the tool.
   const row = ctx.db
     .prepare("SELECT valid_to FROM memories WHERE rowid = ?")
     .get(id) as { valid_to: number };
@@ -102,8 +108,36 @@ test("superseding is idempotent — a second call does not error", () => {
       .prepare("SELECT valid_to FROM memories WHERE rowid = ?")
       .get(id) as { valid_to: number }
   ).valid_to;
-  // The timestamp should not change on a re-supersede (the tool returns early,
-  // but since we're calling the raw SQL here it does update; the tool guards
-  // against this).
   assert.ok(after >= before);
+});
+
+test("superseding with nonexistent superseded_by throws an error", () => {
+  const id = insertMemory(ctx.db, REPO, "fact to supersede");
+  const nonExistentId = 999999;
+
+  assert.throws(
+    () => supersede(id, nonExistentId),
+    (err: Error) => {
+      assert.match(err.message, /Memory 999999 not found\./);
+      return true;
+    },
+  );
+});
+
+test("superseding with valid superseded_by records the link in changelog", () => {
+  const oldId = insertMemory(ctx.db, REPO, "outdated note");
+  const newId = insertMemory(ctx.db, REPO, "updated note");
+
+  supersede(oldId, newId);
+
+  const row = ctx.db
+    .prepare("SELECT metadata_json FROM memories WHERE rowid = ?")
+    .get(oldId) as { metadata_json: string };
+  const meta = JSON.parse(row.metadata_json) as {
+    changelog?: Array<{ action: string; superseded_by?: number }>;
+  };
+
+  const entry = meta.changelog?.find((e) => e.action === "superseded");
+  assert.ok(entry, "superseded action exists in changelog");
+  assert.equal(entry?.superseded_by, newId, "superseded_by matches the target row_id");
 });
