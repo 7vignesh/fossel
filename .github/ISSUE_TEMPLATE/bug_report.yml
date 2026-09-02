@@ -1,0 +1,40 @@
+name: Bug report
+description: Report something that doesn't work as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+      placeholder: When I call export_memories with...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact tool call, CLI command, or code path.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Fossel version
+      placeholder: 1.4.0
+  - type: input
+    id: node
+    attributes:
+      label: Node version
+      placeholder: 22.x
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS 15 / Windows 11 / Ubuntu 24.04

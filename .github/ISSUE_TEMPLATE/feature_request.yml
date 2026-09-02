@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest an idea for Fossel
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case, not just the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Fit with Fossel's constraints
+      description: >
+        Fossel is local-first with no LLM, no model download, and no network at
+        runtime. How does your idea fit that constraint?
