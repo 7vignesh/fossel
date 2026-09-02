@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
-import { findMemoryByAnyId } from "../lib/memory.js";
+import { findMemoryById } from "../lib/memory.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const supersedeMemoryInputSchema = {
@@ -19,7 +19,7 @@ const supersedeMemoryInputSchema = {
 interface MetadataChangelogEntry {
   at: number;
   action: string;
-  superseded_by?: number | string;
+  superseded_by?: number;
   reason?: string;
 }
 
@@ -45,7 +45,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
     "supersede_memory",
     {
       description:
-        "Tombstone a memory so it stops surfacing in live retrieval while preserving the row and its history (Zep invalidate-never-delete pattern). Accepts either the numeric row id or the legacy string id, plus an optional id of the memory that replaces it and a reason.",
+        "Tombstone a memory so it stops surfacing in live retrieval while preserving the row and its history (Zep invalidate-never-delete pattern). Accepts either the numeric row_id or the legacy nanoid string.",
       inputSchema: supersedeMemoryInputSchema,
     },
     async ({ id, superseded_by, reason }) => {
@@ -54,7 +54,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
         // the other tools, even though the row lookup is id-based.
         getWorkspaceRoot();
         const db = getDb();
-        const memory = findMemoryByAnyId(db, id);
+        const memory = findMemoryById(db, id);
 
         if (!memory) {
           return {
@@ -106,12 +106,27 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
           at: now,
           action: "superseded",
         };
+
         if (superseded_by !== undefined) {
-          entry.superseded_by = superseded_by;
+          const supersededMemory = findMemoryById(db, superseded_by);
+          if (!supersededMemory) {
+            return {
+              isError: true,
+              content: [
+                {
+                  type: "text",
+                  text: `Memory ${superseded_by} not found.`,
+                },
+              ],
+            };
+          }
+          entry.superseded_by = supersededMemory.row_id;
         }
+
         if (reason !== undefined) {
           entry.reason = reason;
         }
+
         changelog.push(entry);
         metadata.changelog = changelog;
 
