@@ -13,12 +13,42 @@
  */
 
 import type Database from "better-sqlite3";
+import { z } from "zod";
+import { MEMORY_TYPES } from "../db/client.js";
 import { normalizeText } from "./dedupe.js";
 import { indexMemoryEmbedding } from "./vector-index.js";
 import { recordFileRefs } from "./file-refs.js";
 
 export const EXPORT_FORMAT = "fossel-export";
 export const EXPORT_VERSION = 1;
+
+export const exportedMemorySchema = z.object({
+  id: z.string().min(1),
+  repo: z.string().min(1),
+  type: z.enum(MEMORY_TYPES),
+  note: z.string().min(1),
+  tags: z.array(z.string()),
+  created_at: z.number().int(),
+  updated_at: z.number().int(),
+  pinned: z.number().int(),
+  metadata_json: z.string(),
+  valid_from: z.number().int(),
+  valid_to: z.number().int().nullable(),
+});
+
+export const exportedAliasSchema = z.object({
+  alias: z.string().min(1),
+  canonical: z.string().min(1),
+  created_at: z.number().int(),
+});
+
+export const exportEnvelopeSchema = z.object({
+  format: z.literal(EXPORT_FORMAT),
+  version: z.number().int().max(EXPORT_VERSION),
+  exported_at: z.string(),
+  memories: z.array(exportedMemorySchema),
+  aliases: z.array(exportedAliasSchema),
+});
 
 export interface ExportedMemory {
   id: string;
@@ -46,6 +76,33 @@ export interface ExportEnvelope {
   exported_at: string;
   memories: ExportedMemory[];
   aliases: ExportedAlias[];
+}
+
+export function validateExportEnvelope(envelope: unknown): ExportEnvelope {
+  if (!envelope || typeof envelope !== "object") {
+    throw new Error("Invalid export envelope: expected an object.");
+  }
+
+  const raw = envelope as Record<string, unknown>;
+  if (raw.format !== EXPORT_FORMAT) {
+    throw new Error(
+      `Unsupported format: "${String(raw.format)}". Expected "${EXPORT_FORMAT}".`,
+    );
+  }
+  if (typeof raw.version === "number" && raw.version > EXPORT_VERSION) {
+    throw new Error(
+      `Unsupported version: ${raw.version}. This version of Fossel supports up to ${EXPORT_VERSION}.`,
+    );
+  }
+
+  const parsed = exportEnvelopeSchema.safeParse(envelope);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const path = issue.path.length > 0 ? ` at "${issue.path.join(".")}": ` : ": ";
+    throw new Error(`Invalid export envelope${path}${issue.message}`);
+  }
+
+  return parsed.data as ExportEnvelope;
 }
 
 export function exportMemories(db: Database.Database, repo?: string): ExportEnvelope {
@@ -104,16 +161,7 @@ export function importMemories(
   envelope: ExportEnvelope,
   cwd: string,
 ): ImportResult {
-  if (envelope.format !== EXPORT_FORMAT) {
-    throw new Error(
-      `Unsupported format: "${envelope.format}". Expected "${EXPORT_FORMAT}".`,
-    );
-  }
-  if (envelope.version > EXPORT_VERSION) {
-    throw new Error(
-      `Unsupported version: ${envelope.version}. This version of Fossel supports up to ${EXPORT_VERSION}.`,
-    );
-  }
+  const validEnvelope = validateExportEnvelope(envelope);
 
   const result: ImportResult = {
     memoriesImported: 0,
@@ -139,7 +187,7 @@ export function importMemories(
 
   const tx = db.transaction(() => {
     // Aliases first so repo resolution works for any memory that needs it.
-    for (const alias of envelope.aliases) {
+    for (const alias of validEnvelope.aliases) {
       const res = insertAlias.run(alias.alias, alias.canonical, alias.created_at);
       if (res.changes > 0) {
         result.aliasesImported += 1;
@@ -148,7 +196,7 @@ export function importMemories(
       }
     }
 
-    for (const memory of envelope.memories) {
+    for (const memory of validEnvelope.memories) {
       const res = insertMemory.run(
         memory.id,
         memory.repo,

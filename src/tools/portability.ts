@@ -6,6 +6,7 @@ import {
   EXPORT_VERSION,
   exportMemories,
   importMemories,
+  validateExportEnvelope,
   type ExportEnvelope,
 } from "../lib/portability.js";
 import { resolveRepoArg } from "../lib/repo.js";
@@ -70,29 +71,27 @@ export function registerImportMemoriesTool(server: McpServer): void {
     async ({ data }) => {
       try {
         const db = getDb();
-        let envelope: ExportEnvelope;
+        let parsed: unknown;
         try {
-          const parsed = JSON.parse(data) as unknown;
-          if (
-            !parsed ||
-            typeof parsed !== "object" ||
-            (parsed as Record<string, unknown>).format !== EXPORT_FORMAT
-          ) {
-            return {
-              isError: true,
-              content: [
-                {
-                  type: "text",
-                  text: `Invalid envelope: expected format "${EXPORT_FORMAT}".`,
-                },
-              ],
-            };
-          }
-          envelope = parsed as ExportEnvelope;
+          parsed = JSON.parse(data);
         } catch {
           return {
             isError: true,
             content: [{ type: "text", text: "Invalid JSON in the data field." }],
+          };
+        }
+
+        let envelope: ExportEnvelope;
+        try {
+          envelope = validateExportEnvelope(parsed);
+        } catch (validationError) {
+          const message =
+            validationError instanceof Error
+              ? validationError.message
+              : "Invalid envelope.";
+          return {
+            isError: true,
+            content: [{ type: "text", text: message }],
           };
         }
 

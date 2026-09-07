@@ -185,6 +185,137 @@ test("importMemories rejects future version", () => {
   );
 });
 
+test("importMemories rejects envelope when memories is missing or not an array", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: null,
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "memories"/,
+  );
+});
+
+test("importMemories rejects envelope when aliases is missing or not an array", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [],
+    aliases: "not-an-array",
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "aliases"/,
+  );
+});
+
+test("importMemories rejects memory missing required fields", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [
+      {
+        id: "id-bad",
+        repo: REPO,
+        type: "general",
+        // note is missing
+      },
+    ],
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "memories\.0\.note"/,
+  );
+});
+
+test("importMemories rejects memory with invalid type", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [
+      {
+        id: "id-bad-type",
+        repo: REPO,
+        type: "invalid_type",
+        note: "sample note",
+        tags: [],
+        created_at: 1000,
+        updated_at: 1000,
+        pinned: 0,
+        metadata_json: "{}",
+        valid_from: 1000,
+        valid_to: null,
+      },
+    ],
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "memories\.0\.type"/,
+  );
+});
+
+test("importMemories rejects memory with non-array tags", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [
+      {
+        id: "id-bad-tags",
+        repo: REPO,
+        type: "general",
+        note: "sample note",
+        tags: "string-instead-of-array",
+        created_at: 1000,
+        updated_at: 1000,
+        pinned: 0,
+        metadata_json: "{}",
+        valid_from: 1000,
+        valid_to: null,
+      },
+    ],
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "memories\.0\.tags"/,
+  );
+});
+
+test("importMemories rejects alias missing required fields", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [],
+    aliases: [
+      {
+        alias: "",
+        canonical: REPO,
+        created_at: 1000,
+      },
+    ],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "aliases\.0\.alias"/,
+  );
+});
+
 test("importMemories preserves valid_to for superseded memories", () => {
   const now = Math.floor(Date.now() / 1000);
   const envelope = makeEnvelope([
