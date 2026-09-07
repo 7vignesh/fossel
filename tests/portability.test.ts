@@ -185,6 +185,21 @@ test("importMemories rejects future version", () => {
   );
 });
 
+test("importMemories rejects versions older than the supported format", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: 0,
+    exported_at: new Date().toISOString(),
+    memories: [],
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "version"/,
+  );
+});
+
 test("importMemories rejects envelope when memories is missing or not an array", () => {
   const bad = {
     format: EXPORT_FORMAT,
@@ -314,6 +329,30 @@ test("importMemories rejects alias missing required fields", () => {
     () => importMemories(ctx.db, bad, ctx.dir),
     /Invalid export envelope at "aliases\.0\.alias"/,
   );
+});
+
+test("importMemories validates the complete envelope before inserting", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [
+      makeExportedMemory("id-valid", REPO, "valid memory"),
+      {
+        id: "id-invalid",
+        repo: REPO,
+        type: "general",
+        // note is missing
+      },
+    ],
+    aliases: [],
+  } as unknown as ExportEnvelope;
+
+  assert.throws(() => importMemories(ctx.db, bad, ctx.dir));
+  const count = (
+    ctx.db.prepare("SELECT count(*) AS n FROM memories").get() as { n: number }
+  ).n;
+  assert.equal(count, 0);
 });
 
 test("importMemories preserves valid_to for superseded memories", () => {

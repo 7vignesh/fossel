@@ -14,7 +14,7 @@
 
 import type Database from "better-sqlite3";
 import { z } from "zod";
-import { MEMORY_TYPES } from "../db/client.js";
+import { MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "./dedupe.js";
 import { indexMemoryEmbedding } from "./vector-index.js";
 import { recordFileRefs } from "./file-refs.js";
@@ -44,7 +44,7 @@ export const exportedAliasSchema = z.object({
 
 export const exportEnvelopeSchema = z.object({
   format: z.literal(EXPORT_FORMAT),
-  version: z.number().int().max(EXPORT_VERSION),
+  version: z.literal(EXPORT_VERSION),
   exported_at: z.string(),
   memories: z.array(exportedMemorySchema),
   aliases: z.array(exportedAliasSchema),
@@ -53,7 +53,7 @@ export const exportEnvelopeSchema = z.object({
 export interface ExportedMemory {
   id: string;
   repo: string;
-  type: string;
+  type: MemoryType;
   note: string;
   tags: string[];
   created_at: number;
@@ -79,7 +79,7 @@ export interface ExportEnvelope {
 }
 
 export function validateExportEnvelope(envelope: unknown): ExportEnvelope {
-  if (!envelope || typeof envelope !== "object") {
+  if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
     throw new Error("Invalid export envelope: expected an object.");
   }
 
@@ -102,7 +102,7 @@ export function validateExportEnvelope(envelope: unknown): ExportEnvelope {
     throw new Error(`Invalid export envelope${path}${issue.message}`);
   }
 
-  return parsed.data as ExportEnvelope;
+  return parsed.data;
 }
 
 export function exportMemories(db: Database.Database, repo?: string): ExportEnvelope {
@@ -122,7 +122,7 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
     .all(...params) as Array<{
     id: string;
     repo: string;
-    type: string;
+    type: MemoryType;
     note: string;
     tags: string;
     created_at: number;
