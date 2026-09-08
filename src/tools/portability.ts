@@ -117,13 +117,15 @@ export function registerImportMemoriesTool(server: McpServer): void {
         }
 
         const result = importMemories(db, envelope, getWorkspaceRoot());
+        const failedPart =
+          result.memoriesFailed > 0 ? `, failed ${result.memoriesFailed}` : "";
         return {
           content: [
             {
               type: "text",
               text:
                 `Imported ${result.memoriesImported} memory(s), ` +
-                `skipped ${result.memoriesSkipped} existing. ` +
+                `skipped ${result.memoriesSkipped} existing${failedPart}. ` +
                 `Aliases: ${result.aliasesImported} imported, ${result.aliasesSkipped} existing.`,
             },
           ],

@@ -234,6 +234,29 @@ test("round-trip: export then import into a fresh db preserves all data", () => 
   }
 });
 
+test("importMemories skips malformed rows without aborting the entire import", () => {
+  const validMemory1 = makeExportedMemory("id-valid-1", REPO, "valid fact 1");
+  const malformedMemory = {
+    ...makeExportedMemory("id-invalid", REPO, "invalid type fact"),
+    type: "unknown_illegal_type",
+  };
+  const validMemory2 = makeExportedMemory("id-valid-2", REPO, "valid fact 2");
+
+  const envelope = makeEnvelope([validMemory1, malformedMemory, validMemory2]);
+
+  const result = importMemories(ctx.db, envelope, ctx.dir);
+  assert.equal(result.memoriesImported, 2);
+  assert.equal(result.memoriesSkipped, 0);
+  assert.equal(result.memoriesFailed, 1);
+
+  const rows = ctx.db
+    .prepare("SELECT id, note FROM memories ORDER BY id")
+    .all() as Array<{ id: string; note: string }>;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].id, "id-valid-1");
+  assert.equal(rows[1].id, "id-valid-2");
+});
+
 // --- helpers ---
 
 function makeExportedMemory(

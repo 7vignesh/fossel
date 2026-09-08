@@ -95,6 +95,7 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
 export interface ImportResult {
   memoriesImported: number;
   memoriesSkipped: number;
+  memoriesFailed: number;
   aliasesImported: number;
   aliasesSkipped: number;
 }
@@ -118,13 +119,18 @@ export function importMemories(
   const result: ImportResult = {
     memoriesImported: 0,
     memoriesSkipped: 0,
+    memoriesFailed: 0,
     aliasesImported: 0,
     aliasesSkipped: 0,
   };
 
+  const selectMemoryById = db.prepare(
+    "SELECT 1 FROM memories WHERE id = ?",
+  );
+
   const insertMemory = db.prepare(
     `
-      INSERT OR IGNORE INTO memories
+      INSERT INTO memories
         (id, repo, type, note, tags, created_at, updated_at, pinned, metadata_json, note_normalized, valid_from, valid_to)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
@@ -136,6 +142,38 @@ export function importMemories(
       VALUES (?, ?, ?)
     `,
   );
+
+  const insertMemorySubTx = db.transaction((memory: ExportedMemory) => {
+    if (selectMemoryById.get(memory.id)) {
+      result.memoriesSkipped += 1;
+      return;
+    }
+
+    insertMemory.run(
+      memory.id,
+      memory.repo,
+      memory.type,
+      memory.note,
+      JSON.stringify(memory.tags),
+      memory.created_at,
+      memory.updated_at,
+      memory.pinned,
+      memory.metadata_json,
+      normalizeText(memory.note),
+      memory.valid_from,
+      memory.valid_to,
+    );
+    result.memoriesImported += 1;
+
+    // Re-derive the embedding and file refs for the imported memory.
+    const inserted = db
+      .prepare("SELECT rowid AS row_id FROM memories WHERE id = ?")
+      .get(memory.id) as { row_id: number } | undefined;
+    if (inserted) {
+      indexMemoryEmbedding(db, inserted.row_id, memory.note);
+      recordFileRefs(db, inserted.row_id, memory.note, cwd);
+    }
+  });
 
   const tx = db.transaction(() => {
     // Aliases first so repo resolution works for any memory that needs it.
@@ -149,32 +187,10 @@ export function importMemories(
     }
 
     for (const memory of envelope.memories) {
-      const res = insertMemory.run(
-        memory.id,
-        memory.repo,
-        memory.type,
-        memory.note,
-        JSON.stringify(memory.tags),
-        memory.created_at,
-        memory.updated_at,
-        memory.pinned,
-        memory.metadata_json,
-        normalizeText(memory.note),
-        memory.valid_from,
-        memory.valid_to,
-      );
-      if (res.changes > 0) {
-        result.memoriesImported += 1;
-        // Re-derive the embedding and file refs for the imported memory.
-        const inserted = db
-          .prepare("SELECT rowid AS row_id FROM memories WHERE id = ?")
-          .get(memory.id) as { row_id: number } | undefined;
-        if (inserted) {
-          indexMemoryEmbedding(db, inserted.row_id, memory.note);
-          recordFileRefs(db, inserted.row_id, memory.note, cwd);
-        }
-      } else {
-        result.memoriesSkipped += 1;
+      try {
+        insertMemorySubTx(memory);
+      } catch {
+        result.memoriesFailed += 1;
       }
     }
   });
