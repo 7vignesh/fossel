@@ -2,7 +2,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { findMemoryByAnyId } from "../lib/memory.js";
-import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const supersedeMemoryInputSchema = {
   // Accept either the numeric row_id or the legacy nanoid string, matching the
@@ -50,9 +49,6 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
     },
     async ({ id, superseded_by, reason }) => {
       try {
-        // Resolve the workspace up front so failures surface consistently with
-        // the other tools, even though the row lookup is id-based.
-        getWorkspaceRoot();
         const db = getDb();
         const memory = findMemoryByAnyId(db, id);
 
