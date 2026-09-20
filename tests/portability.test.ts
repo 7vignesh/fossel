@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, test } from "node:test";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   EXPORT_FORMAT,
   EXPORT_VERSION,
@@ -7,6 +8,11 @@ import {
   importMemories,
   type ExportEnvelope,
 } from "../src/lib/portability.js";
+import {
+  importInputSchema,
+  MAX_IMPORT_PAYLOAD_BYTES,
+  registerImportMemoriesTool,
+} from "../src/tools/portability.js";
 import { createTestDb, insertMemory, type TestDb } from "./helpers.js";
 
 const REPO = "acme/app";
@@ -264,3 +270,48 @@ function makeEnvelope(
     aliases: [],
   };
 }
+
+test("importInputSchema rejects payload exceeding maximum size", () => {
+  const hugeData = "a".repeat(MAX_IMPORT_PAYLOAD_BYTES + 1);
+  const result = importInputSchema.data.safeParse(hugeData);
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.match(result.error.issues[0].message, /Payload exceeds maximum size/);
+  }
+});
+
+test("importInputSchema accepts valid payload within maximum size", () => {
+  const validData = JSON.stringify({
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: [],
+    aliases: [],
+  });
+  const result = importInputSchema.data.safeParse(validData);
+  assert.equal(result.success, true);
+});
+
+test("registerImportMemoriesTool rejects oversized payload in tool execution", async () => {
+  let registeredHandler:
+    | ((args: { data: string }) => Promise<{ isError?: boolean; content: Array<{ type: string; text: string }> }>)
+    | undefined;
+
+  const fakeServer = {
+    registerTool: (
+      _name: string,
+      _config: unknown,
+      handler: (args: { data: string }) => Promise<{ isError?: boolean; content: Array<{ type: string; text: string }> }>,
+    ) => {
+      registeredHandler = handler;
+    },
+  } as unknown as McpServer;
+
+  registerImportMemoriesTool(fakeServer);
+  assert.ok(registeredHandler);
+  const hugeData = "a".repeat(MAX_IMPORT_PAYLOAD_BYTES + 1);
+  const response = await registeredHandler({ data: hugeData });
+  assert.equal(response.isError, true);
+  assert.match(response.content[0].text, /Payload exceeds maximum size/);
+});
+
