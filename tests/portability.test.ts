@@ -6,6 +6,7 @@ import {
   EXPORT_VERSION,
   exportMemories,
   importMemories,
+  validateExportEnvelope,
   type ExportEnvelope,
 } from "../src/lib/portability.js";
 import {
@@ -191,6 +192,21 @@ test("importMemories rejects future version", () => {
   );
 });
 
+test("importMemories rejects an invalid envelope before processing rows", () => {
+  const bad = {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    exported_at: new Date().toISOString(),
+    memories: "not-an-array",
+    aliases: [],
+  };
+
+  assert.throws(
+    () => importMemories(ctx.db, bad, ctx.dir),
+    /Invalid export envelope at "memories"/,
+  );
+});
+
 test("importMemories preserves valid_to for superseded memories", () => {
   const now = Math.floor(Date.now() / 1000);
   const envelope = makeEnvelope([
@@ -234,11 +250,10 @@ test("round-trip: export then import into a fresh db preserves all data", () => 
   }
 });
 
-test("importMemories skips malformed rows without aborting the entire import", () => {
+test("importMemories skips Zod-invalid rows without aborting the entire import", () => {
   const validMemory1 = makeExportedMemory("id-valid-1", REPO, "valid fact 1");
   const malformedMemory = {
-    ...makeExportedMemory("id-invalid", REPO, "invalid type fact"),
-    type: "unknown_illegal_type",
+    ...makeExportedMemory("id-invalid", REPO, ""),
   };
   const validMemory2 = makeExportedMemory("id-valid-2", REPO, "valid fact 2");
 
@@ -255,6 +270,47 @@ test("importMemories skips malformed rows without aborting the entire import", (
   assert.equal(rows.length, 2);
   assert.equal(rows[0].id, "id-valid-1");
   assert.equal(rows[1].id, "id-valid-2");
+});
+
+test("importMemories rolls back only a database-invalid row and continues", () => {
+  ctx.db.exec(`
+    CREATE TRIGGER reject_one_memory
+    BEFORE INSERT ON memories
+    WHEN NEW.id = 'id-db-invalid'
+    BEGIN
+      SELECT RAISE(FAIL, 'intentional test failure');
+    END;
+  `);
+
+  const envelope = makeEnvelope([
+    makeExportedMemory("id-before-db-failure", REPO, "before failure"),
+    makeExportedMemory("id-db-invalid", REPO, "database failure"),
+    makeExportedMemory("id-after-db-failure", REPO, "after failure"),
+  ]);
+
+  const result = importMemories(ctx.db, envelope, ctx.dir);
+  assert.equal(result.memoriesImported, 2);
+  assert.equal(result.memoriesSkipped, 0);
+  assert.equal(result.memoriesFailed, 1);
+
+  const ids = ctx.db
+    .prepare("SELECT id FROM memories ORDER BY id")
+    .all() as Array<{ id: string }>;
+  assert.deepEqual(ids.map((row) => row.id), [
+    "id-after-db-failure",
+    "id-before-db-failure",
+  ]);
+});
+
+test("validateExportEnvelope preserves valid rows for per-memory validation", () => {
+  const envelope = makeEnvelope([
+    {
+      ...makeExportedMemory("id-invalid", REPO, ""),
+    },
+  ]);
+
+  const validated = validateExportEnvelope(envelope);
+  assert.equal(validated.memories.length, 1);
 });
 
 // --- helpers ---
@@ -337,4 +393,3 @@ test("registerImportMemoriesTool rejects oversized payload in tool execution", a
   assert.equal(response.isError, true);
   assert.match(response.content[0].text, /Payload exceeds maximum size/);
 });
-
