@@ -142,6 +142,27 @@ test("recordEntities stores entities in the side table", () => {
   }
 });
 
+test("recordEntities counts actual inserted rows, not no-op conflicts", () => {
+  const ctx = createTestDb();
+  try {
+    const rowId = insertMemory(ctx.db, "acme/app", "Uses redis for caching");
+    // "redis" matches both KNOWN_PACKAGES and KNOWN_SERVICES in extractEntities,
+    // producing both { entity: "redis", kind: "package" } and { entity: "redis", kind: "service" }.
+    // Because memory_entities has PRIMARY KEY (memory_rowid, entity), the second insert
+    // hits ON CONFLICT DO NOTHING. The returned count must match actual rows written.
+    const count = recordEntities(ctx.db, rowId, "Uses redis for caching");
+
+    const stored = ctx.db
+      .prepare("SELECT entity, kind FROM memory_entities WHERE memory_rowid = ?")
+      .all(rowId) as Array<{ entity: string; kind: string }>;
+
+    assert.equal(stored.length, 1);
+    assert.equal(count, stored.length, "returned count must match actual rows written");
+  } finally {
+    ctx.cleanup();
+  }
+});
+
 test("recordEntities replaces entities on re-record (full replace)", () => {
   const ctx = createTestDb();
   try {
