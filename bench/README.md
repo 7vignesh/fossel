@@ -129,3 +129,38 @@ queries that returned nothing relevant, with what came back instead. Aggregate
 percentages tell you whether something moved; the miss list tells you why, and it
 is what drove the largest improvement in the project (the stemmed-prefix tier was
 designed by reading it, not by guessing).
+
+## Adding a benchmark case
+
+For the committed `repo-memory` dataset, edit
+`bench/datasets/repo-memory.json`. Add a memory with a unique `key` and a short
+`note`; `type` (`convention`, `bug_fix`, `reviewer_pattern`, `decision`,
+`issue`, or `general`) and `tags` are optional. The memory array is in recency
+order, newest first. Add a query with a unique `id`, the wording a user might
+search for, a `relevant` array containing the keys of every correct memory, and
+a `category`. Existing categories include `exact`, `identifier`, `path`,
+`ticket`, `paraphrase`, `synonym`, `multi`, and `superseded`. Use `rationale`
+when the case needs explanation. Every key in `relevant` must refer to a memory
+in the dataset.
+
+Run the benchmark after changing a query, memory, or retrieval code:
+
+```bash
+npm run bench
+```
+
+This runs FTS, vector, and hybrid modes and writes the new results to
+`bench/results/repo-memory.json`. Review both the search and context tables, the
+`hit@5 by category` table, and the miss lists. Categories group related cases;
+they are not separate retrieval tiers. Keep a retrieval change only when the
+results support it.
+
+After reviewing an intentional snapshot change, verify it with:
+
+```bash
+npm run bench:check
+```
+
+This compares the current results with the committed snapshot and exits with an
+error if they differ; it does not update the snapshot. The regular `npm run ci`
+gate does not run this benchmark check.
