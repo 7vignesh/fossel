@@ -198,8 +198,8 @@ export function recordEntities(
   const tx = db.transaction(() => {
     del.run(memoryRowId);
     for (const { entity, kind } of entities) {
-      insert.run(memoryRowId, entity, kind);
-      recorded += 1;
+      const result = insert.run(memoryRowId, entity, kind);
+      recorded += result.changes;
     }
   });
   tx();
