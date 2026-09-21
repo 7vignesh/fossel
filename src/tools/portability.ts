@@ -53,8 +53,17 @@ export function registerExportMemoriesTool(server: McpServer): void {
   );
 }
 
-const importInputSchema = {
-  data: z.string().trim().min(1, "data is required (the JSON envelope)"),
+export const MAX_IMPORT_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+
+export const importInputSchema = {
+  data: z
+    .string()
+    .trim()
+    .min(1, "data is required (the JSON envelope)")
+    .max(
+      MAX_IMPORT_PAYLOAD_BYTES,
+      `Payload exceeds maximum size of ${MAX_IMPORT_PAYLOAD_BYTES / (1024 * 1024)}MB.`,
+    ),
 };
 
 export function registerImportMemoriesTool(server: McpServer): void {
@@ -69,6 +78,17 @@ export function registerImportMemoriesTool(server: McpServer): void {
       inputSchema: importInputSchema,
     },
     async ({ data }) => {
+      if (data.length > MAX_IMPORT_PAYLOAD_BYTES) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text",
+              text: `Payload exceeds maximum size of ${MAX_IMPORT_PAYLOAD_BYTES / (1024 * 1024)}MB.`,
+            },
+          ],
+        };
+      }
       try {
         const db = getDb();
         let parsed: unknown;

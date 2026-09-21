@@ -90,8 +90,10 @@ const TICKET_PATTERN = /\b([A-Z]{2,10}-\d+)\b|(?<!\w)(#\d+)\b/g;
 /**
  * Extract structured entities from free-form text using regex heuristics.
  *
- * Entity normalization: lowercase everything except file paths (which keep
- * their original case for path matching).
+ * Entity normalization: every entity is lowercased except tickets, which are
+ * uppercased. Entities are only ever a matching key, never displayed, so one
+ * canonical case per entity keeps the write path (recordEntities) and the
+ * read path (findEntityMatches) in agreement.
  */
 export function extractEntities(text: string): Entity[] {
   const entities: Entity[] = [];
@@ -104,11 +106,12 @@ export function extractEntities(text: string): Entity[] {
     entities.push({ entity, kind });
   };
 
-  // File paths — keep original case
+  // File paths — lowercased. A path names the same file however it is cased,
+  // so a single canonical form is what lets a query match what was stored.
   const filePaths = text.match(FILE_PATH_PATTERN);
   if (filePaths) {
     for (const raw of filePaths) {
-      const normalized = raw.replace(/\\/g, "/").replace(/^\.?\//, "");
+      const normalized = raw.replace(/\\/g, "/").replace(/^\.?\//, "").toLowerCase();
       if (normalized && normalized.includes(".")) {
         add(normalized, "file");
       }
@@ -198,8 +201,8 @@ export function recordEntities(
   const tx = db.transaction(() => {
     del.run(memoryRowId);
     for (const { entity, kind } of entities) {
-      insert.run(memoryRowId, entity, kind);
-      recorded += 1;
+      const result = insert.run(memoryRowId, entity, kind);
+      recorded += result.changes;
     }
   });
   tx();
