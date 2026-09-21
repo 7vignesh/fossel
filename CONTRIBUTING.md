@@ -11,6 +11,7 @@ constraint in mind for any contribution.
 
 ## Table of contents
 
+- [Where to start](#where-to-start)
 - [Reporting issues](#reporting-issues)
 - [Development setup](#development-setup)
 - [Making changes](#making-changes)
@@ -18,6 +19,26 @@ constraint in mind for any contribution.
 - [Opening a pull request](#opening-a-pull-request)
 - [Project layout](#project-layout)
 - [Releases](#releases-maintainers)
+
+## Where to start
+
+New here? Good places to begin:
+
+- **[`good first issue`](https://github.com/7vignesh/fossel/labels/good%20first%20issue)** — small, well-scoped tasks with clear acceptance criteria. The best entry point.
+- **[`help wanted`](https://github.com/7vignesh/fossel/labels/help%20wanted)** — meatier work for when you know the codebase.
+- **[Read `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** (if present) or the module header comments in `src/lib/` to understand how retrieval fits together before diving in.
+
+Issues are also tagged by subsystem so you can find work in an area you care about:
+
+| Label | Area |
+|-------|------|
+| [`area:retrieval`](https://github.com/7vignesh/fossel/labels/area%3Aretrieval) | Search, FTS, embeddings, fusion, ranking |
+| [`area:tools`](https://github.com/7vignesh/fossel/labels/area%3Atools) | MCP tool surface |
+| [`area:cli`](https://github.com/7vignesh/fossel/labels/area%3Acli) | `fossel init` / `doctor` and the CLI |
+| [`area:docs`](https://github.com/7vignesh/fossel/labels/area%3Adocs) | Documentation |
+| [`area:ci`](https://github.com/7vignesh/fossel/labels/area%3Aci) | CI, build, release, tooling |
+
+Comment on an issue before you start so we can avoid two people doing the same work.
 
 ## Reporting issues
 

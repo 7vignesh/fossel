@@ -102,6 +102,20 @@ test("extractEntities normalizes scoped packages to lowercase", () => {
   }
 });
 
+test("extractEntities normalizes file paths to lowercase", () => {
+  const entities = extractEntities("Rewrote the token check in src/Auth.ts");
+  const files = entities.filter((e) => e.kind === "file");
+  assert.ok(files.some((e) => e.entity === "src/auth.ts"));
+});
+
+test("extractEntities dedupes a file mentioned in mixed case", () => {
+  const entities = extractEntities(
+    "src/Auth.ts and src/auth.ts are the same file",
+  );
+  const files = entities.filter((e) => e.kind === "file");
+  assert.equal(files.length, 1, "case variants should collapse to one entity");
+});
+
 // ---------- recordEntities: DB integration tests -------------------------
 
 test("recordEntities stores entities in the side table", () => {
@@ -123,6 +137,27 @@ test("recordEntities stores entities in the side table", () => {
       .prepare("SELECT entity, kind FROM memory_entities WHERE memory_rowid = ?")
       .all(rowId) as Array<{ entity: string; kind: string }>;
     assert.ok(stored.some((e) => e.entity === "src/auth/jwt.ts" && e.kind === "file"));
+  } finally {
+    ctx.cleanup();
+  }
+});
+
+test("recordEntities counts actual inserted rows, not no-op conflicts", () => {
+  const ctx = createTestDb();
+  try {
+    const rowId = insertMemory(ctx.db, "acme/app", "Uses redis for caching");
+    // "redis" matches both KNOWN_PACKAGES and KNOWN_SERVICES in extractEntities,
+    // producing both { entity: "redis", kind: "package" } and { entity: "redis", kind: "service" }.
+    // Because memory_entities has PRIMARY KEY (memory_rowid, entity), the second insert
+    // hits ON CONFLICT DO NOTHING. The returned count must match actual rows written.
+    const count = recordEntities(ctx.db, rowId, "Uses redis for caching");
+
+    const stored = ctx.db
+      .prepare("SELECT entity, kind FROM memory_entities WHERE memory_rowid = ?")
+      .all(rowId) as Array<{ entity: string; kind: string }>;
+
+    assert.equal(stored.length, 1);
+    assert.equal(count, stored.length, "returned count must match actual rows written");
   } finally {
     ctx.cleanup();
   }
@@ -312,6 +347,26 @@ test("findEntityMatches returns empty for empty query entities", () => {
 
     const matches = findEntityMatches(ctx.db, "acme/app", [], 10);
     assert.equal(matches.length, 0);
+  } finally {
+    ctx.cleanup();
+  }
+});
+
+test("findEntityMatches matches file paths that differ only in case", () => {
+  const ctx = createTestDb();
+  try {
+    const note = "Rewrote the token check in src/Auth.ts";
+    const rowId = insertMemory(ctx.db, "acme/app", note);
+    recordEntities(ctx.db, rowId, note);
+
+    // Same file, different casing in the query.
+    const queryEntities = extractEntities("how does src/auth.ts work?");
+    const matches = findEntityMatches(ctx.db, "acme/app", queryEntities, 10);
+
+    assert.ok(
+      matches.some((m) => m.row_id === rowId),
+      "a query naming the same file in different case should still match",
+    );
   } finally {
     ctx.cleanup();
   }
