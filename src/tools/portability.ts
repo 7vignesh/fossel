@@ -6,7 +6,7 @@ import {
   EXPORT_VERSION,
   exportMemories,
   importMemories,
-  type ExportEnvelope,
+  validateExportEnvelope,
 } from "../lib/portability.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
@@ -90,25 +90,9 @@ export function registerImportMemoriesTool(server: McpServer): void {
       }
       try {
         const db = getDb();
-        let envelope: ExportEnvelope;
+        let parsed: unknown;
         try {
-          const parsed = JSON.parse(data) as unknown;
-          if (
-            !parsed ||
-            typeof parsed !== "object" ||
-            (parsed as Record<string, unknown>).format !== EXPORT_FORMAT
-          ) {
-            return {
-              isError: true,
-              content: [
-                {
-                  type: "text",
-                  text: `Invalid envelope: expected format "${EXPORT_FORMAT}".`,
-                },
-              ],
-            };
-          }
-          envelope = parsed as ExportEnvelope;
+          parsed = JSON.parse(data);
         } catch {
           return {
             isError: true,
@@ -116,14 +100,30 @@ export function registerImportMemoriesTool(server: McpServer): void {
           };
         }
 
+        let envelope: unknown;
+        try {
+          envelope = validateExportEnvelope(parsed);
+        } catch (validationError) {
+          const message =
+            validationError instanceof Error
+              ? validationError.message
+              : "Invalid envelope.";
+          return {
+            isError: true,
+            content: [{ type: "text", text: message }],
+          };
+        }
+
         const result = importMemories(db, envelope, getWorkspaceRoot());
+        const failedPart =
+          result.memoriesFailed > 0 ? `, failed ${result.memoriesFailed}` : "";
         return {
           content: [
             {
               type: "text",
               text:
                 `Imported ${result.memoriesImported} memory(s), ` +
-                `skipped ${result.memoriesSkipped} existing. ` +
+                `skipped ${result.memoriesSkipped} existing${failedPart}. ` +
                 `Aliases: ${result.aliasesImported} imported, ${result.aliasesSkipped} existing.`,
             },
           ],
