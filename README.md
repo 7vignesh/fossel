@@ -401,6 +401,84 @@ Pass `--fix` to apply safe automated cleanup in one go: merge sibling repo keys,
 
 ---
 
+## Windsurf MCP config
+
+In Cascade, open the `...` menu and select **Open MCP config file** in the MCPs section, then merge this entry into `mcpServers` ([configuration docs](https://docs.windsurf.com/windsurf/cascade/mcp)):
+
+```json
+{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+Use an absolute project path. Cascade documents `${env:VAR_NAME}` and `${file:/path/to/file}` interpolation, but not Cursor's `${workspaceFolder}`. The linked docs now describe Cascade in Devin Desktop; this configuration is for Cascade, not the Devin Local agent.
+
+## Zed MCP config
+
+Merge this into Zed's `settings.json`. Zed uses `context_servers`, rather than `mcpServers` ([configuration docs](https://zed.dev/docs/ai/mcp)):
+
+```json
+{
+  "context_servers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/your/project` with an absolute path; Zed's MCP documentation does not specify workspace-variable expansion for `env`.
+
+## Continue MCP config
+
+Add this entry to the `mcpServers` list in your existing `~/.continue/config.yaml` (`%USERPROFILE%\.continue\config.yaml` on Windows), keeping your other settings. Continue uses a YAML list, rather than a JSON object ([configuration reference](https://docs.continue.dev/reference#mcpservers)):
+
+```yaml
+mcpServers:
+  - name: fossel
+    command: npx
+    args: ["-y", "fossel"]
+    env:
+      FOSSEL_WORKSPACE: "/path/to/your/project"
+```
+
+Replace `/path/to/your/project` with an absolute path; Continue's MCP reference does not specify a workspace variable for this field.
+
+## Cline MCP config
+
+In Cline's **MCP Servers** panel, open **Configure** and select **Configure MCP Servers**. Merge this entry into the settings JSON it opens ([configuration docs](https://docs.cline.bot/mcp/mcp-overview)):
+
+```json
+{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "/path/to/your/project"
+      },
+      "disabled": false
+    }
+  }
+}
+```
+
+Replace `/path/to/your/project` with an absolute path; Cline's MCP documentation does not specify workspace-variable expansion. In JSON, escape Windows backslashes, for example `"C:\\Users\\you\\project"`.
+
+---
+
 ## Development (from source)
 
 ```bash
