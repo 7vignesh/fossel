@@ -250,6 +250,74 @@ test("round-trip: export then import into a fresh db preserves all data", () => 
   }
 });
 
+test("round-trip preserves access_count and last_accessed_at", () => {
+  const rowId = insertMemory(ctx.db, REPO, "accessed fact");
+  // Simulate accrued access history (migration defaults are 0 / created_at).
+  ctx.db
+    .prepare(
+      "UPDATE memories SET access_count = ?, last_accessed_at = ? WHERE rowid = ?",
+    )
+    .run(7, 1_700_000_000, rowId);
+
+  const envelope = exportMemories(ctx.db);
+  const exported = envelope.memories.find((m) => m.note === "accessed fact");
+  assert.ok(exported, "memory should be in the export");
+  assert.equal(exported.access_count, 7);
+  assert.equal(exported.last_accessed_at, 1_700_000_000);
+
+  const fresh = createTestDb();
+  try {
+    importMemories(fresh.db, envelope, fresh.dir);
+    const row = fresh.db
+      .prepare(
+        "SELECT access_count, last_accessed_at FROM memories WHERE note = ?",
+      )
+      .get("accessed fact") as
+      | { access_count: number; last_accessed_at: number }
+      | undefined;
+    assert.ok(row, "memory should import");
+    assert.equal(row.access_count, 7, "access_count must survive the round-trip");
+    assert.equal(
+      row.last_accessed_at,
+      1_700_000_000,
+      "last_accessed_at must survive the round-trip",
+    );
+  } finally {
+    fresh.cleanup();
+  }
+});
+
+test("importing a v1 envelope (no access fields) defaults to count 0 / created_at", () => {
+  // makeExportedMemory omits access fields, mirroring a v1 export.
+  const mem = makeExportedMemory("v1-id", REPO, "legacy fact");
+  const envelope = {
+    format: EXPORT_FORMAT,
+    version: 1,
+    exported_at: new Date().toISOString(),
+    memories: [mem],
+    aliases: [],
+  };
+
+  const result = importMemories(ctx.db, envelope, ctx.dir);
+  assert.equal(result.memoriesImported, 1);
+
+  const row = ctx.db
+    .prepare(
+      "SELECT access_count, last_accessed_at, created_at FROM memories WHERE id = ?",
+    )
+    .get("v1-id") as {
+    access_count: number;
+    last_accessed_at: number;
+    created_at: number;
+  };
+  assert.equal(row.access_count, 0);
+  assert.equal(
+    row.last_accessed_at,
+    row.created_at,
+    "last_accessed_at should default to created_at, matching the migration backfill",
+  );
+});
+
 test("importMemories skips Zod-invalid rows without aborting the entire import", () => {
   const validMemory1 = makeExportedMemory("id-valid-1", REPO, "valid fact 1");
   const malformedMemory = {
