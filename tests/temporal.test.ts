@@ -37,6 +37,54 @@ test("resolveRelativeDates resolves 'in N days/months'", () => {
   assert.equal(map["in 2 months"], "2026-08-26");
 });
 
+test("resolveRelativeDates clamps 'last month' from a month-end reference", () => {
+  // Mar 31 - 1 month must land on the last valid day of February, not
+  // overflow into March (the setUTCMonth bug produced 2026-03-03).
+  const mar31 = new Date("2026-03-31T00:00:00Z");
+  const r = resolveRelativeDates("shipped last month", mar31);
+  assert.equal(r[0]?.date, "2026-02-28");
+
+  // May 31 - 1 month -> April has 30 days, so clamp to Apr 30.
+  const may31 = new Date("2026-05-31T00:00:00Z");
+  const r2 = resolveRelativeDates("shipped last month", may31);
+  assert.equal(r2[0]?.date, "2026-04-30");
+});
+
+test("resolveRelativeDates clamps 'last month' into a leap-year February", () => {
+  // 2028 is a leap year: Mar 31 - 1 month -> Feb 29.
+  const mar31 = new Date("2028-03-31T00:00:00Z");
+  const r = resolveRelativeDates("shipped last month", mar31);
+  assert.equal(r[0]?.date, "2028-02-29");
+});
+
+test("resolveRelativeDates clamps 'next month' and crosses a year boundary", () => {
+  // Jan 31 + 1 month -> Feb has 28 days (2026 non-leap), clamp to Feb 28.
+  const jan31 = new Date("2026-01-31T00:00:00Z");
+  const r = resolveRelativeDates("freeze next month", jan31);
+  assert.equal(r[0]?.date, "2026-02-28");
+
+  // Dec 15 + 1 month -> Jan 15 of the next year (year rollover).
+  const dec15 = new Date("2026-12-15T00:00:00Z");
+  const r2 = resolveRelativeDates("freeze next month", dec15);
+  assert.equal(r2[0]?.date, "2027-01-15");
+});
+
+test("resolveRelativeDates clamps 'N months ago' / 'in N months' from month-end", () => {
+  // Mar 31 - 1 month ago -> Feb 28 (same overflow path via shiftByUnit).
+  const mar31 = new Date("2026-03-31T00:00:00Z");
+  const r = resolveRelativeDates("regression 1 months ago", mar31);
+  assert.equal(r[0]?.date, "2026-02-28");
+
+  // Aug 31 + 2 months -> Oct 31 (both have 31 days, no clamp needed).
+  const aug31 = new Date("2026-08-31T00:00:00Z");
+  const r2 = resolveRelativeDates("audit in 2 months", aug31);
+  assert.equal(r2[0]?.date, "2026-10-31");
+
+  // Aug 31 + 1 month -> Sep has 30 days, clamp to Sep 30.
+  const r3 = resolveRelativeDates("audit in 1 months", aug31);
+  assert.equal(r3[0]?.date, "2026-09-30");
+});
+
 test("resolveRelativeDates skips vague phrases", () => {
   const r = resolveRelativeDates("we'll get to it soon, recently it broke", REF);
   assert.equal(r.length, 0);
