@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, MEMORY_TYPES } from "../db/client.js";
 import { normalizeText } from "../lib/dedupe.js";
 import { recordFileRefs } from "../lib/file-refs.js";
+import { recordEntities } from "../lib/entities.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { groundTemporalReferences } from "../lib/temporal.js";
 import { indexMemoryEmbedding } from "../lib/vector-index.js";
@@ -65,6 +66,7 @@ export function registerStoreContextTool(server: McpServer): void {
         if (stored) {
           indexMemoryEmbedding(db, stored.row_id, note);
           recordFileRefs(db, stored.row_id, note, getWorkspaceRoot());
+          recordEntities(db, stored.row_id, note);
         }
 
         return {

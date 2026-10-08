@@ -18,6 +18,7 @@ import { MEMORY_TYPES, type MemoryType } from "../db/client.js";
 import { normalizeText } from "./dedupe.js";
 import { indexMemoryEmbedding } from "./vector-index.js";
 import { recordFileRefs } from "./file-refs.js";
+import { recordEntities } from "./entities.js";
 
 export const EXPORT_FORMAT = "fossel-export";
 export const EXPORT_VERSION = 1;
@@ -217,13 +218,14 @@ export function importMemories(
     );
     result.memoriesImported += 1;
 
-    // Re-derive the embedding and file refs for the imported memory.
+    // Re-derive the embedding, file refs and entities for the imported memory.
     const inserted = db
       .prepare("SELECT rowid AS row_id FROM memories WHERE id = ?")
       .get(memory.id) as { row_id: number } | undefined;
     if (inserted) {
       indexMemoryEmbedding(db, inserted.row_id, memory.note);
       recordFileRefs(db, inserted.row_id, memory.note, cwd);
+      recordEntities(db, inserted.row_id, memory.note);
     }
   });
 
