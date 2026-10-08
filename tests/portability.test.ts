@@ -108,6 +108,28 @@ test("importMemories inserts new memories", () => {
   assert.equal(row.repo, REPO);
 });
 
+test("importMemories records entities so imported memories are searchable by entity", () => {
+  const envelope = makeEnvelope([
+    makeExportedMemory("id-ent", REPO, "Rewrote the token check in src/auth.ts"),
+  ]);
+
+  importMemories(ctx.db, envelope, ctx.dir);
+
+  const rowId = (
+    ctx.db.prepare("SELECT rowid AS id FROM memories WHERE id = ?").get("id-ent") as {
+      id: number;
+    }
+  ).id;
+  const entities = ctx.db
+    .prepare("SELECT entity FROM memory_entities WHERE memory_rowid = ?")
+    .all(rowId) as Array<{ entity: string }>;
+
+  assert.ok(
+    entities.some((e) => e.entity === "src/auth.ts"),
+    "imported memory must have its file entity recorded for entity-based retrieval",
+  );
+});
+
 test("importMemories is idempotent - re-import skips existing", () => {
   const envelope = makeEnvelope([
     makeExportedMemory("id-1", REPO, "fact"),

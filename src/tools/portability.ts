@@ -72,7 +72,7 @@ export function registerImportMemoriesTool(server: McpServer): void {
       description:
         "Import memories from a JSON envelope produced by export_memories. " +
         "Additive and idempotent: existing memories with the same id are never overwritten, " +
-        "so re-importing the same file is a no-op. Embeddings and file references are " +
+        "so re-importing the same file is a no-op. Embeddings, file references and entities are " +
         "re-derived on import.",
       inputSchema: importInputSchema,
     },
