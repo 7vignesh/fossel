@@ -2,9 +2,9 @@
  * Export / import.
  *
  * `export_memories` produces a versioned JSON envelope containing everything
- * Fossel knows — memories (live and superseded) and repo aliases. Embeddings
- * are deliberately NOT exported; they are re-derived on import so the file
- * stays small and model-agnostic.
+ * Fossel knows — memories (live and superseded, with their access counts) and
+ * repo aliases. Embeddings are deliberately NOT exported; they are re-derived
+ * on import so the file stays small and model-agnostic.
  *
  * `import_memories` is additive and idempotent: existing source nanoids are
  * skipped, so re-importing the same file is a no-op and never clobbers an
@@ -20,7 +20,9 @@ import { indexMemoryEmbedding } from "./vector-index.js";
 import { recordFileRefs } from "./file-refs.js";
 
 export const EXPORT_FORMAT = "fossel-export";
-export const EXPORT_VERSION = 1;
+// v2 added access_count / last_accessed_at. Older (v1) envelopes import fine:
+// the access fields are optional and default to created_at / 0.
+export const EXPORT_VERSION = 2;
 
 export const exportedMemorySchema = z.object({
   id: z.string().min(1),
@@ -34,6 +36,9 @@ export const exportedMemorySchema = z.object({
   metadata_json: z.string(),
   valid_from: z.number().int(),
   valid_to: z.number().int().nullable(),
+  // Optional for backward compatibility with v1 envelopes.
+  access_count: z.number().int().optional(),
+  last_accessed_at: z.number().int().optional(),
 });
 
 export const exportedAliasSchema = z.object({
@@ -44,7 +49,9 @@ export const exportedAliasSchema = z.object({
 
 const exportEnvelopeSchema = z.object({
   format: z.literal(EXPORT_FORMAT),
-  version: z.literal(EXPORT_VERSION),
+  // Accept any supported version (<= current). The version-range check in
+  // validateExportEnvelope rejects envelopes newer than this build.
+  version: z.number().int(),
   exported_at: z.string(),
   memories: z.array(z.unknown()),
   aliases: z.array(exportedAliasSchema),
@@ -62,6 +69,8 @@ export interface ExportedMemory {
   metadata_json: string;
   valid_from: number;
   valid_to: number | null;
+  access_count: number;
+  last_accessed_at: number;
 }
 
 export interface ExportedAlias {
@@ -72,7 +81,7 @@ export interface ExportedAlias {
 
 export interface ExportEnvelope {
   format: typeof EXPORT_FORMAT;
-  version: typeof EXPORT_VERSION;
+  version: number;
   exported_at: string;
   memories: ExportedMemory[];
   aliases: ExportedAlias[];
@@ -81,6 +90,10 @@ export interface ExportEnvelope {
 type ImportEnvelope = Omit<ExportEnvelope, "memories"> & {
   memories: unknown[];
 };
+
+/** A memory row as it arrives from an import envelope (access fields optional
+ * for v1 compatibility). */
+type ImportedMemory = z.infer<typeof exportedMemorySchema>;
 
 export function validateExportEnvelope(envelope: unknown): ImportEnvelope {
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) {
@@ -117,7 +130,7 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
     .prepare(
       `
         SELECT id, repo, type, note, tags, created_at, updated_at, pinned,
-               metadata_json, valid_from, valid_to
+               metadata_json, valid_from, valid_to, access_count, last_accessed_at
         FROM memories
         ${whereClause}
         ORDER BY created_at ASC
@@ -135,6 +148,8 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
     metadata_json: string;
     valid_from: number;
     valid_to: number | null;
+    access_count: number;
+    last_accessed_at: number;
   }>;
 
   const aliases = db
@@ -183,8 +198,8 @@ export function importMemories(
   const insertMemory = db.prepare(
     `
       INSERT INTO memories
-        (id, repo, type, note, tags, created_at, updated_at, pinned, metadata_json, note_normalized, valid_from, valid_to)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, repo, type, note, tags, created_at, updated_at, pinned, metadata_json, note_normalized, valid_from, valid_to, access_count, last_accessed_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
   );
 
@@ -195,7 +210,7 @@ export function importMemories(
     `,
   );
 
-  const insertMemorySubTx = db.transaction((memory: ExportedMemory) => {
+  const insertMemorySubTx = db.transaction((memory: ImportedMemory) => {
     if (selectMemoryById.get(memory.id)) {
       result.memoriesSkipped += 1;
       return;
@@ -214,6 +229,10 @@ export function importMemories(
       normalizeText(memory.note),
       memory.valid_from,
       memory.valid_to,
+      // v1 envelopes have no access fields; mirror the migration backfill
+      // (count 0, last-accessed = created_at) rather than inventing data.
+      memory.access_count ?? 0,
+      memory.last_accessed_at ?? memory.created_at,
     );
     result.memoriesImported += 1;
 
