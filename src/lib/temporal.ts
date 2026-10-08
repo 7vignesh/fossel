@@ -24,6 +24,28 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
+/**
+ * Shift a date by a number of months, clamping the day to the target month's
+ * length. `Date.setUTCMonth` overflows when the current day exceeds the target
+ * month's day count (e.g. shifting Mar 31 back one month lands on Mar 3, since
+ * Feb 31 normalizes forward), so compute the target year/month explicitly and
+ * cap the day instead.
+ */
+function addMonths(date: Date, months: number): Date {
+  const year = date.getUTCFullYear();
+  const month = date.getUTCMonth() + months;
+  const targetYear = year + Math.floor(month / 12);
+  const targetMonth = ((month % 12) + 12) % 12;
+  // Day 0 of the following month = last day of the target month.
+  const daysInTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonth + 1, 0),
+  ).getUTCDate();
+  const day = Math.min(date.getUTCDate(), daysInTargetMonth);
+  const next = new Date(date);
+  next.setUTCFullYear(targetYear, targetMonth, day);
+  return next;
+}
+
 interface ResolvedPhrase {
   /** The matched phrase, lower-cased. */
   phrase: string;
@@ -72,14 +94,10 @@ export function resolveRelativeDates(
     push("next week", addDays(reference, 7));
   }
   if (/\blast month\b/.test(lower)) {
-    const d = new Date(reference);
-    d.setUTCMonth(d.getUTCMonth() - 1);
-    push("last month", d);
+    push("last month", addMonths(reference, -1));
   }
   if (/\bnext month\b/.test(lower)) {
-    const d = new Date(reference);
-    d.setUTCMonth(d.getUTCMonth() + 1);
-    push("next month", d);
+    push("next month", addMonths(reference, 1));
   }
 
   // "N days/weeks/months ago" and "in N days/weeks/months".
@@ -110,9 +128,7 @@ function shiftByUnit(reference: Date, amount: number, unit: string): Date {
     return new Date(reference.getTime() + amount * 7 * DAY_MS);
   }
   // months
-  const d = new Date(reference);
-  d.setUTCMonth(d.getUTCMonth() + amount);
-  return d;
+  return addMonths(reference, amount);
 }
 
 /**
