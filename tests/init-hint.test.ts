@@ -66,3 +66,64 @@ test("writes into multiple files when several exist", () => {
   assert.ok(result?.includes("AGENTS.md"));
   assert.ok(result?.includes("CLAUDE.md"));
 });
+
+test("writes into an existing .windsurfrules", () => {
+  const path = join(dir, ".windsurfrules");
+  writeFileSync(path, "windsurf rules\n", "utf8");
+
+  const result = writeInvocationHint(dir);
+  assert.ok(result?.includes(".windsurfrules"));
+
+  const content = readFileSync(path, "utf8");
+  assert.match(content, /get_context/);
+  assert.match(content, /windsurf rules/);
+});
+
+test("writes into an existing .clinerules", () => {
+  const path = join(dir, ".clinerules");
+  writeFileSync(path, "cline rules\n", "utf8");
+
+  const result = writeInvocationHint(dir);
+  assert.ok(result?.includes(".clinerules"));
+
+  const content = readFileSync(path, "utf8");
+  assert.match(content, /get_context/);
+  assert.match(content, /cline rules/);
+});
+
+test("writes into Zed's .rules file", () => {
+  const path = join(dir, ".rules");
+  writeFileSync(path, "zed rules\n", "utf8");
+
+  const result = writeInvocationHint(dir);
+  assert.ok(result?.includes(".rules"));
+
+  const content = readFileSync(path, "utf8");
+  assert.match(content, /get_context/);
+  assert.match(content, /zed rules/);
+});
+
+test("writes into the .windsurf/rules.md and .clinerules/rules.md directory forms", () => {
+  mkdirSync(join(dir, ".windsurf"));
+  writeFileSync(join(dir, ".windsurf", "rules.md"), "ws dir rules\n", "utf8");
+  mkdirSync(join(dir, ".clinerules"));
+  writeFileSync(join(dir, ".clinerules", "rules.md"), "cline dir rules\n", "utf8");
+
+  const result = writeInvocationHint(dir);
+  assert.ok(result?.includes("rules.md"));
+
+  assert.match(readFileSync(join(dir, ".windsurf", "rules.md"), "utf8"), /get_context/);
+  assert.match(readFileSync(join(dir, ".clinerules", "rules.md"), "utf8"), /get_context/);
+});
+
+test("the new rule files are idempotent too", () => {
+  const path = join(dir, ".windsurfrules");
+  writeFileSync(path, "rules\n", "utf8");
+
+  writeInvocationHint(dir);
+  const first = readFileSync(path, "utf8");
+  writeInvocationHint(dir);
+  const second = readFileSync(path, "utf8");
+
+  assert.equal(first, second, "second call must not duplicate the hint");
+});

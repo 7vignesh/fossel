@@ -168,7 +168,8 @@ const HINT_LINE =
 
 /**
  * Append a one-line get_context invocation hint to whichever agent rule files
- * the workspace already uses (AGENTS.md, CLAUDE.md, .cursor/rules*). This is the
+ * the workspace already uses (AGENTS.md, CLAUDE.md, .cursor/rules*, .windsurfrules,
+ * .clinerules, Zed's .rules). This is the
  * difference between Fossel being installed and being actually used — clients
  * read these files on session start.
  *
@@ -190,6 +191,14 @@ export function writeInvocationHint(cwd: string): string | null {
     join(cwd, "CLAUDE.md"),
     join(cwd, ".cursor", "rules"),
     join(cwd, ".cursor", "rules.md"),
+    // Windsurf: single-file .windsurfrules, and the newer .windsurf/rules/ dir.
+    join(cwd, ".windsurfrules"),
+    join(cwd, ".windsurf", "rules.md"),
+    // Cline: single-file .clinerules, and the v3 .clinerules/ dir.
+    join(cwd, ".clinerules"),
+    join(cwd, ".clinerules", "rules.md"),
+    // Zed-native rule file (Zed also reads AGENTS.md/CLAUDE.md above).
+    join(cwd, ".rules"),
   ];
 
   const block = `\n\n${HINT_MARKER}\n${HINT_LINE}\n`;
