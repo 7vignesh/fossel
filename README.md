@@ -493,6 +493,12 @@ npm run start        # node dist/index.js
 npm run ci           # typecheck + tests + build + smoke
 ```
 
+## How retrieval works
+
+For how the three-tier keyword search, the optional semantic leg, and the
+entity leg are fused into one ranked list — and the conventions that keep
+retrieval local-first — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Notes
 
 - **Local-first:** data stays on your machine.
