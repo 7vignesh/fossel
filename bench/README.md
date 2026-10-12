@@ -103,6 +103,98 @@ To verify the adapter without downloading anything:
 npm run bench -- --dataset longmemeval --file bench/fixtures/longmemeval-sample.json --no-write
 ```
 
+## Adding a benchmark case
+
+The committed eval set is `bench/datasets/repo-memory.json`. It is a single JSON
+object with three top-level keys:
+
+- `memories` — an array of the memories the fictional repo would know.
+- `queries` — an array of labelled questions, each naming which memories are
+  the correct answers.
+- `repo` / `name` / `description` — metadata; `repo` is the single repo key the
+  dataset belongs to.
+
+### The shape of an entry
+
+A **memory** entry:
+
+```json
+{
+  "key": "m-commit",
+  "note": "Commit messages follow Conventional Commits.",
+  "type": "convention",
+  "tags": ["git"]
+}
+```
+
+`key` is a stable identifier that query entries reference. `type` and `tags`
+mirror what `remember` would infer, but are written by hand here because the
+dataset is ingested with direct SQL, not through the write path (see the
+design constraints above).
+
+A **query** entry:
+
+```json
+{
+  "id": "q-exact-pnpm",
+  "query": "pnpm workspaces",
+  "relevant": ["m-pnpm"],
+  "category": "exact",
+  "rationale": "Literal term match; FTS should win outright."
+}
+```
+
+- `relevant` lists the memory keys that count as correct. A query with several
+  keys exercises `recall@k` rather than just `hit@k`.
+- `category` picks one of the buckets in the table above so the per-category
+  report has a row for it.
+- `rationale` is optional but strongly preferred: it records *why* these are
+  the answers, so the case stays defensible when the retrieval changes.
+
+When you add a case, add a memory (or memories) plus a query that points at it.
+Keep the memory array in recency order and keep the "no pinned memories, no
+write-path inference" constraints above.
+
+### Running it and reading the output
+
+```bash
+npm run bench                  # all three modes, repo-memory dataset
+npm run bench -- --verbose     # list every missed query, not just the top 5
+```
+
+The two tables to read:
+
+- **Search surface** — the pure ranked contribution. This is the retrieval
+  quality number: `hit@1/3/5/10`, `recall@5`, `MRR`, `nDCG@10` per mode.
+- **Context surface** — what `get_context` actually returns, recent-backfill
+  included. Higher than search by construction; read it as the "what the model
+  sees" number, not the "how good is retrieval" number.
+
+The **per-category** table and the **per-mode miss list** at the bottom are the
+most useful: they say *which* queries fail and what came back instead. A new
+case that no mode can answer is usually a bad case (or a genuinely hard
+synonym), not a retrieval bug — check the rationale before treating a miss as
+a regression.
+
+### When to update the committed snapshot
+
+`bench/results/repo-memory.json` is committed so a retrieval change shows up as
+a diff. `npm run bench` rewrites that snapshot; `npm run bench:check` compares
+against it and **exits non-zero on any drift** without writing. The rule:
+
+1. Add the case and run `npm run bench` — this updates the snapshot.
+2. Review the diff in `bench/results/`. A case you added should move the
+   numbers in the direction the new query was meant to test.
+3. If the change to `src/lib/` that motivated the case is a *retrieval*
+   change, keep it only if the numbers support it — commit the new snapshot and
+   make sure `npm run bench:check` is clean.
+4. If the case was added only to *document* expected behaviour (no retrieval
+   change), committing the updated snapshot is the whole point: the baseline
+   now includes the new query.
+
+Keep a change only if the numbers support it — the same rule `CONTRIBUTING.md`
+states. The miss list is where you find out whether they do.
+
 ## Tuning sweeps
 
 Retrieval constants are chosen by measurement, not by feel:
