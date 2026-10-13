@@ -63,6 +63,8 @@
 | **Proactive maintenance** | `consolidate_memory` surfaces stale, redundant, and contradicted entries. |
 | **Evolving schema** | Startup migrations keep upgrades safe for existing databases. |
 
+For how retrieval actually works under the hood — three-tier FTS, local embeddings, and weighted rank fusion — see the [architecture notes](docs/ARCHITECTURE.md).
+
 ---
 
 ## Simple mode (recommended)
