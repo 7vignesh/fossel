@@ -11,6 +11,7 @@ import {
   mergeRepoKeys,
   resolveRepo,
 } from "./lib/repo.js";
+import { gatherHealthMetrics } from "./lib/stats.js";
 
 const DEFAULT_DB_PATH = join(homedir(), ".fossel", "memory.db");
 // New starter memory: points users at the ambient tools (`remember`,
@@ -437,6 +438,25 @@ function gatherDoctorReport(): DoctorReport {
     .prepare("SELECT COUNT(*) AS count FROM memories")
     .get() as { count: number };
   lines.push(`Total memories across all repos: ${totalRow.count}`);
+
+  // Per-repo health metrics (read-only; each optional metric fails soft).
+  const metrics = gatherHealthMetrics(db, resolved.canonical);
+  lines.push(
+    `Memories for ${resolved.canonical}: ${metrics.live} live, ${metrics.superseded} superseded.`,
+  );
+  if (metrics.stale !== null && metrics.live > 0) {
+    const pct = Math.round((metrics.stale / metrics.live) * 100);
+    lines.push(
+      `Stale (never accessed, older than ${metrics.staleDays}d): ${metrics.stale}/${metrics.live} (${pct}%).`,
+    );
+  }
+  const coverage: string[] = [];
+  if (metrics.withEmbeddings !== null) coverage.push(`embeddings ${metrics.withEmbeddings}`);
+  if (metrics.withEntities !== null) coverage.push(`entities ${metrics.withEntities}`);
+  if (metrics.withFileRefs !== null) coverage.push(`file refs ${metrics.withFileRefs}`);
+  if (coverage.length > 0 && metrics.live > 0) {
+    lines.push(`Coverage of ${metrics.live} live: ${coverage.join(", ")}.`);
+  }
 
   return { ok, lines, duplicateClusters: duplicateRows.length, staleMentions };
 }
