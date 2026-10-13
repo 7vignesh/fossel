@@ -406,3 +406,38 @@ export function findMemoriesMentioningAlias(
   const pattern = new RegExp(`(^|[^\\w/-])${escaped}(?=$|[^\\w/-])`);
   return rows.filter((row) => pattern.test(row.note));
 }
+
+export interface RepoStats {
+  repo: string;
+  live: number;
+  superseded: number;
+  pinned: number;
+  lastUpdated: number | null;
+}
+
+/**
+ * List every repo that has stored memories, with per-repo counts. Memories are
+ * always written under their canonical repo key (aliases are resolved on write
+ * and merged by `mergeRepoKeys`), so grouping by `repo` yields canonical keys.
+ *
+ * `live` counts memories still surfacing (valid_to IS NULL); `superseded`
+ * counts tombstoned ones. Repos are ordered by live count descending, then by
+ * key for a stable tie-break.
+ */
+export function listRepos(db: Database.Database): RepoStats[] {
+  return db
+    .prepare(
+      `
+        SELECT
+          repo,
+          SUM(CASE WHEN valid_to IS NULL THEN 1 ELSE 0 END) AS live,
+          SUM(CASE WHEN valid_to IS NOT NULL THEN 1 ELSE 0 END) AS superseded,
+          SUM(CASE WHEN pinned = 1 AND valid_to IS NULL THEN 1 ELSE 0 END) AS pinned,
+          MAX(updated_at) AS lastUpdated
+        FROM memories
+        GROUP BY repo
+        ORDER BY live DESC, repo ASC
+      `,
+    )
+    .all() as RepoStats[];
+}
