@@ -1,4 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { writeFileSync } from "node:fs";
+import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import {
@@ -13,7 +15,34 @@ import { getWorkspaceRoot } from "../lib/workspace.js";
 
 const exportInputSchema = {
   repo: z.string().trim().min(1).optional(),
+  path: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Optional file path to write the envelope to (resolved within the " +
+        "workspace). When set, the response is a short summary instead of the " +
+        "full JSON.",
+    ),
 };
+
+/**
+ * Resolve a user-supplied export path against the workspace root and reject
+ * anything that escapes it. Prevents a tool call from writing outside the
+ * project (path traversal / absolute paths pointing elsewhere).
+ */
+function resolveExportPath(userPath: string, workspace: string): string {
+  const root = resolve(workspace);
+  const target = isAbsolute(userPath) ? resolve(userPath) : resolve(root, userPath);
+  const rel = relative(root, target);
+  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) {
+    throw new Error(
+      `Refusing to write outside the workspace: "${userPath}" resolves outside ${root}.`,
+    );
+  }
+  return target;
+}
 
 export function registerExportMemoriesTool(server: McpServer): void {
   server.registerTool(
@@ -22,21 +51,41 @@ export function registerExportMemoriesTool(server: McpServer): void {
       description:
         "Export all memories (and repo aliases) as a portable JSON envelope. " +
         "Embeddings are not included — they are re-derived on import so the file stays small " +
-        "and model-agnostic. Pass a repo to scope the export; omit to export everything.",
+        "and model-agnostic. Pass a repo to scope the export; omit to export everything. " +
+        "Pass a path to write the envelope to a file (within the workspace) and get a short " +
+        "summary back instead of the full JSON.",
       inputSchema: exportInputSchema,
     },
-    async ({ repo }) => {
+    async ({ repo, path }) => {
       try {
         const db = getDb();
         const resolved = repo
           ? resolveRepoArg(repo, getWorkspaceRoot(), db).canonical
           : undefined;
         const envelope = exportMemories(db, resolved);
+        const json = JSON.stringify(envelope, null, 2);
+
+        if (path) {
+          const target = resolveExportPath(path, getWorkspaceRoot());
+          writeFileSync(target, json, "utf8");
+          const scope = resolved ? ` for ${resolved}` : "";
+          return {
+            content: [
+              {
+                type: "text",
+                text:
+                  `Exported ${envelope.memories.length} memory(s) and ` +
+                  `${envelope.aliases.length} alias(es)${scope} to ${target}.`,
+              },
+            ],
+          };
+        }
+
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(envelope, null, 2),
+              text: json,
             },
           ],
         };
