@@ -103,6 +103,53 @@ To verify the adapter without downloading anything:
 npm run bench -- --dataset longmemeval --file bench/fixtures/longmemeval-sample.json --no-write
 ```
 
+## Adding a benchmark case
+
+A retrieval change only counts if the numbers support it, and the numbers come from the
+eval dataset. Here is how to add a query to the committed `repo-memory` set so the change
+is measured rather than asserted.
+
+### The shape of an entry
+
+The dataset is `bench/datasets/repo-memory.json`. Two arrays, cross-referenced by `key`:
+
+- `memories[]` — the things to be found. Each is `{ "key", "note", "type", "tags" }`,
+  where `key` is a stable label (e.g. `m-pnpm`), `note` is the memory body, and `type` /
+  `tags` are metadata. This is what gets ingested into the in-memory store, in array
+  order (recency order, newest first).
+- `queries[]` — the eval cases. Each is
+  `{ "id", "query", "relevant", "category", "rationale" }`, where `relevant` is a list
+  of the `memories` `key`s that *should* come back. A one-item `relevant` probes hit@k;
+  a multi-item `relevant` probes recall@k. `category` must be one of the labels the
+  per-category table above already tracks (`exact`, `identifier`, `path`, `ticket`,
+  `paraphrase`, `synonym`, `multi`, `superseded`), because the report groups by it.
+
+To add a case:
+
+1. If the answer it should surface is not already in the store, add a memory to
+   `memories[]` with a new `key` and a one-line `note`.
+2. Add a query to `queries[]` with a unique `id` (prefix it by category, e.g.
+   `q-paraphrase-<slug>`), the `query` text, a `relevant` list of memory `key`s, and the
+   `category`. Add a `rationale` line for the `exact` / `synonym` / `superseded` cases so
+   a future reader knows why it belongs there.
+3. Re-run `npm run bench` (the default writes the snapshot) and inspect the diff under
+   `bench/results/repo-memory.json` — your new query now shows up in the per-category
+   table.
+4. `npm run bench:check` must come back clean, i.e. the committed snapshot matches a
+   fresh run. If it drifts, the snapshot is stale: `npm run bench` rewrites it and the
+   diff is what you commit alongside the dataset change.
+
+Reading the output: the aggregate block reports **hit@k** and **MRR** on the `search`
+surface for each mode, plus a `byCategory` breakdown. The `context` surface is there to
+remind you the backfill inflates the number, so judge a retrieval change on `search`,
+not `context`. The per-mode miss list at the bottom is the design tool: it names the
+exact queries that came back empty, which is what you read to decide whether a change
+is worth keeping.
+
+The rule: a retrieval tweak is only merge-ready when `npm run bench` shows it moved the
+number you care about in the intended direction, and `bench:check` passes after the
+snapshot is refreshed. No movement, no merge.
+
 ## Tuning sweeps
 
 Retrieval constants are chosen by measurement, not by feel:
