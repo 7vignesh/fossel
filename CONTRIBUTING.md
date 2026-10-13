@@ -26,7 +26,7 @@ New here? Good places to begin:
 
 - **[`good first issue`](https://github.com/7vignesh/fossel/labels/good%20first%20issue)** — small, well-scoped tasks with clear acceptance criteria. The best entry point.
 - **[`help wanted`](https://github.com/7vignesh/fossel/labels/help%20wanted)** — meatier work for when you know the codebase.
-- **[Read `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** (if present) or the module header comments in `src/lib/` to understand how retrieval fits together before diving in.
+- **[Read `docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** to understand how retrieval fits together before diving in. The module header comments in `src/lib/` carry the per-file detail.
 
 Issues are also tagged by subsystem so you can find work in an area you care about:
 
