@@ -14,6 +14,7 @@ import { registerDedupeRepoTool } from "./tools/dedupe-repo.js";
 import { registerDeleteMemoryTool } from "./tools/delete.js";
 import { registerGetContextTool } from "./tools/get-context.js";
 import { registerGetRepoContextTool } from "./tools/get-repo.js";
+import { registerListReposTool } from "./tools/list-repos.js";
 import { registerPinMemoryTool, registerUnpinMemoryTool } from "./tools/pin.js";
 import {
   registerExportMemoriesTool,
@@ -111,6 +112,7 @@ export async function startServer(): Promise<void> {
   registerPinMemoryTool(server);
   registerUnpinMemoryTool(server);
   registerSummarizeRepoContextTool(server);
+  registerListReposTool(server);
   registerExportMemoriesTool(server);
   registerImportMemoriesTool(server);
 
