@@ -15,6 +15,15 @@ import type Database from "better-sqlite3";
 import { changedFiles, fileBlobSha, isGitRepo } from "./git.js";
 
 /**
+ * Placeholder blob sha for a path git could not resolve.
+ *
+ * `blob_sha` is NOT NULL, so an unresolved path stores this sentinel. The
+ * authoritative flag is the `tracked` column — the sentinel only exists to
+ * satisfy the column's NOT NULL constraint.
+ */
+export const UNRESOLVED_SHA = "";
+
+/**
  * Extract file-path-like tokens from free-form note text.
  *
  * Distinct from the tag extraction in `inference.ts`, which keeps only
@@ -49,7 +58,13 @@ export function extractFilePaths(note: string): string[] {
 }
 
 /**
- * Record the blob sha of every file a memory mentions that exists at HEAD.
+ * Record the blob sha of every file a memory mentions.
+ *
+ * Paths that resolve at HEAD are stored as tracked, with their sha. Paths that
+ * git cannot resolve — untracked, gitignored, or simply made up — are stored
+ * as untracked so read time can say "named but never checked" instead of
+ * letting the memory look verified.
+ *
  * No-op — recording nothing — when the workspace is not a git repo, so callers
  * can invoke this unconditionally. Replaces any existing refs for the memory so
  * an edited note does not accumulate stale rows.
@@ -73,10 +88,11 @@ export function recordFileRefs(
   const del = db.prepare("DELETE FROM memory_file_refs WHERE memory_rowid = ?");
   const insert = db.prepare(
     `
-      INSERT INTO memory_file_refs (memory_rowid, path, blob_sha, created_at)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO memory_file_refs (memory_rowid, path, blob_sha, tracked, created_at)
+      VALUES (?, ?, ?, ?, ?)
       ON CONFLICT(memory_rowid, path) DO UPDATE SET
         blob_sha = excluded.blob_sha,
+        tracked = excluded.tracked,
         created_at = excluded.created_at
     `,
   );
@@ -86,13 +102,11 @@ export function recordFileRefs(
     del.run(memoryRowId);
     for (const path of paths) {
       const sha = fileBlobSha(cwd, path);
-      // Only record paths that actually resolve at HEAD. A note mentioning a
-      // file that isn't tracked (or a made-up path) records nothing for it, so
-      // we never emit a staleness advisory for a file git doesn't know.
-      if (sha) {
-        insert.run(memoryRowId, path, sha, now);
-        recorded += 1;
-      }
+      // Every named path is recorded. One that git does not know is stored
+      // untracked, so retrieval can distinguish "checked and current" from
+      // "never checked" instead of rendering both as no marker at all.
+      insert.run(memoryRowId, path, sha ?? UNRESOLVED_SHA, sha ? 1 : 0, now);
+      recorded += 1;
     }
   });
   tx();
@@ -131,7 +145,8 @@ export function findStaleFileRefs(
       `
         SELECT memory_rowid, path, blob_sha
         FROM memory_file_refs
-        WHERE memory_rowid IN (${placeholders})
+        WHERE tracked = 1
+          AND memory_rowid IN (${placeholders})
       `,
     )
     .all(...memoryRowIds) as Array<{
@@ -166,6 +181,49 @@ export function findStaleFileRefs(
 
     const list = result.get(row.memory_rowid) ?? [];
     list.push({ path: row.path, changedInWorkingTree: dirty });
+    result.set(row.memory_rowid, list);
+  }
+
+  return result;
+}
+
+/**
+ * For a set of memory rowids, return the referenced paths that were named but
+ * could not be resolved at write time — untracked, gitignored, or simply made
+ * up.
+ *
+ * These are not stale: nothing was ever checked. Reporting them separately is
+ * what lets a reader tell "the file was checked and has not changed" apart
+ * from "this path was never tracked", which both used to render as no marker.
+ *
+ * Returns an empty map when the workspace is not a git repo, because no refs
+ * are recorded there at all.
+ */
+export function findUnverifiedFileRefs(
+  db: Database.Database,
+  memoryRowIds: number[],
+): Map<number, string[]> {
+  const result = new Map<number, string[]>();
+  if (memoryRowIds.length === 0) {
+    return result;
+  }
+
+  const placeholders = memoryRowIds.map(() => "?").join(", ");
+  const rows = db
+    .prepare(
+      `
+        SELECT memory_rowid, path
+        FROM memory_file_refs
+        WHERE tracked = 0
+          AND memory_rowid IN (${placeholders})
+        ORDER BY path
+      `,
+    )
+    .all(...memoryRowIds) as Array<{ memory_rowid: number; path: string }>;
+
+  for (const row of rows) {
+    const list = result.get(row.memory_rowid) ?? [];
+    list.push(row.path);
     result.set(row.memory_rowid, list);
   }
 

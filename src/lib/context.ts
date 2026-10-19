@@ -238,6 +238,9 @@ export interface FormatContextOptions {
    * following the conflict-review pattern — Fossel flags, the client's model
    * judges. */
   staleRefs?: Map<number, StaleFileRef[]>;
+  /** Paths a note named but git could not resolve. Reported separately from
+   * `staleRefs` so "never checked" does not read as "checked and current". */
+  unverifiedRefs?: Map<number, string[]>;
 }
 
 /**
@@ -249,7 +252,7 @@ export function formatContext(
   rows: ContextRow[],
   options: FormatContextOptions,
 ): string {
-  const { repo, query, format = "text", staleRefs } = options;
+  const { repo, query, format = "text", staleRefs, unverifiedRefs } = options;
 
   if (rows.length === 0) {
     if (format === "markdown") {
@@ -259,10 +262,10 @@ export function formatContext(
   }
 
   if (format === "markdown") {
-    return formatMarkdown(rows, repo, query, staleRefs);
+    return formatMarkdown(rows, repo, query, staleRefs, unverifiedRefs);
   }
 
-  return formatText(rows, repo, query, staleRefs);
+  return formatText(rows, repo, query, staleRefs, unverifiedRefs);
 }
 
 /**
@@ -284,18 +287,39 @@ function staleMarker(
   return ` ⚠ may be stale: ${names} ${verb} since this was written`;
 }
 
+/**
+ * Advisory for a path the note named but git could not resolve.
+ *
+ * Distinct from the staleness marker on purpose: "unverified" means nothing
+ * was ever checked (untracked, gitignored, or a made-up path), while "may be
+ * stale" means the file was checked and has since changed. Collapsing the two
+ * lets an agent read the absence of a warning as confirmation.
+ */
+function unverifiedMarker(
+  rowId: number,
+  unverifiedRefs?: Map<number, string[]>,
+): string {
+  const paths = unverifiedRefs?.get(rowId);
+  if (!paths || paths.length === 0) {
+    return "";
+  }
+  return ` ⓘ unverified: ${paths.join(", ")} (untracked)`;
+}
+
 function formatMarkdown(
   rows: ContextRow[],
   repo: string,
   query?: string,
   staleRefs?: Map<number, StaleFileRef[]>,
+  unverifiedRefs?: Map<number, string[]>,
 ): string {
   const sections: string[] = [`# Fossel context: ${repo}`];
   if (query) {
     sections.push(`Query: \`${query}\``);
   }
 
-  const render = (row: ContextRow) => renderMarkdownRow(row, staleRefs);
+  const render = (row: ContextRow) =>
+    renderMarkdownRow(row, staleRefs, unverifiedRefs);
 
   const pinned = rows.filter((row) => row.pinned === 1);
   if (pinned.length > 0) {
@@ -318,10 +342,15 @@ function formatMarkdown(
 function renderMarkdownRow(
   row: ContextRow,
   staleRefs?: Map<number, StaleFileRef[]>,
+  unverifiedRefs?: Map<number, string[]>,
 ): string {
   const tags = parseTags(row.tags);
   const tagSuffix = tags.length > 0 ? ` _(${tags.join(", ")})_` : "";
-  return `- (${row.row_id}) ${row.note}${tagSuffix}${staleMarker(row.row_id, staleRefs)}`;
+  return (
+    `- (${row.row_id}) ${row.note}${tagSuffix}` +
+    `${staleMarker(row.row_id, staleRefs)}` +
+    `${unverifiedMarker(row.row_id, unverifiedRefs)}`
+  );
 }
 
 function formatText(
@@ -329,6 +358,7 @@ function formatText(
   repo: string,
   query?: string,
   staleRefs?: Map<number, StaleFileRef[]>,
+  unverifiedRefs?: Map<number, string[]>,
 ): string {
   const header = query
     ? `Repository context for ${repo} (query: "${query}")`
@@ -342,7 +372,9 @@ function formatText(
     const pinPrefix = row.pinned ? "📌 " : "";
     const sourceLabel = row.source === "search" ? " [match]" : "";
     lines.push(
-      `- (${row.row_id} | ${row.type})${sourceLabel} ${pinPrefix}${row.note}${tagSuffix}${staleMarker(row.row_id, staleRefs)}`,
+      `- (${row.row_id} | ${row.type})${sourceLabel} ${pinPrefix}${row.note}${tagSuffix}` +
+        `${staleMarker(row.row_id, staleRefs)}` +
+        `${unverifiedMarker(row.row_id, unverifiedRefs)}`,
     );
   }
 

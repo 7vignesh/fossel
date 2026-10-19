@@ -9,6 +9,7 @@ import { runMigrations } from "../src/db/migrate.js";
 import {
   extractFilePaths,
   findStaleFileRefs,
+  findUnverifiedFileRefs,
   recordFileRefs,
 } from "../src/lib/file-refs.js";
 
@@ -122,7 +123,7 @@ test("recordFileRefs is a no-op outside a git repo", () => {
   assert.equal(count.c, 0);
 });
 
-test("recordFileRefs records only paths that exist at HEAD", { skip: !GIT_AVAILABLE }, () => {
+test("recordFileRefs records every named path, tracking what git can resolve", { skip: !GIT_AVAILABLE }, () => {
   initRepo();
   writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
 
@@ -134,11 +135,45 @@ test("recordFileRefs records only paths that exist at HEAD", { skip: !GIT_AVAILA
     dir,
   );
 
-  assert.equal(recorded, 1, "only the tracked file should be recorded");
+  assert.equal(recorded, 2, "both named paths are recorded");
   const rows = db
-    .prepare("SELECT path FROM memory_file_refs WHERE memory_rowid = ?")
-    .all(rowId) as Array<{ path: string }>;
-  assert.deepEqual(rows.map((r) => r.path), ["src/auth.ts"]);
+    .prepare("SELECT path, tracked FROM memory_file_refs WHERE memory_rowid = ? ORDER BY path")
+    .all(rowId) as Array<{ path: string; tracked: number }>;
+  assert.deepEqual(
+    rows.map((r) => [r.path, r.tracked]),
+    [
+      ["made-up.ts", 0],
+      ["src/auth.ts", 1],
+    ],
+    "the resolved path is tracked, the made-up one is not",
+  );
+});
+
+test("findUnverifiedFileRefs reports named-but-unresolved paths", { skip: !GIT_AVAILABLE }, () => {
+  initRepo();
+  writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
+
+  const rowId = insertMemoryRow("auth lives in src/auth.ts, and in docs/never-committed.md");
+  recordFileRefs(
+    db,
+    rowId,
+    "auth lives in src/auth.ts, and in docs/never-committed.md",
+    dir,
+  );
+
+  const unverified = findUnverifiedFileRefs(db, [rowId]);
+  assert.deepEqual(unverified.get(rowId), ["docs/never-committed.md"]);
+});
+
+test("findUnverifiedFileRefs is empty for a fully tracked memory", { skip: !GIT_AVAILABLE }, () => {
+  initRepo();
+  writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
+
+  const rowId = insertMemoryRow("jwt handling is in src/auth.ts");
+  recordFileRefs(db, rowId, "jwt handling is in src/auth.ts", dir);
+
+  const unverified = findUnverifiedFileRefs(db, [rowId]);
+  assert.equal(unverified.size, 0);
 });
 
 test("findStaleFileRefs reports nothing when the file is unchanged", { skip: !GIT_AVAILABLE }, () => {
