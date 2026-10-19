@@ -56,6 +56,10 @@ CREATE TABLE IF NOT EXISTS memory_file_refs (
   memory_rowid INTEGER NOT NULL,
   path TEXT NOT NULL,
   blob_sha TEXT NOT NULL,
+  -- 1 = the path resolved at HEAD when the memory was written; 0 = the note
+  -- named the path but git could not resolve it (untracked or missing), so
+  -- nothing was ever checked. Read time tells the two apart.
+  tracked INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   PRIMARY KEY (memory_rowid, path)
 );

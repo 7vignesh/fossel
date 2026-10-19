@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
 import { fetchRepoContext, formatContext } from "../lib/context.js";
-import { findStaleFileRefs } from "../lib/file-refs.js";
+import { findStaleFileRefs, findUnverifiedFileRefs } from "../lib/file-refs.js";
 import { resolveRepoArg } from "../lib/repo.js";
 import { getWorkspaceRoot } from "../lib/workspace.js";
 
@@ -33,11 +33,18 @@ export function registerGetContextTool(server: McpServer): void {
           rows.map((row) => row.row_id),
           getWorkspaceRoot(),
         );
+        // Paths a note named that git could not resolve: named, never checked.
+        // Reported apart from drift so the two are not read as the same thing.
+        const unverifiedRefs = findUnverifiedFileRefs(
+          db,
+          rows.map((row) => row.row_id),
+        );
         const text = formatContext(rows, {
           repo: resolved.canonical,
           query,
           format,
           staleRefs,
+          unverifiedRefs,
         });
 
         return {

@@ -283,6 +283,25 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: '012_add_file_refs_tracked',
+    apply: (db) => {
+      // Tells a tracked file apart from one a note merely named. Before this
+      // column, recordFileRefs only stored paths that resolved at HEAD, so a
+      // memory naming an untracked (or made-up) path looked exactly like a
+      // memory whose file was checked and is current. `tracked = 0` marks the
+      // former so read time can say "unverified" instead of staying silent.
+      if (!hasColumn(db, 'memory_file_refs', 'tracked')) {
+        db.exec(`
+          ALTER TABLE memory_file_refs
+          ADD COLUMN tracked INTEGER NOT NULL DEFAULT 1;
+        `);
+        // Rows written before this migration all came from a resolved path,
+        // so they are tracked by definition.
+        db.exec(`UPDATE memory_file_refs SET tracked = 1 WHERE tracked IS NULL;`);
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

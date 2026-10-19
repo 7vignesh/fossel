@@ -73,3 +73,51 @@ test("formatContext lists multiple changed files in one marker", () => {
   const out = formatContext(rows, { repo: "acme/app", staleRefs });
   assert.match(out, /src\/auth\.ts, middleware\.ts/);
 });
+
+// --- unverified (named but never checked) ---------------------------------
+
+test("formatContext appends an unverified marker for untracked paths", () => {
+  const rows = [row(1, "the spec lives in docs/spec.md")];
+  const unverifiedRefs = new Map<number, string[]>([[1, ["docs/spec.md"]]]);
+
+  const out = formatContext(rows, { repo: "acme/app", unverifiedRefs });
+  assert.match(out, /ⓘ unverified: docs\/spec\.md \(untracked\)/);
+  // An unverified path is not drift: it must not carry the stale marker.
+  assert.doesNotMatch(out, /may be stale/);
+});
+
+test("formatContext keeps the unverified marker distinct from the stale one", () => {
+  const rows = [row(1, "auth in src/auth.ts, spec in docs/spec.md")];
+  const staleRefs = new Map<number, StaleFileRef[]>([
+    [1, [{ path: "src/auth.ts", changedInWorkingTree: false }]],
+  ]);
+  const unverifiedRefs = new Map<number, string[]>([[1, ["docs/spec.md"]]]);
+
+  const out = formatContext(rows, { repo: "acme/app", staleRefs, unverifiedRefs });
+  assert.match(out, /⚠ may be stale: src\/auth\.ts/);
+  assert.match(out, /ⓘ unverified: docs\/spec\.md \(untracked\)/);
+});
+
+test("formatContext renders the unverified marker in markdown format too", () => {
+  const rows = [row(7, "spec in docs/spec.md")];
+  const unverifiedRefs = new Map<number, string[]>([[7, ["docs/spec.md"]]]);
+
+  const out = formatContext(rows, {
+    repo: "acme/app",
+    format: "markdown",
+    unverifiedRefs,
+  });
+  assert.match(out, /ⓘ unverified: docs\/spec\.md \(untracked\)/);
+});
+
+test("formatContext without unverifiedRefs produces no unverified marker", () => {
+  const rows = [row(1, "auth lives in src/auth.ts")];
+  const out = formatContext(rows, { repo: "acme/app" });
+  assert.doesNotMatch(out, /unverified/);
+});
+
+test("formatContext marks nothing for a memory that names no path", () => {
+  const rows = [row(1, "we decided not to split the monolith")];
+  const out = formatContext(rows, { repo: "acme/app" });
+  assert.doesNotMatch(out, /unverified|stale/);
+});
