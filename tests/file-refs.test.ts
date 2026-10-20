@@ -176,6 +176,66 @@ test("findUnverifiedFileRefs is empty for a fully tracked memory", { skip: !GIT_
   assert.equal(unverified.size, 0);
 });
 
+test("an untracked path becomes verifiable once committed and re-recorded", { skip: !GIT_AVAILABLE }, () => {
+  initRepo();
+  writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
+  const note = "auth in src/auth.ts, spec in docs/spec.md";
+  const rowId = insertMemoryRow(note);
+
+  // docs/spec.md does not exist yet: the memory reads back as unverified.
+  recordFileRefs(db, rowId, note, dir);
+  assert.deepEqual(
+    findUnverifiedFileRefs(db, [rowId]).get(rowId),
+    ["docs/spec.md"],
+    "the uncommitted path starts unverified",
+  );
+
+  // Commit the file, then re-record (the write path flips tracked, a commit
+  // alone does not touch stored refs).
+  writeCommit("docs/spec.md", "# spec", "add spec");
+  recordFileRefs(db, rowId, note, dir);
+
+  assert.equal(
+    findUnverifiedFileRefs(db, [rowId]).size,
+    0,
+    "re-recording after the commit clears the unverified state",
+  );
+  const tracked = db
+    .prepare("SELECT tracked FROM memory_file_refs WHERE memory_rowid = ? AND path = ?")
+    .get(rowId, "docs/spec.md") as { tracked: number };
+  assert.equal(tracked.tracked, 1, "the path is now tracked");
+
+  // And it is now subject to drift detection rather than staying silent.
+  writeCommit("docs/spec.md", "# spec v2", "edit spec");
+  assert.ok(
+    findStaleFileRefs(db, [rowId], dir).has(rowId),
+    "a once-untracked path, once tracked, participates in drift detection",
+  );
+});
+
+test("a deleted tracked file reads as stale, never as unverified", { skip: !GIT_AVAILABLE }, () => {
+  initRepo();
+  writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
+  const rowId = insertMemoryRow("jwt handling is in src/auth.ts");
+  recordFileRefs(db, rowId, "jwt handling is in src/auth.ts", dir);
+
+  // Delete and commit the referenced file.
+  run(["rm", "-q", "src/auth.ts"]);
+  run(["commit", "-q", "-m", "remove auth"]);
+
+  // A deleted tracked file is drift, not "never checked": the row is still
+  // tracked = 1, so it must surface as stale and never as unverified.
+  assert.ok(
+    findStaleFileRefs(db, [rowId], dir).has(rowId),
+    "a deleted tracked file must be flagged as stale",
+  );
+  assert.equal(
+    findUnverifiedFileRefs(db, [rowId]).size,
+    0,
+    "a deleted tracked file must not be reclassified as unverified",
+  );
+});
+
 test("findStaleFileRefs reports nothing when the file is unchanged", { skip: !GIT_AVAILABLE }, () => {
   initRepo();
   writeCommit("src/auth.ts", "export const jwt = 1;", "add auth");
