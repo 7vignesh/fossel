@@ -74,19 +74,20 @@ END;
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   repo,
   note,
+  tags,
   content = 'memories',
   content_rowid = 'rowid'
 );
 
 CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
-  INSERT INTO memories_fts(rowid, repo, note) VALUES (new.rowid, new.repo, new.note);
+  INSERT INTO memories_fts(rowid, repo, note, tags) VALUES (new.rowid, new.repo, new.note, new.tags);
 END;
 
 CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-  INSERT INTO memories_fts(memories_fts, rowid, repo, note) VALUES ('delete', old.rowid, old.repo, old.note);
+  INSERT INTO memories_fts(memories_fts, rowid, repo, note, tags) VALUES ('delete', old.rowid, old.repo, old.note, old.tags);
 END;
 
 CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-  INSERT INTO memories_fts(memories_fts, rowid, repo, note) VALUES ('delete', old.rowid, old.repo, old.note);
-  INSERT INTO memories_fts(rowid, repo, note) VALUES (new.rowid, new.repo, new.note);
+  INSERT INTO memories_fts(memories_fts, rowid, repo, note, tags) VALUES ('delete', old.rowid, old.repo, old.note, old.tags);
+  INSERT INTO memories_fts(rowid, repo, note, tags) VALUES (new.rowid, new.repo, new.note, new.tags);
 END;
