@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb, type MemoryRecord } from "../db/client.js";
-import { fetchRepoContext } from "../lib/context.js";
+import { fetchRepoContext, makeTagFilter } from "../lib/context.js";
 import { embeddingsEnabled } from "../lib/embeddings.js";
 import { searchFts } from "../lib/fts.js";
 import { resolveRepoArg } from "../lib/repo.js";
@@ -16,6 +16,8 @@ const searchMemoryInputSchema = {
   query: z.string().trim().min(1, "query is required"),
   repo: z.string().trim().min(1).optional(),
   limit: z.number().int().positive().max(50).default(5),
+  tags: z.array(z.string().trim().min(1)).optional(),
+  tagMatch: z.enum(["and", "or"]).default("or"),
 };
 
 function parseTags(raw: string): string[] {
@@ -34,42 +36,59 @@ export function registerSearchMemoryTool(server: McpServer): void {
     "search_memory",
     {
       description:
-        "Search memories using full-text search with optional repository filtering. Falls back to recent + pinned context when the query has no exact matches.",
+        "Search memories using full-text search with optional repository and tag filtering (tagMatch 'or' keeps any listed tag, 'and' requires all). Falls back to recent + pinned context when the query has no exact matches.",
       inputSchema: searchMemoryInputSchema,
     },
-    async ({ query, repo, limit }) => {
+    async ({ query, repo, limit, tags, tagMatch }) => {
       try {
         const db = getDb();
         const resolvedRepo = repo
           ? resolveRepoArg(repo, getWorkspaceRoot(), db).canonical
           : undefined;
 
+        const tagFilter = makeTagFilter(tags, tagMatch);
+        const tagFilterActive = (tags ?? []).some(
+          (tag) => tag.trim().length > 0,
+        );
+        // With a tag filter the post-filter drops most of a `limit`-sized fetch,
+        // so widen the candidate pool to avoid under-filling. Bounded: `limit`
+        // is capped at 50 upstream.
+        const fetchLimit = tagFilterActive ? Math.max(limit * 4, 50) : limit;
+
         // Narrow AND first, broadening to OR only when AND finds nothing.
         let rows: SearchRow[] = searchFts(db, query, {
           repo: resolvedRepo,
-          limit,
-        }).rows;
+          limit: fetchLimit,
+        }).rows.filter(tagFilter);
 
         // Semantic backstop: when keyword search finds nothing but embeddings
         // are enabled, fall back to vector similarity so paraphrased queries
         // still surface relevant memories. Only runs with a known repo.
         if (rows.length === 0 && resolvedRepo && embeddingsEnabled()) {
-          const semantic = vectorSearch(db, resolvedRepo, query, limit);
-          rows = semantic.map(({ score, ...row }) => ({
-            ...row,
-            rank: score,
-          }));
+          const semantic = vectorSearch(db, resolvedRepo, query, fetchLimit);
+          rows = semantic
+            .map(({ score, ...row }) => ({
+              ...row,
+              rank: score,
+            }))
+            .filter(tagFilter);
         }
 
         // Last-resort fallback: surface pinned + recent for the resolved repo
         // so a complex query never returns "no memories" when the repo has
-        // useful context. Only triggers when a repo is known.
+        // useful context. Only triggers when a repo is known. The tag filter is
+        // threaded through fetchRepoContext so the fallback honours it too.
         let usedFallback = false;
         if (rows.length === 0 && resolvedRepo) {
-          const fallback = fetchRepoContext(db, resolvedRepo, limit);
+          const fallback = fetchRepoContext(db, resolvedRepo, limit, undefined, {
+            tags,
+            tagMatch,
+          });
           rows = fallback.map((row) => ({ ...row, rank: 0 }));
           usedFallback = fallback.length > 0;
         }
+
+        rows = rows.slice(0, limit);
 
         if (rows.length === 0) {
           return {
