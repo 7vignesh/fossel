@@ -116,6 +116,48 @@ test("get_context answers a natural-language question (regression)", () => {
 });
 
 
+test("searchFts matches on tag text not present in the note (issue #58)", () => {
+  // The tag carries the only clue: the note body never says "kubernetes".
+  // Before tags were indexed in FTS this query returned nothing.
+  insertMemory(
+    ctx.db,
+    REPO,
+    "Container images are pushed to the internal registry on tag push.",
+    { tags: ["kubernetes", "ci"] },
+  );
+  insertMemory(ctx.db, REPO, "Lint with Biome before pushing.", { tags: ["linting"] });
+
+  const result = searchFts(ctx.db, "kubernetes", { repo: REPO, limit: 5 });
+  assert.ok(result.rows.length > 0, "a tag-only match must be retrievable");
+  assert.match(result.rows[0].note, /Container images/);
+});
+
+test("indexing tags does not change note-body matching (regression)", () => {
+  insertMemory(ctx.db, REPO, "Use pnpm workspaces for all package scripts.", {
+    tags: ["deps"],
+  });
+  const result = searchFts(ctx.db, "pnpm workspaces", { repo: REPO, limit: 5 });
+  assert.equal(result.matched, "AND");
+  assert.match(result.rows[0].note, /pnpm workspaces/);
+});
+
+test("updating a memory keeps its tags searchable (trigger regression)", () => {
+  const rowId = insertMemory(ctx.db, REPO, "Payments run through Stripe.", {
+    tags: ["billing"],
+  });
+  // Rewrite the tags; the update trigger must refresh the FTS index.
+  ctx.db
+    .prepare("UPDATE memories SET tags = ? WHERE rowid = ?")
+    .run(JSON.stringify(["payments"]), rowId);
+
+  const stale = searchFts(ctx.db, "billing", { repo: REPO, limit: 5 });
+  assert.equal(stale.rows.length, 0, "the old tag must no longer match");
+
+  const fresh = searchFts(ctx.db, "payments", { repo: REPO, limit: 5 });
+  assert.ok(fresh.rows.length > 0, "the new tag must match");
+  assert.match(fresh.rows[0].note, /Stripe/);
+});
+
 test("lightStem strips common inflections conservatively", () => {
   assert.equal(lightStem("alerts"), "alert");
   assert.equal(lightStem("files"), "file");

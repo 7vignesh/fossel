@@ -302,6 +302,60 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    name: '013_index_tags_in_fts',
+    apply: (db) => {
+      // Tags were stored on every memory but never indexed: the external-content
+      // FTS table was fts5(repo, note) only, so a query matching a tag but not
+      // the note body missed the memory. Rebuild the FTS table with a `tags`
+      // column and its three triggers so tag text contributes to recall.
+      //
+      // `memories.tags` holds a JSON array string (e.g. `["git","release"]`).
+      // The FTS5 default tokenizer strips the brackets and quotes, so the raw
+      // column value tokenizes straight into the tag words with no transform
+      // needed. External-content columns must map 1:1 to source columns, and
+      // `tags` is already a real column on `memories`, so the triggers simply
+      // carry `new.tags` / `old.tags` through.
+      //
+      // Rebuilt from scratch rather than ALTERed because FTS5 virtual tables do
+      // not support ADD COLUMN. Dropping and recreating the table discards the
+      // old index; the 'rebuild' command then repopulates it from the content
+      // table, backfilling every existing row.
+      db.exec(`
+        DROP TRIGGER IF EXISTS memories_ai;
+        DROP TRIGGER IF EXISTS memories_ad;
+        DROP TRIGGER IF EXISTS memories_au;
+        DROP TABLE IF EXISTS memories_fts;
+
+        CREATE VIRTUAL TABLE memories_fts USING fts5(
+          repo,
+          note,
+          tags,
+          content = 'memories',
+          content_rowid = 'rowid'
+        );
+
+        CREATE TRIGGER memories_ai AFTER INSERT ON memories BEGIN
+          INSERT INTO memories_fts(rowid, repo, note, tags)
+          VALUES (new.rowid, new.repo, new.note, new.tags);
+        END;
+
+        CREATE TRIGGER memories_ad AFTER DELETE ON memories BEGIN
+          INSERT INTO memories_fts(memories_fts, rowid, repo, note, tags)
+          VALUES ('delete', old.rowid, old.repo, old.note, old.tags);
+        END;
+
+        CREATE TRIGGER memories_au AFTER UPDATE ON memories BEGIN
+          INSERT INTO memories_fts(memories_fts, rowid, repo, note, tags)
+          VALUES ('delete', old.rowid, old.repo, old.note, old.tags);
+          INSERT INTO memories_fts(rowid, repo, note, tags)
+          VALUES (new.rowid, new.repo, new.note, new.tags);
+        END;
+
+        INSERT INTO memories_fts(memories_fts) VALUES ('rebuild');
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
