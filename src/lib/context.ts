@@ -62,6 +62,36 @@ export interface FetchContextOptions {
   /** Override the minimum cosine a vector hit needs to enter the fusion.
    * Sweepable for the same reason. */
   vectorScoreFloor?: number;
+  /** Restrict results to memories carrying these tags. Empty/undefined means
+   * no filter (default behaviour). Matching is case-insensitive. */
+  tags?: string[];
+  /** How a multi-tag filter combines: "or" (default) keeps a memory sharing
+   * any listed tag; "and" requires every listed tag. */
+  tagMatch?: "and" | "or";
+}
+
+/**
+ * Predicate for the optional tag filter. Returns true (keep) when no filter is
+ * active, so callers that pass no tags are unaffected. Matching is
+ * case-insensitive and compares whole tags, not substrings, because the stored
+ * tags are discrete labels.
+ */
+export function makeTagFilter(
+  filterTags: string[] | undefined,
+  tagMatch: "and" | "or",
+): (memory: MemoryRecord) => boolean {
+  const wanted = (filterTags ?? [])
+    .map((tag) => tag.trim().toLowerCase())
+    .filter((tag) => tag.length > 0);
+  if (wanted.length === 0) {
+    return () => true;
+  }
+  return (memory) => {
+    const have = new Set(parseTags(memory.tags).map((tag) => tag.toLowerCase()));
+    return tagMatch === "and"
+      ? wanted.every((tag) => have.has(tag))
+      : wanted.some((tag) => have.has(tag));
+  };
 }
 
 /**
@@ -88,12 +118,22 @@ export function fetchRepoContext(
   };
   const vectorScoreFloor =
     options.vectorScoreFloor ?? DEFAULT_VECTOR_SCORE_FLOOR;
+  const tagFilter = makeTagFilter(options.tags, options.tagMatch ?? "or");
+  const tagFilterActive =
+    (options.tags ?? []).some((tag) => tag.trim().length > 0);
+  // With a tag filter the post-filter rejects most of a `limit`-sized fetch, so
+  // widen the candidate pool to avoid under-filling when matching rows rank
+  // below the cut. Bounded because `limit` itself is capped at 50 upstream.
+  const fetchLimit = tagFilterActive ? Math.max(limit * 4, 50) : limit;
   const rows: ContextRow[] = [];
   const seen = new Set<number>();
   const seenNormalized = new Set<string>();
 
   const push = (memory: MemoryRecord, source: ContextRow["source"], rank?: number) => {
     if (seen.has(memory.row_id)) {
+      return;
+    }
+    if (!tagFilter(memory)) {
       return;
     }
     const normalized = normalizeNoteForReadDedupe(memory.note);
@@ -121,7 +161,7 @@ export function fetchRepoContext(
         LIMIT ?
       `,
     )
-    .all(repo, limit) as MemoryRecord[];
+    .all(repo, fetchLimit) as MemoryRecord[];
   for (const row of pinned) {
     push(row, "pinned");
   }
@@ -143,7 +183,7 @@ export function fetchRepoContext(
           LIMIT ?
         `,
       )
-      .all(repo, limit) as MemoryRecord[];
+      .all(repo, fetchLimit) as MemoryRecord[];
     for (const row of recent) {
       push(row, "recent");
       if (rows.length >= limit) {
@@ -157,7 +197,7 @@ export function fetchRepoContext(
   }
 
   if (query && rows.length < limit) {
-    const ftsRows = searchFts(db, query, { repo, limit }).rows;
+    const ftsRows = searchFts(db, query, { repo, limit: fetchLimit }).rows;
 
     // Hybrid retrieval: when embeddings are enabled, run a semantic vector
     // search alongside FTS and fuse the two ranked lists with weighted
@@ -167,7 +207,7 @@ export function fetchRepoContext(
     // lib/fusion.ts for the numbers behind the default. When embeddings are
     // disabled this collapses to the original FTS-only behavior.
     const vectorRows = embeddingsEnabled()
-      ? vectorSearch(db, repo, query, limit).filter(
+      ? vectorSearch(db, repo, query, fetchLimit).filter(
           (row) => row.score >= vectorScoreFloor,
         )
       : [];
@@ -179,7 +219,7 @@ export function fetchRepoContext(
     const queryEntities = extractEntities(query);
     const entityRows: MemoryRecord[] =
       queryEntities.length > 0
-        ? findEntityMatches(db, repo, queryEntities, limit)
+        ? findEntityMatches(db, repo, queryEntities, fetchLimit)
         : [];
 
     if (vectorRows.length > 0 || entityRows.length > 0) {
