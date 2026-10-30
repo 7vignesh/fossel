@@ -39,7 +39,7 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "smoke": "tsx scripts/smoke.ts",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "node scripts/test.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:bench": "tsc --noEmit -p bench/tsconfig.json",
     "bench": "tsx bench/run.ts",
