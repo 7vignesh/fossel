@@ -8,10 +8,14 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      # Report every platform's result instead of cancelling the rest on the
+      # first failure; platform-specific breakage is what this matrix is for.
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [20, 22]
 
     steps:
