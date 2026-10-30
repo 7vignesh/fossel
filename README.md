@@ -345,6 +345,7 @@ Memories saved under any alias are reachable from the canonical key, and `npx fo
 npx -y fossel          # MCP server over stdio
 npx -y fossel init     # onboarding + canonical key + safe alias merge
 npx -y fossel doctor   # diagnose repo sprawl, duplicates, MCP config
+npx -y fossel stats    # read-only summary of what Fossel holds for this repo
 ```
 
 ### `fossel init`
@@ -362,6 +363,10 @@ Reports on:
 - detected MCP config files
 
 Pass `--fix` to apply safe automated cleanup in one go: merge sibling repo keys, rewrite stale alias mentions, and remove exact-text duplicates. Without `--fix` it's read-only and exits non-zero on issues so it can run in CI.
+
+### `fossel stats`
+
+Read-only summary for the current repo: live / superseded / pinned counts, counts by memory type, stale (never accessed) and code-drift counts, the most frequent tags and entities, and the database size. It never modifies memories.
 
 ---
 
