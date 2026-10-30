@@ -11,7 +11,7 @@ import {
   mergeRepoKeys,
   resolveRepo,
 } from "./lib/repo.js";
-import { gatherHealthMetrics } from "./lib/stats.js";
+import { gatherHealthMetrics, gatherRepoStats } from "./lib/stats.js";
 
 const DEFAULT_DB_PATH = join(homedir(), ".fossel", "memory.db");
 // New starter memory: points users at the ambient tools (`remember`,
@@ -505,6 +505,75 @@ function parseFlag(args: string[], name: string): boolean {
   return args.includes(`--${name}`);
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * Read-only summary of what Fossel holds for the current repo. Never writes to
+ * memories; opening the db only runs pending migrations, the same as every
+ * other command.
+ */
+export function gatherStatsLines(cwd: string): string[] {
+  const dbPath = resolveDbPath();
+  initDb(dbPath);
+  const db = getDb();
+  const resolved = resolveRepo(cwd, db);
+  const metrics = gatherHealthMetrics(db, resolved.canonical);
+  const stats = gatherRepoStats(db, resolved.canonical, cwd);
+
+  // WAL mode keeps recent writes in the -wal file, so count it too.
+  let dbBytes = 0;
+  for (const path of [dbPath, `${dbPath}-wal`]) {
+    try {
+      dbBytes += statSync(path).size;
+    } catch {
+      // A missing -wal file is normal after a checkpoint.
+    }
+  }
+
+  const lines = [
+    `Repo: ${resolved.canonical}`,
+    `DB: ${dbPath} (${formatBytes(dbBytes)})`,
+    "",
+    `Memories: ${metrics.live} live, ${metrics.superseded} superseded, ${stats.pinned} pinned`,
+  ];
+
+  const types = Object.entries(stats.byType).filter(([, count]) => count > 0);
+  if (types.length > 0) {
+    lines.push(`By type: ${types.map(([type, count]) => `${type} ${count}`).join(", ")}`);
+  }
+
+  if (metrics.stale !== null) {
+    lines.push(
+      `Stale (never accessed, older than ${metrics.staleDays}d): ${metrics.stale}`,
+    );
+  }
+  lines.push(`Code drift (referenced file changed since written): ${stats.drifted}`);
+
+  if (stats.topTags.length > 0) {
+    lines.push(
+      `Top tags: ${stats.topTags.map((row) => `${row.tag} (${row.count})`).join(", ")}`,
+    );
+  }
+  if (stats.topEntities && stats.topEntities.length > 0) {
+    lines.push(
+      `Top entities: ${stats.topEntities
+        .map((row) => `${row.entity} [${row.kind}] (${row.count})`)
+        .join(", ")}`,
+    );
+  }
+
+  return lines;
+}
+
+function runStats(): void {
+  console.log(gatherStatsLines(process.cwd()).join("\n"));
+  closeDb();
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
 
@@ -528,8 +597,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (command === "stats") {
+    runStats();
+    return;
+  }
+
   console.error(`Unknown command: ${command}`);
-  console.error("Usage: fossel [init [--no-dedupe] | doctor [--fix]]");
+  console.error("Usage: fossel [init [--no-dedupe] | doctor [--fix] | stats]");
   process.exit(1);
 }
 
