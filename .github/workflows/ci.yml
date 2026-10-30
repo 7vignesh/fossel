@@ -8,10 +8,14 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      # Report every platform's result instead of cancelling the rest on the
+      # first failure; platform-specific breakage is what this matrix is for.
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [20, 22]
 
     steps:
@@ -29,3 +33,25 @@ jobs:
 
       - name: Run CI checks
         run: npm run ci
+
+  # The single check the branch ruleset requires. Matrix job names change
+  # whenever the matrix does (adding an OS or Node version), so requiring them
+  # directly breaks the ruleset on every matrix change.
+  #
+  # `if: always()` matters: without it this job is *skipped* when a matrix job
+  # fails, and GitHub treats a skipped required check as passing. With it, the
+  # job always runs and fails unless every matrix job succeeded.
+  ci-ok:
+    name: ci-ok
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every matrix job to pass
+        shell: bash
+        run: |
+          result="${{ needs.verify.result }}"
+          echo "verify matrix result: $result"
+          if [ "$result" != "success" ]; then
+            exit 1
+          fi
