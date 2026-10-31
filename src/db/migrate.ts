@@ -356,6 +356,67 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    name: '014_add_memory_edges',
+    apply: (db) => {
+      // Typed relationships between memories (#62). Design choices, from the
+      // review on #62:
+      //
+      // - **Keyed by memories.id, not rowid.** SQLite reuses the rowid of a
+      //   deleted row when it was the highest one, so a tombstoned edge keyed
+      //   by rowid would silently start pointing at an unrelated new memory.
+      //   `id` is never reused and survives export/import unchanged.
+      // - **Tombstoned, never cascade-deleted.** Deleting a memory sets
+      //   valid_to on its edges instead of removing them, so a `supersedes`
+      //   edge stays readable after the old memory is deleted. This is the
+      //   invalidate-never-delete pattern `memories` uses (migration 009).
+      //   Superseding a memory (setting memories.valid_to) does not touch its
+      //   edges; live reads filter on the endpoint's valid_to instead.
+      // - **One row per (src_id, dst_id, type).** The primary key lets the
+      //   write path use INSERT ... ON CONFLICT DO NOTHING, like
+      //   memory_entities. Symmetric types are stored with src_id < dst_id so
+      //   A->B and B->A cannot both exist.
+      // - **No FOREIGN KEY**, because a FK would forbid keeping an edge whose
+      //   endpoint was deleted. The same-repo rule is enforced by a trigger,
+      //   for live edges only: tombstoned edges are history and may name a
+      //   deleted memory (needed to import them later).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS memory_edges (
+          src_id TEXT NOT NULL,
+          dst_id TEXT NOT NULL,
+          type TEXT NOT NULL
+            CHECK (type IN ('fixes', 'contradicts', 'supersedes', 'relates_to')),
+          weight REAL,
+          created_at INTEGER NOT NULL,
+          valid_from INTEGER NOT NULL,
+          valid_to INTEGER,
+          PRIMARY KEY (src_id, dst_id, type),
+          CHECK (src_id <> dst_id),
+          CHECK (type NOT IN ('contradicts', 'relates_to') OR src_id < dst_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_memory_edges_dst
+          ON memory_edges (dst_id);
+
+        CREATE TRIGGER IF NOT EXISTS memory_edges_same_repo
+        BEFORE INSERT ON memory_edges
+        WHEN NEW.valid_to IS NULL
+        BEGIN
+          SELECT RAISE(ABORT, 'memory_edges: both endpoints must exist in the same repo')
+          WHERE (SELECT repo FROM memories WHERE id = NEW.src_id) IS NULL
+             OR (SELECT repo FROM memories WHERE id = NEW.src_id)
+                IS NOT (SELECT repo FROM memories WHERE id = NEW.dst_id);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS memories_edges_ad
+        AFTER DELETE ON memories BEGIN
+          UPDATE memory_edges
+          SET valid_to = CAST(strftime('%s', 'now') AS INTEGER)
+          WHERE (src_id = old.id OR dst_id = old.id) AND valid_to IS NULL;
+        END;
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {
