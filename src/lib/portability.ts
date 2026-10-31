@@ -2,8 +2,8 @@
  * Export / import.
  *
  * `export_memories` produces a versioned JSON envelope containing everything
- * Fossel knows — memories (live and superseded, with their access counts) and
- * repo aliases. Embeddings are deliberately NOT exported; they are re-derived
+ * Fossel knows — memories (live and superseded, with their access counts),
+ * repo aliases, and the typed edges between memories. Embeddings are deliberately NOT exported; they are re-derived
  * on import so the file stays small and model-agnostic.
  *
  * `import_memories` is additive and idempotent: existing source nanoids are
@@ -19,11 +19,13 @@ import { normalizeText } from "./dedupe.js";
 import { indexMemoryEmbedding } from "./vector-index.js";
 import { recordFileRefs } from "./file-refs.js";
 import { recordEntities } from "./entities.js";
+import { EDGE_TYPES, edgesForMemories, type EdgeType } from "./edges.js";
 
 export const EXPORT_FORMAT = "fossel-export";
 // v2 added access_count / last_accessed_at. Older (v1) envelopes import fine:
 // the access fields are optional and default to created_at / 0.
-export const EXPORT_VERSION = 2;
+// v3 added `edges`. v1/v2 envelopes have none and import fine.
+export const EXPORT_VERSION = 3;
 
 export const exportedMemorySchema = z.object({
   id: z.string().min(1),
@@ -48,6 +50,16 @@ export const exportedAliasSchema = z.object({
   created_at: z.number().int(),
 });
 
+export const exportedEdgeSchema = z.object({
+  src_id: z.string().min(1),
+  dst_id: z.string().min(1),
+  type: z.enum(EDGE_TYPES),
+  weight: z.number().nullable(),
+  created_at: z.number().int(),
+  valid_from: z.number().int(),
+  valid_to: z.number().int().nullable(),
+});
+
 const exportEnvelopeSchema = z.object({
   format: z.literal(EXPORT_FORMAT),
   // Accept any supported version (<= current). The version-range check in
@@ -56,6 +68,9 @@ const exportEnvelopeSchema = z.object({
   exported_at: z.string(),
   memories: z.array(z.unknown()),
   aliases: z.array(exportedAliasSchema),
+  // Absent before v3. Rows are validated one at a time on import, like
+  // memories, so one bad edge does not reject the whole file.
+  edges: z.array(z.unknown()).optional(),
 });
 
 export interface ExportedMemory {
@@ -80,16 +95,28 @@ export interface ExportedAlias {
   created_at: number;
 }
 
+export interface ExportedEdge {
+  src_id: string;
+  dst_id: string;
+  type: EdgeType;
+  weight: number | null;
+  created_at: number;
+  valid_from: number;
+  valid_to: number | null;
+}
+
 export interface ExportEnvelope {
   format: typeof EXPORT_FORMAT;
   version: number;
   exported_at: string;
   memories: ExportedMemory[];
   aliases: ExportedAlias[];
+  edges: ExportedEdge[];
 }
 
-type ImportEnvelope = Omit<ExportEnvelope, "memories"> & {
+type ImportEnvelope = Omit<ExportEnvelope, "memories" | "edges"> & {
   memories: unknown[];
+  edges?: unknown[];
 };
 
 /** A memory row as it arrives from an import envelope (access fields optional
@@ -157,6 +184,14 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
     .prepare("SELECT alias, canonical, created_at FROM repo_aliases ORDER BY alias")
     .all() as ExportedAlias[];
 
+  // Every edge touching an exported memory, live and ended, so supersession
+  // history survives. A repo-scoped export can include an ended edge whose
+  // other endpoint is gone; that is the history the edge exists to keep.
+  const edges = edgesForMemories(
+    db,
+    memories.map((row) => row.id),
+  );
+
   return {
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
@@ -166,6 +201,7 @@ export function exportMemories(db: Database.Database, repo?: string): ExportEnve
       tags: JSON.parse(row.tags) as string[],
     })),
     aliases,
+    edges,
   };
 }
 
@@ -175,6 +211,9 @@ export interface ImportResult {
   memoriesFailed: number;
   aliasesImported: number;
   aliasesSkipped: number;
+  edgesImported: number;
+  edgesSkipped: number;
+  edgesFailed: number;
 }
 
 export function importMemories(
@@ -190,6 +229,9 @@ export function importMemories(
     memoriesFailed: 0,
     aliasesImported: 0,
     aliasesSkipped: 0,
+    edgesImported: 0,
+    edgesSkipped: 0,
+    edgesFailed: 0,
   };
 
   const selectMemoryById = db.prepare(
@@ -210,6 +252,33 @@ export function importMemories(
       VALUES (?, ?, ?)
     `,
   );
+
+  // Same additive rule as memories: an edge that already exists is skipped,
+  // never overwritten. A live edge still has to pass the table's same-repo
+  // trigger; one that fails is counted and the import carries on.
+  const insertEdge = db.prepare(
+    `
+      INSERT INTO memory_edges (src_id, dst_id, type, weight, created_at, valid_from, valid_to)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT DO NOTHING
+    `,
+  );
+  const insertEdgeSubTx = db.transaction((edge: z.infer<typeof exportedEdgeSchema>) => {
+    const res = insertEdge.run(
+      edge.src_id,
+      edge.dst_id,
+      edge.type,
+      edge.weight,
+      edge.created_at,
+      edge.valid_from,
+      edge.valid_to,
+    );
+    if (res.changes > 0) {
+      result.edgesImported += 1;
+    } else {
+      result.edgesSkipped += 1;
+    }
+  });
 
   const insertMemorySubTx = db.transaction((memory: ImportedMemory) => {
     if (selectMemoryById.get(memory.id)) {
@@ -270,6 +339,20 @@ export function importMemories(
         insertMemorySubTx(parsedMemory.data);
       } catch {
         result.memoriesFailed += 1;
+      }
+    }
+
+    // Edges last: a live edge's endpoints must already exist.
+    for (const rawEdge of validEnvelope.edges ?? []) {
+      const parsedEdge = exportedEdgeSchema.safeParse(rawEdge);
+      if (!parsedEdge.success) {
+        result.edgesFailed += 1;
+        continue;
+      }
+      try {
+        insertEdgeSubTx(parsedEdge.data);
+      } catch {
+        result.edgesFailed += 1;
       }
     }
   });

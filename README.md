@@ -112,6 +112,12 @@ This keeps memory from silently accumulating contradictions over time. Fossel
 stays dependency-free: it surfaces the candidates and lets the MCP client's own
 model make the judgment, rather than embedding an LLM in the server.
 
+The same result is also saved as an edge between the two memories: `contradicts`
+for a flagged one, `relates_to` otherwise. `supersede_memory` with
+`superseded_by` saves a `supersedes` edge. Deleting a memory ends its edges
+rather than removing them, so the record that B replaced A survives after A is
+deleted. Edges are not used for retrieval yet.
+
 ### Temporal grounding
 
 Relative dates rot: "fixed it last week" is useless six months later. When you
@@ -170,7 +176,8 @@ Your data is yours. Export everything Fossel knows as a portable JSON file:
 { "repo": "7vignesh/fossel" }
 ```
 
-The envelope contains memories (including superseded ones) and repo aliases.
+The envelope contains memories (including superseded ones), repo aliases, and
+the edges between memories (including ended ones).
 Embeddings are deliberately excluded - they are re-derived on import so the
 file stays small and model-agnostic.
 

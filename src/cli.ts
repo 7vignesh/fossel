@@ -6,6 +6,7 @@ import { existsSync, readFileSync, appendFileSync, statSync } from "node:fs";
 import { nanoid } from "nanoid";
 import { closeDb, getDb, initDb } from "./db/client.js";
 import { normalizeText } from "./lib/dedupe.js";
+import { repointEdges } from "./lib/edges.js";
 import {
   findMemoriesMentioningAlias,
   mergeRepoKeys,
@@ -135,7 +136,7 @@ function autoDedupeExact(repo: string): number {
       const rows = db
         .prepare(
           `
-            SELECT rowid AS row_id, pinned, updated_at
+            SELECT rowid AS row_id, id, pinned, updated_at
             FROM memories
             WHERE repo = ? AND note_normalized = ? AND type = ? AND valid_to IS NULL
             ORDER BY pinned DESC, updated_at DESC, rowid DESC
@@ -143,6 +144,7 @@ function autoDedupeExact(repo: string): number {
         )
         .all(repo, group.note_normalized, group.type) as Array<{
         row_id: number;
+        id: string;
         pinned: number;
         updated_at: number;
       }>;
@@ -153,6 +155,8 @@ function autoDedupeExact(repo: string): number {
 
       const drop = db.prepare("DELETE FROM memories WHERE rowid = ?");
       for (const row of rest) {
+        // Keep the duplicate's relationships on the surviving row.
+        repointEdges(db, row.id, keep.id);
         drop.run(row.row_id);
         removed += 1;
       }

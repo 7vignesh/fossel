@@ -49,7 +49,7 @@ export function registerExportMemoriesTool(server: McpServer): void {
     "export_memories",
     {
       description:
-        "Export all memories (and repo aliases) as a portable JSON envelope. " +
+        "Export all memories (with repo aliases and the edges between memories) as a portable JSON envelope. " +
         "Embeddings are not included — they are re-derived on import so the file stays small " +
         "and model-agnostic. Pass a repo to scope the export; omit to export everything. " +
         "Pass a path to write the envelope to a file (within the workspace) and get a short " +
@@ -74,8 +74,9 @@ export function registerExportMemoriesTool(server: McpServer): void {
               {
                 type: "text",
                 text:
-                  `Exported ${envelope.memories.length} memory(s) and ` +
-                  `${envelope.aliases.length} alias(es)${scope} to ${target}.`,
+                  `Exported ${envelope.memories.length} memory(s), ` +
+                  `${envelope.aliases.length} alias(es) and ` +
+                  `${envelope.edges.length} edge(s)${scope} to ${target}.`,
               },
             ],
           };
@@ -166,6 +167,8 @@ export function registerImportMemoriesTool(server: McpServer): void {
         const result = importMemories(db, envelope, getWorkspaceRoot());
         const failedPart =
           result.memoriesFailed > 0 ? `, failed ${result.memoriesFailed}` : "";
+        const edgesFailedPart =
+          result.edgesFailed > 0 ? `, failed ${result.edgesFailed}` : "";
         return {
           content: [
             {
@@ -173,7 +176,8 @@ export function registerImportMemoriesTool(server: McpServer): void {
               text:
                 `Imported ${result.memoriesImported} memory(s), ` +
                 `skipped ${result.memoriesSkipped} existing${failedPart}. ` +
-                `Aliases: ${result.aliasesImported} imported, ${result.aliasesSkipped} existing.`,
+                `Aliases: ${result.aliasesImported} imported, ${result.aliasesSkipped} existing. ` +
+                `Edges: ${result.edgesImported} imported, ${result.edgesSkipped} existing${edgesFailedPart}.`,
             },
           ],
         };
