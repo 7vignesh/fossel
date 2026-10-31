@@ -71,6 +71,45 @@ CREATE TRIGGER IF NOT EXISTS memories_file_refs_ad AFTER DELETE ON memories BEGI
   DELETE FROM memory_file_refs WHERE memory_rowid = old.rowid;
 END;
 
+-- Typed relationships between memories. Keyed by memories.id (never reused)
+-- rather than rowid (reused after deleting the highest row). Deleting a memory
+-- tombstones its edges (sets valid_to) instead of removing them, so history
+-- such as a `supersedes` edge stays readable. No FK, because a FK would forbid
+-- keeping an edge whose endpoint was deleted; a trigger enforces that live edges
+-- connect two existing memories in the same repo. Symmetric types are stored
+-- with src_id < dst_id.
+CREATE TABLE IF NOT EXISTS memory_edges (
+  src_id TEXT NOT NULL,
+  dst_id TEXT NOT NULL,
+  type TEXT NOT NULL
+    CHECK (type IN ('fixes', 'contradicts', 'supersedes', 'relates_to')),
+  weight REAL,
+  created_at INTEGER NOT NULL,
+  valid_from INTEGER NOT NULL,
+  valid_to INTEGER,
+  PRIMARY KEY (src_id, dst_id, type),
+  CHECK (src_id <> dst_id),
+  CHECK (type NOT IN ('contradicts', 'relates_to') OR src_id < dst_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_edges_dst ON memory_edges (dst_id);
+
+CREATE TRIGGER IF NOT EXISTS memory_edges_same_repo
+BEFORE INSERT ON memory_edges
+WHEN NEW.valid_to IS NULL
+BEGIN
+  SELECT RAISE(ABORT, 'memory_edges: both endpoints must exist in the same repo')
+  WHERE (SELECT repo FROM memories WHERE id = NEW.src_id) IS NULL
+     OR (SELECT repo FROM memories WHERE id = NEW.src_id)
+        IS NOT (SELECT repo FROM memories WHERE id = NEW.dst_id);
+END;
+
+CREATE TRIGGER IF NOT EXISTS memories_edges_ad AFTER DELETE ON memories BEGIN
+  UPDATE memory_edges
+  SET valid_to = CAST(strftime('%s', 'now') AS INTEGER)
+  WHERE (src_id = old.id OR dst_id = old.id) AND valid_to IS NULL;
+END;
+
 CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
   repo,
   note,
