@@ -12,6 +12,7 @@
 import type Database from "better-sqlite3";
 import type { MemoryRecord } from "../db/client.js";
 import { normalizeText, similarity } from "./dedupe.js";
+import { repointEdges } from "./edges.js";
 import { indexMemoryEmbedding } from "./vector-index.js";
 
 export interface MergeCandidate extends MemoryRecord {
@@ -185,6 +186,9 @@ export function applyMerges(
         dropRow.pinned,
         keep.row_id,
       );
+      // Move the dropped row's edges to the survivor first; deleting it would
+      // otherwise end them, losing relationships the survivor now carries.
+      repointEdges(db, dropRow.id, keep.id);
       drop.run(dropRow.row_id);
 
       // Re-index the survivor. The merge may have replaced its note with the

@@ -9,6 +9,7 @@ import {
   type RelatedCandidate,
 } from "../lib/dedupe.js";
 import { recordEntities } from "../lib/entities.js";
+import { recordRelatedEdges } from "../lib/edges.js";
 import { inferMemoryFromNote } from "../lib/inference.js";
 import { recordFileRefs } from "../lib/file-refs.js";
 import { resolveRepoArg } from "../lib/repo.js";
@@ -208,6 +209,9 @@ export function registerRememberTool(server: McpServer): void {
         // contradicts them (calling update_memory / delete_memory). Fossel
         // stays dependency-free by delegating the judgment to the agent.
         const related = findRelatedCandidates(db, resolved.canonical, note);
+        // Persist the same result as edges, so the relationship outlives this
+        // one-off notice. Idempotent: a repeated proposal is a no-op.
+        recordRelatedEdges(db, id, related);
         const conflictNotice = formatConflictNotice(related);
 
         return {

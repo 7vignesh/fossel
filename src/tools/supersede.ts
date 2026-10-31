@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getDb } from "../db/client.js";
+import { recordEdge } from "../lib/edges.js";
 import { findMemoryByAnyId } from "../lib/memory.js";
 
 const supersedeMemoryInputSchema = {
@@ -102,6 +103,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
           at: now,
           action: "superseded",
         };
+        let replacement: { id: string; repo: string } | null = null;
 
         if (superseded_by !== undefined) {
           const supersededMemory = findMemoryByAnyId(db, superseded_by);
@@ -117,6 +119,7 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
             };
           }
           entry.superseded_by = supersededMemory.row_id;
+          replacement = { id: supersededMemory.id, repo: supersededMemory.repo };
         }
 
         if (reason !== undefined) {
@@ -130,6 +133,16 @@ export function registerSupersedeMemoryTool(server: McpServer): void {
           db.prepare(
             "UPDATE memories SET valid_to = ?, metadata_json = ? WHERE rowid = ?",
           ).run(now, JSON.stringify(metadata), rowId);
+          // Record the replacement as a `supersedes` edge. Edges only connect
+          // memories in the same repo, so a cross-repo superseded_by (allowed
+          // by this tool) is kept in the changelog only.
+          if (
+            replacement &&
+            replacement.id !== memory.id &&
+            replacement.repo === memory.repo
+          ) {
+            recordEdge(db, replacement.id, memory.id, "supersedes", { now });
+          }
         });
 
         supersedeTx(memory.row_id);
