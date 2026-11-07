@@ -103,6 +103,47 @@ To verify the adapter without downloading anything:
 npm run bench -- --dataset longmemeval --file bench/fixtures/longmemeval-sample.json --no-write
 ```
 
+### `git-drift` (committed, offline)
+
+A git-aware fixture set for code-drift scenarios, the infrastructure #30
+(drift-aware ranking) is blocked on. It is not scored by `npm run bench`; it has
+its own runner because its shape and its metrics are different:
+
+```bash
+npm run bench:drift         # run and refresh bench/results/git-drift.json
+npm run bench:drift:check   # fail if the results moved vs the snapshot
+```
+
+The dataset is `bench/datasets/git-drift.json`. It has three arrays plus a file
+map:
+
+- `files` — path -> initial file content. The harness writes and commits these
+  into a throwaway git repo, so the fixture is deterministic and needs no live
+  repo.
+- `memories[]` — each is the usual `{ key, note, type, tags }` plus `file` (the
+  path it references) and `drift`, one of:
+  - `unchanged` — committed, never touched. Must NOT read as drifted.
+  - `committed-change` — the file is rewritten and committed after the memory
+    is recorded.
+  - `working-tree-dirty` — the file is edited but not committed.
+  - `deleted` — the file is removed and the deletion committed.
+- `queries[]` — the usual `{ id, query, relevant, category, rationale }`, where
+  `category` is the drift state being probed.
+
+The harness (`bench/lib/drift.ts`) commits the files, records a file reference
+for every memory exactly as `remember` does, then applies each memory's drift
+state and reports two things:
+
+1. **Drift detection** — per state, whether `findStaleFileRefs` classifies the
+   file as drifted or not. This is the signal #30 will rank on, so its accuracy
+   is the number that matters here, not a ranking figure.
+2. **FTS retrieval by drift category** — the pre-ranking baseline a drift-aware
+   ranking change must beat without regressing the `unchanged` category.
+
+The runner skips cleanly when git is unavailable, so a git-less CI runner does
+not fail on it. Line-ending normalization in `--check` keeps it stable across
+platforms.
+
 ## Adding a benchmark case
 
 A retrieval change only counts if the numbers support it, and the numbers come from the

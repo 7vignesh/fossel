@@ -1,0 +1,140 @@
+{
+  "dataset": "fossel-git-drift-v1",
+  "generatedBy": "npm run bench:drift",
+  "limit": 10,
+  "detection": {
+    "accuracy": 1,
+    "byState": {
+      "unchanged": {
+        "total": 5,
+        "correct": 5
+      },
+      "committed-change": {
+        "total": 2,
+        "correct": 2
+      },
+      "working-tree-dirty": {
+        "total": 2,
+        "correct": 2
+      },
+      "deleted": {
+        "total": 1,
+        "correct": 1
+      }
+    }
+  },
+  "retrieval": {
+    "search": {
+      "queries": 8,
+      "hitRate": {
+        "1": 1,
+        "3": 1,
+        "5": 1,
+        "10": 1
+      },
+      "recall": {
+        "1": 1,
+        "3": 1,
+        "5": 1,
+        "10": 1
+      },
+      "mrr": 1,
+      "ndcg": {
+        "1": 1,
+        "3": 1,
+        "5": 1,
+        "10": 1
+      }
+    },
+    "byCategory": {
+      "committed-change": {
+        "queries": 2,
+        "hitRate": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "recall": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "mrr": 1,
+        "ndcg": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        }
+      },
+      "deleted": {
+        "queries": 1,
+        "hitRate": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "recall": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "mrr": 1,
+        "ndcg": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        }
+      },
+      "unchanged": {
+        "queries": 3,
+        "hitRate": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "recall": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "mrr": 1,
+        "ndcg": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        }
+      },
+      "working-tree-dirty": {
+        "queries": 2,
+        "hitRate": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "recall": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        },
+        "mrr": 1,
+        "ndcg": {
+          "1": 1,
+          "3": 1,
+          "5": 1,
+          "10": 1
+        }
+      }
+    }
+  }
+}
