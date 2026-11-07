@@ -68,12 +68,22 @@ export interface BenchQuery {
   repo?: string;
 }
 
+export interface BenchEdge {
+  /** `key`s of the two memories the edge connects. */
+  src: string;
+  dst: string;
+  type: "fixes" | "contradicts" | "supersedes" | "relates_to";
+}
+
 export interface BenchDataset {
   name: string;
   description?: string;
   repo: string;
   memories: BenchMemory[];
   queries: BenchQuery[];
+  /** Optional typed edges between memories, by `key`. Used by the edge-traversal
+   * eval; absent in the plain retrieval datasets. */
+  edges?: BenchEdge[];
 }
 
 /**
@@ -132,6 +142,26 @@ export function ingest(dataset: BenchDataset): IngestedDb {
       keyToRowId.set(memory.key, rowId);
       rowIdToKey.set(rowId, memory.key);
     });
+
+    // Edges, if the dataset declares any. Inserted after every memory so both
+    // endpoints exist. `bench-<key>` mirrors the id scheme above; the memory_id
+    // keying and the symmetric-ordering constraint are the same as production,
+    // so this exercises the real schema.
+    for (const edge of dataset.edges ?? []) {
+      const src = `bench-${edge.src}`;
+      const dst = `bench-${edge.dst}`;
+      const [a, b] =
+        (edge.type === "contradicts" || edge.type === "relates_to") && dst < src
+          ? [dst, src]
+          : [src, dst];
+      db.prepare(
+        `
+          INSERT INTO memory_edges (src_id, dst_id, type, created_at, valid_from)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT DO NOTHING
+        `,
+      ).run(a, b, edge.type, BASE_TIMESTAMP, BASE_TIMESTAMP);
+    }
   });
   tx();
 

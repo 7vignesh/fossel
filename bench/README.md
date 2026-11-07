@@ -144,6 +144,25 @@ The runner skips cleanly when git is unavailable, so a git-less CI runner does
 not fail on it. Line-ending normalization in `--check` keeps it stable across
 platforms.
 
+### `edges` (committed, offline)
+
+An edge-traversal eval for #65. Each query has a strong lexical hit and a second
+relevant memory that is one typed edge from that hit but shares almost no query
+terms, so plain FTS finds the anchor and misses the neighbour. **Recall** is the
+metric that moves.
+
+```bash
+npm run bench -- --dataset edges --mode fts
+```
+
+The dataset (`bench/datasets/edges.json`) adds an `edges[]` array to the usual
+shape: `{ src, dst, type }`, both by memory `key`. The harness inserts them
+after the memories, through the same typed schema as production (keyed by memory
+id, symmetric types ordered). The one-hop edge leg is swept with
+`npx tsx bench/sweep.ts --sweep edge`; see `DEFAULT_EDGE_WEIGHT` in
+`src/lib/fusion.ts` for the measured result (recall@5 62.5% -> 100% with the leg
+on).
+
 ## Adding a benchmark case
 
 A retrieval change only counts if the numbers support it, and the numbers come from the

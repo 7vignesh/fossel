@@ -12,6 +12,7 @@
  */
 
 import type Database from "better-sqlite3";
+import type { MemoryRecord } from "../db/client.js";
 import type { RelatedCandidate } from "./dedupe.js";
 
 export const EDGE_TYPES = ["fixes", "contradicts", "supersedes", "relates_to"] as const;
@@ -176,4 +177,61 @@ export function edgesForMemories(db: Database.Database, memoryIds: string[]): Me
       a.dst_id.localeCompare(b.dst_id) ||
       a.type.localeCompare(b.type),
   );
+}
+
+export interface EdgeNeighbor extends MemoryRecord {
+  /** The type of the edge that reached this neighbour. */
+  edge_type: EdgeType;
+}
+
+/**
+ * One-hop expansion from a set of seed memories: the live memories directly
+ * connected to any seed by a live edge, in the same repo.
+ *
+ * Both the edge and the neighbour must be live (`valid_to IS NULL`). This is
+ * what keeps supersession intact: a live memory's `supersedes` edge points at a
+ * tombstoned memory, which this query excludes, so following it contributes
+ * nothing rather than dragging the superseded fact back into context. It is the
+ * same live-only filter `findEntityMatches` applies.
+ *
+ * Seeds themselves are never returned, so a neighbour that is also a seed does
+ * not get double-counted. Ordered deterministically (neighbour recency, then
+ * rowid) so the fusion leg is stable.
+ */
+export function findEdgeNeighbors(
+  db: Database.Database,
+  repo: string,
+  seedRowIds: number[],
+  limit: number,
+): EdgeNeighbor[] {
+  if (seedRowIds.length === 0 || limit <= 0) {
+    return [];
+  }
+  const marks = seedRowIds.map(() => "?").join(", ");
+  // Join each seed (by id) to its live edges, then to the neighbour on the
+  // other end. A seed may appear as src or dst, so the neighbour is whichever
+  // end is not the seed. Neighbours that are themselves seeds are filtered out.
+  const rows = db
+    .prepare(
+      `
+        SELECT
+          n.rowid AS row_id, n.id, n.repo, n.type, n.note, n.tags,
+          n.created_at, n.updated_at, n.pinned,
+          e.type AS edge_type
+        FROM memories s
+        JOIN memory_edges e
+          ON (e.src_id = s.id OR e.dst_id = s.id) AND e.valid_to IS NULL
+        JOIN memories n
+          ON n.id = CASE WHEN e.src_id = s.id THEN e.dst_id ELSE e.src_id END
+        WHERE s.rowid IN (${marks})
+          AND n.valid_to IS NULL
+          AND n.repo = ?
+          AND n.rowid NOT IN (${marks})
+        GROUP BY n.rowid
+        ORDER BY n.updated_at DESC, n.rowid DESC
+        LIMIT ?
+      `,
+    )
+    .all(...seedRowIds, repo, ...seedRowIds, limit) as EdgeNeighbor[];
+  return rows;
 }

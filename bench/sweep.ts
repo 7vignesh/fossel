@@ -25,11 +25,12 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-type Axis = "vector" | "floor";
+type Axis = "vector" | "floor" | "edge";
 
 const GRIDS: Record<Axis, number[]> = {
   vector: [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1, 1.5],
   floor: [0, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4],
+  edge: [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1],
 };
 
 function parseArgs(argv: string[]): { axes: Axis[]; values?: number[] } {
@@ -39,8 +40,8 @@ function parseArgs(argv: string[]): { axes: Axis[]; values?: number[] } {
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--sweep") {
       const value = argv[i + 1] as Axis | undefined;
-      if (value !== "vector" && value !== "floor") {
-        throw new Error("--sweep must be 'vector' or 'floor'");
+      if (value !== "vector" && value !== "floor" && value !== "edge") {
+        throw new Error("--sweep must be 'vector', 'floor' or 'edge'");
       }
       axes = [value];
       i += 1;
@@ -72,6 +73,9 @@ function tuningFor(axis: Axis, value: number): TuningOverrides {
   const base = { ...DEFAULT_FUSION_WEIGHTS, fts: 1 };
   if (axis === "floor") {
     return { weights: base, vectorScoreFloor: value };
+  }
+  if (axis === "edge") {
+    return { weights: { ...base, edge: value } };
   }
   return { weights: { ...base, vector: value } };
 }
