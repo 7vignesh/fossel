@@ -116,7 +116,10 @@ The same result is also saved as an edge between the two memories: `contradicts`
 for a flagged one, `relates_to` otherwise. `supersede_memory` with
 `superseded_by` saves a `supersedes` edge. Deleting a memory ends its edges
 rather than removing them, so the record that B replaced A survives after A is
-deleted. Edges are not used for retrieval yet.
+deleted. At retrieval time, a strong keyword hit pulls in its live neighbours
+one hop out, so a fix or a related decision surfaces alongside the memory that
+matched. Following a `supersedes` edge from a live memory contributes nothing,
+because the superseded memory is tombstoned and filtered out.
 
 ### Temporal grounding
 

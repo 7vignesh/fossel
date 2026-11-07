@@ -1,0 +1,103 @@
+{
+  "name": "fossel-edges-v1",
+  "description": "Edge-traversal eval (#65). Each query has a strong lexical hit and a second relevant memory that shares few query terms but is one typed edge away from that hit. Plain FTS finds the lexical anchor but misses the neighbour; a one-hop edge leg should recover it. Recall@k is the metric that moves. Edges use the same typed schema as production (keyed by memory id, symmetric types ordered).",
+  "repo": "acme/edgelab",
+  "memories": [
+    {
+      "key": "m-login-bug",
+      "note": "Login returned a 500 when the session cookie was missing the SameSite attribute.",
+      "type": "bug_fix",
+      "tags": ["login", "cookie"]
+    },
+    {
+      "key": "m-samesite-fix",
+      "note": "Set SameSite=Lax on every auth cookie in the response middleware.",
+      "type": "bug_fix",
+      "tags": ["cookie", "middleware"]
+    },
+    {
+      "key": "m-pay-timeout",
+      "note": "Checkout intermittently timed out under load on the payment confirmation step.",
+      "type": "bug_fix",
+      "tags": ["checkout", "timeout"]
+    },
+    {
+      "key": "m-idempotency",
+      "note": "Added an idempotency key to the charge call so retries do not double-bill.",
+      "type": "decision",
+      "tags": ["charge", "retry"]
+    },
+    {
+      "key": "m-search-slow",
+      "note": "Product search was slow because the query did a full table scan.",
+      "type": "bug_fix",
+      "tags": ["search", "performance"]
+    },
+    {
+      "key": "m-gin-index",
+      "note": "Created a GIN index to back the catalogue lookups.",
+      "type": "decision",
+      "tags": ["index", "catalogue"]
+    },
+    {
+      "key": "m-upload-crash",
+      "note": "Avatar upload crashed the worker on files over the configured size ceiling.",
+      "type": "bug_fix",
+      "tags": ["upload", "worker"]
+    },
+    {
+      "key": "m-stream-parse",
+      "note": "Switched the multipart handler to a streaming parser to bound memory use.",
+      "type": "decision",
+      "tags": ["multipart", "memory"]
+    },
+    {
+      "key": "m-unrelated-1",
+      "note": "The style guide mandates Tailwind utility classes over bespoke CSS.",
+      "type": "convention",
+      "tags": ["styling"]
+    },
+    {
+      "key": "m-unrelated-2",
+      "note": "Feature flags are read from the config service at request time.",
+      "type": "convention",
+      "tags": ["flags"]
+    }
+  ],
+  "edges": [
+    { "src": "m-samesite-fix", "dst": "m-login-bug", "type": "fixes" },
+    { "src": "m-idempotency", "dst": "m-pay-timeout", "type": "fixes" },
+    { "src": "m-gin-index", "dst": "m-search-slow", "type": "fixes" },
+    { "src": "m-stream-parse", "dst": "m-upload-crash", "type": "fixes" }
+  ],
+  "queries": [
+    {
+      "id": "q-edge-login",
+      "query": "login 500 missing session cookie",
+      "relevant": ["m-login-bug", "m-samesite-fix"],
+      "category": "edge",
+      "rationale": "m-login-bug matches lexically; m-samesite-fix is the fix one hop away and shares little query vocabulary."
+    },
+    {
+      "id": "q-edge-pay",
+      "query": "checkout timed out on payment confirmation under load",
+      "relevant": ["m-pay-timeout", "m-idempotency"],
+      "category": "edge",
+      "rationale": "m-pay-timeout matches; m-idempotency is the linked decision with almost no shared terms."
+    },
+    {
+      "id": "q-edge-search",
+      "query": "product search slow full table scan",
+      "relevant": ["m-search-slow", "m-gin-index"],
+      "category": "edge",
+      "rationale": "m-search-slow matches; m-gin-index is the linked fix."
+    },
+    {
+      "id": "q-edge-upload",
+      "query": "avatar upload crashed the worker on large files",
+      "relevant": ["m-upload-crash", "m-stream-parse"],
+      "category": "edge",
+      "rationale": "m-upload-crash matches; m-stream-parse is the linked fix."
+    }
+  ]
+}

@@ -70,6 +70,7 @@ export interface FusionWeights {
   fts: number;
   vector: number;
   entity?: number;
+  edge?: number;
 }
 
 /** Default weight for the entity leg. Entity matches are a strong signal —
@@ -77,10 +78,28 @@ export interface FusionWeights {
  * narrower than FTS so it supplements rather than dominates. */
 export const DEFAULT_ENTITY_WEIGHT = 0.6;
 
+/**
+ * Weight for the one-hop edge-traversal leg (#65).
+ *
+ * Chosen by sweeping against the edges benchmark (`bench/datasets/edges.json`,
+ * `npx tsx bench/sweep.ts --sweep edge`). Turning the leg on lifts recall@5 from
+ * 62.5% to 100% and recall@10 from 75% to 100% there, because each query's
+ * second relevant memory is one typed edge from its lexical hit and shares
+ * almost no query terms. The gain is flat across 0.1-0.8; the weight only
+ * starts costing MRR once it is high enough to float a neighbour above the
+ * lexical anchor (MRR 1.000 -> 0.875 at 0.1, down to 0.833 at 1.0). 0.2 takes
+ * the full recall gain at the smallest ranking cost.
+ *
+ * On datasets with no edges (repo-memory) the leg is inert, so this does not
+ * move the committed repo-memory snapshot.
+ */
+export const DEFAULT_EDGE_WEIGHT = 0.2;
+
 export const DEFAULT_FUSION_WEIGHTS: FusionWeights = {
   fts: DEFAULT_FTS_WEIGHT,
   vector: DEFAULT_VECTOR_WEIGHT,
   entity: DEFAULT_ENTITY_WEIGHT,
+  edge: DEFAULT_EDGE_WEIGHT,
 };
 
 export interface WeightedList<T> {

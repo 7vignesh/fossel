@@ -7,6 +7,7 @@ import {
 import { recordAccess } from "./access.js";
 import { embeddingsEnabled } from "./embeddings.js";
 import { extractEntities, findEntityMatches } from "./entities.js";
+import { findEdgeNeighbors } from "./edges.js";
 import type { StaleFileRef } from "./file-refs.js";
 import { searchFts, type FtsRow } from "./fts.js";
 import {
@@ -21,6 +22,11 @@ export interface ContextRow extends MemoryRecord {
   source: "pinned" | "recent" | "search";
   rank?: number;
 }
+
+/** How many of the top FTS hits seed the one-hop edge expansion. Kept small so
+ * traversal expands from the strongest anchors rather than the whole result
+ * set, which would blur the signal. */
+const EDGE_SEED_COUNT = 3;
 
 const SECTION_TITLES: Record<MemoryType, string> = {
   convention: "Conventions",
@@ -222,7 +228,25 @@ export function fetchRepoContext(
         ? findEntityMatches(db, repo, queryEntities, fetchLimit)
         : [];
 
-    if (vectorRows.length > 0 || entityRows.length > 0) {
+    // Edge traversal (#65): one hop out from the top keyword hits, pulling in
+    // their live neighbours so the model sees related memories a query's own
+    // terms missed. Seeded from the FTS hits because they are the most
+    // reliable anchor. Off unless `weights.edge > 0`; the sweep decides whether
+    // it earns its place. The neighbour query filters tombstoned edges and
+    // memories, so a live hit's `supersedes` edge never drags the old fact
+    // back in.
+    const edgeWeight = weights.edge ?? 0;
+    const edgeRows: MemoryRecord[] =
+      edgeWeight > 0 && ftsRows.length > 0
+        ? findEdgeNeighbors(
+            db,
+            repo,
+            ftsRows.slice(0, EDGE_SEED_COUNT).map((row) => row.row_id),
+            fetchLimit,
+          )
+        : [];
+
+    if (vectorRows.length > 0 || entityRows.length > 0 || edgeRows.length > 0) {
       const FTS_LIST = 0;
       const fusionLegs: Array<{ items: MemoryRecord[]; weight: number }> = [
         { items: ftsRows, weight: weights.fts },
@@ -230,6 +254,9 @@ export function fetchRepoContext(
       ];
       if (entityRows.length > 0) {
         fusionLegs.push({ items: entityRows, weight: weights.entity ?? 0.6 });
+      }
+      if (edgeRows.length > 0) {
+        fusionLegs.push({ items: edgeRows, weight: edgeWeight });
       }
       const fused = fuseRrf<MemoryRecord>(
         fusionLegs,
