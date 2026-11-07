@@ -11,6 +11,10 @@ on:
     # Weekly scan, Monday 06:00 UTC, to catch newly disclosed patterns.
     - cron: "0 6 * * 1"
 
+# Default to read-only; the analyze job widens to what CodeQL needs.
+permissions:
+  contents: read
+
 jobs:
   analyze:
     name: Analyze
