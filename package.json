@@ -44,6 +44,8 @@
     "typecheck:bench": "tsc --noEmit -p bench/tsconfig.json",
     "bench": "tsx bench/run.ts",
     "bench:check": "tsx bench/run.ts --check",
+    "bench:drift": "tsx bench/drift.ts",
+    "bench:drift:check": "tsx bench/drift.ts --check",
     "ci": "npm run typecheck && npm run typecheck:bench && npm run test && npm run build && npm run smoke"
   },
   "dependencies": {

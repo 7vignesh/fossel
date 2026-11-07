@@ -1,0 +1,157 @@
+{
+  "name": "fossel-git-drift-v1",
+  "description": "Git-aware drift fixtures (#31). Each memory references one file and declares the drift state that file should be in at read time: 'unchanged' (committed, untouched), 'committed-change' (content changed in a later commit), 'working-tree-dirty' (edited but not committed), or 'deleted' (removed and committed). The harness builds a scratch git repo deterministically from `files`, records file refs for every memory, then applies each memory's drift state, so findStaleFileRefs can be scored without any dependency on live repo state. Queries point at the memories whose files drifted, which is the signal #30 (drift-aware ranking) will use.",
+  "repo": "acme/driftlab",
+  "files": {
+    "src/auth/jwt.ts": "export function verifyJwt(token: string) {\n  return decode(token);\n}\n",
+    "src/auth/rbac.ts": "export function canAccess(user: User, resource: string) {\n  return user.roles.includes(resource);\n}\n",
+    "src/payments/stripe.ts": "export const stripe = new Stripe(process.env.STRIPE_KEY!);\n",
+    "src/payments/refund.ts": "export async function refund(chargeId: string) {\n  return stripe.refunds.create({ charge: chargeId });\n}\n",
+    "src/db/pool.ts": "export const pool = createPool({ max: 10 });\n",
+    "src/db/migrate.ts": "export function migrate() {\n  runPendingMigrations();\n}\n",
+    "src/cache/redis.ts": "export const redis = new Redis(process.env.REDIS_URL!);\n",
+    "src/config/env.ts": "export const env = loadEnv();\n",
+    "docs/deploy.md": "# Deploy\nRun the release workflow on a tag push.\n",
+    "src/legacy/soap.ts": "export function callSoap() {\n  throw new Error('removed');\n}\n"
+  },
+  "memories": [
+    {
+      "key": "m-jwt",
+      "note": "JWT verification lives in src/auth/jwt.ts and never trusts the client claim.",
+      "type": "convention",
+      "tags": ["auth", "jwt"],
+      "file": "src/auth/jwt.ts",
+      "drift": "committed-change"
+    },
+    {
+      "key": "m-rbac",
+      "note": "Role checks go through canAccess() in src/auth/rbac.ts, not the raw claim.",
+      "type": "convention",
+      "tags": ["auth", "rbac"],
+      "file": "src/auth/rbac.ts",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-stripe",
+      "note": "The Stripe client is constructed once in src/payments/stripe.ts from STRIPE_KEY.",
+      "type": "convention",
+      "tags": ["payments", "stripe"],
+      "file": "src/payments/stripe.ts",
+      "drift": "working-tree-dirty"
+    },
+    {
+      "key": "m-refund",
+      "note": "Refunds are issued through refund() in src/payments/refund.ts, which wraps the Stripe API.",
+      "type": "convention",
+      "tags": ["payments", "refund"],
+      "file": "src/payments/refund.ts",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-pool",
+      "note": "The database connection pool caps at 10 connections in src/db/pool.ts.",
+      "type": "decision",
+      "tags": ["db", "pool"],
+      "file": "src/db/pool.ts",
+      "drift": "committed-change"
+    },
+    {
+      "key": "m-migrate",
+      "note": "Pending migrations run at startup via migrate() in src/db/migrate.ts.",
+      "type": "convention",
+      "tags": ["db", "migrations"],
+      "file": "src/db/migrate.ts",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-redis",
+      "note": "Redis is the session cache, wired up in src/cache/redis.ts from REDIS_URL.",
+      "type": "convention",
+      "tags": ["cache", "redis"],
+      "file": "src/cache/redis.ts",
+      "drift": "working-tree-dirty"
+    },
+    {
+      "key": "m-env",
+      "note": "All environment config is loaded once in src/config/env.ts.",
+      "type": "convention",
+      "tags": ["config"],
+      "file": "src/config/env.ts",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-deploy",
+      "note": "Deploys go out through the release workflow documented in docs/deploy.md on a tag push.",
+      "type": "convention",
+      "tags": ["deploy", "ci"],
+      "file": "docs/deploy.md",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-soap",
+      "note": "The legacy SOAP client in src/legacy/soap.ts was removed in the 4.0 refactor.",
+      "type": "decision",
+      "tags": ["legacy", "soap"],
+      "file": "src/legacy/soap.ts",
+      "drift": "deleted"
+    }
+  ],
+  "queries": [
+    {
+      "id": "q-drift-jwt",
+      "query": "how is the JWT verified",
+      "relevant": ["m-jwt"],
+      "category": "committed-change",
+      "rationale": "src/auth/jwt.ts changed in a later commit; the memory should read as drifted."
+    },
+    {
+      "id": "q-drift-pool",
+      "query": "database connection pool size",
+      "relevant": ["m-pool"],
+      "category": "committed-change",
+      "rationale": "src/db/pool.ts was changed and committed after the memory was written."
+    },
+    {
+      "id": "q-drift-stripe",
+      "query": "how is the Stripe client configured",
+      "relevant": ["m-stripe"],
+      "category": "working-tree-dirty",
+      "rationale": "src/payments/stripe.ts has an uncommitted working-tree edit."
+    },
+    {
+      "id": "q-drift-redis",
+      "query": "what backs the session cache",
+      "relevant": ["m-redis"],
+      "category": "working-tree-dirty",
+      "rationale": "src/cache/redis.ts is dirty in the working tree."
+    },
+    {
+      "id": "q-drift-soap",
+      "query": "is the SOAP client still used",
+      "relevant": ["m-soap"],
+      "category": "deleted",
+      "rationale": "src/legacy/soap.ts was deleted and committed; the file no longer resolves at HEAD."
+    },
+    {
+      "id": "q-fresh-rbac",
+      "query": "where are role checks enforced",
+      "relevant": ["m-rbac"],
+      "category": "unchanged",
+      "rationale": "src/auth/rbac.ts is untouched; the memory must NOT read as drifted."
+    },
+    {
+      "id": "q-fresh-refund",
+      "query": "how are refunds issued",
+      "relevant": ["m-refund"],
+      "category": "unchanged",
+      "rationale": "src/payments/refund.ts is untouched."
+    },
+    {
+      "id": "q-fresh-migrate",
+      "query": "when do migrations run",
+      "relevant": ["m-migrate"],
+      "category": "unchanged",
+      "rationale": "src/db/migrate.ts is untouched."
+    }
+  ]
+}
