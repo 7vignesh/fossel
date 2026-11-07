@@ -6,6 +6,17 @@ on:
     branches:
       - main
 
+# Least privilege: CI only needs to read the repo. Jobs opt into more if needed.
+permissions:
+  contents: read
+
+# Cancel an in-progress run when a newer commit is pushed to the same ref, so a
+# PR that is pushed twice does not run the whole matrix twice. Never applied to
+# publish.yml, where a run must not be interrupted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ${{ matrix.os }}
@@ -20,10 +31,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -46,6 +57,8 @@ jobs:
     needs: verify
     if: always()
     runs-on: ubuntu-latest
+    # This job only reads a job result; it needs no token scopes at all.
+    permissions: {}
     steps:
       - name: Require every matrix job to pass
         shell: bash
