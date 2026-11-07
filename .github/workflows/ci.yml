@@ -10,6 +10,13 @@ on:
 permissions:
   contents: read
 
+# Cancel an in-progress run when a newer commit is pushed to the same ref, so a
+# PR pushed twice does not run the whole matrix twice. Deliberately not applied
+# to publish.yml, where a run must not be interrupted.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ${{ matrix.os }}

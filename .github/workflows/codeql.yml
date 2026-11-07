@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+# Cancel a superseded run on the same ref, matching ci.yml.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
