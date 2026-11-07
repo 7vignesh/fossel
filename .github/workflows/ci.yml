@@ -6,6 +6,10 @@ on:
     branches:
       - main
 
+# Least privilege: CI only needs to read the repo.
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ${{ matrix.os }}
@@ -46,6 +50,8 @@ jobs:
     needs: verify
     if: always()
     runs-on: ubuntu-latest
+    # This job only reads a job result; it needs no token scopes at all.
+    permissions: {}
     steps:
       - name: Require every matrix job to pass
         shell: bash

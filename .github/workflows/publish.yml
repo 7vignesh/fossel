@@ -5,11 +5,13 @@ on:
     tags:
       - "v*"
 
+# Default read-only; the publish job keeps exactly this.
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
