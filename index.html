@@ -1116,6 +1116,11 @@ and 401 redirects to /login</pre>
       <button class="tool fade-in" data-tool="unpin_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">unpin_memory</span><span class="tool-status">ready</span></button>
       <button class="tool fade-in" data-tool="update_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">update_memory</span><span class="tool-status">ready</span></button>
       <button class="tool fade-in" data-tool="delete_memory" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">delete_memory</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="get_repo_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">get_repo_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="store_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">store_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="summarize_repo_context" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">summarize_repo_context</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="list_repos" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">list_repos</span><span class="tool-status">ready</span></button>
+      <button class="tool fade-in" data-tool="resolve_repo" role="tab" aria-pressed="false"><span class="tool-dot"></span><span class="tool-name">resolve_repo</span><span class="tool-status">ready</span></button>
     </div>
 
     <div class="tool-detail" role="tabpanel" aria-live="polite" id="tool-detail">
@@ -1279,6 +1284,31 @@ const TOOL_INFO = {
     tag: 'ready',
     desc: 'Remove a memory permanently. Use only when a fact was entered by mistake. For outdated facts, prefer supersede_memory — the history survives.',
     example: 'delete_memory({ id: <span class="accent">12</span> })'
+  },
+  get_repo_context: {
+    tag: 'ready',
+    desc: 'Get recent memories for a repository grouped by memory type. The repo argument is resolved to a canonical key automatically; omit it to use the current workspace.',
+    example: 'get_repo_context({ repo: <span class="accent">"owner/repo"</span>, limit: <span class="accent">10</span> })'
+  },
+  store_context: {
+    tag: 'ready',
+    desc: 'Store repository-specific context with an explicit type — the typed counterpart to remember. The repo is resolved automatically; pass it only when targeting a different repo than the current workspace.',
+    example: 'store_context({ type: <span class="accent">"bug_fix"</span>,\n  note: <span class="accent">"Awaited the auth handshake to fix the reconnect race"</span> })'
+  },
+  summarize_repo_context: {
+    tag: 'ready',
+    desc: 'Generate a structured markdown summary of all memories for a repository, grouped by memory type.',
+    example: 'summarize_repo_context({ repo: <span class="accent">"owner/repo"</span> })'
+  },
+  list_repos: {
+    tag: 'ready',
+    desc: 'List every repository that has stored memories, with per-repo counts (live, superseded, pinned) and the last-updated time. Useful for discovering which projects Fossel has memory for.',
+    example: 'list_repos()\n<span class="cmt"># → 3 repo(s) with memories</span>'
+  },
+  resolve_repo: {
+    tag: 'ready',
+    desc: 'Return the canonical repo key for a working directory along with any aliases and the detected git remote. Useful for showing which repo Fossel is targeting before other tool calls.',
+    example: 'resolve_repo({ cwd: <span class="accent">"/path/to/repo"</span> })\n<span class="cmt"># → { canonical: "owner/repo", source: "git-remote" }</span>'
   }
 };
 
