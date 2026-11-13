@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEFAULT_FUSION_WEIGHTS,
+  DEFAULT_RECENCY_HALF_LIFE_DAYS,
   RRF_K,
   fuseRrf,
+  recencyDecay,
 } from "../src/lib/fusion.js";
 
 interface Item {
@@ -102,4 +104,37 @@ test("default weights keep the keyword leg dominant", () => {
     DEFAULT_FUSION_WEIGHTS.fts > DEFAULT_FUSION_WEIGHTS.vector,
     "BM25 measures stronger than the hashed embedder, so it must outweigh it",
   );
+});
+
+const DAY = 86_400;
+
+test("recency decay is inert by default", () => {
+  assert.equal(
+    DEFAULT_RECENCY_HALF_LIFE_DAYS,
+    0,
+    "the spike shipped off: decay must not move rankings unless opted in",
+  );
+});
+
+test("recencyDecay returns 1 when disabled or for the newest item", () => {
+  assert.equal(recencyDecay(10 * DAY, 0), 1, "half-life 0 disables decay");
+  assert.equal(recencyDecay(10 * DAY, -5), 1, "negative half-life disables it");
+  assert.equal(recencyDecay(0, 7), 1, "zero age (newest) keeps full score");
+  assert.equal(recencyDecay(-100, 7), 1, "a future age never boosts above 1");
+});
+
+test("recencyDecay halves the score at one half-life", () => {
+  assert.ok(Math.abs(recencyDecay(7 * DAY, 7) - 0.5) < 1e-12);
+  assert.ok(Math.abs(recencyDecay(14 * DAY, 7) - 0.25) < 1e-12);
+});
+
+test("recencyDecay is monotonically non-increasing in age", () => {
+  const halfLife = 30;
+  let prev = 1;
+  for (let days = 0; days <= 120; days += 10) {
+    const factor = recencyDecay(days * DAY, halfLife);
+    assert.ok(factor <= prev + 1e-12, `factor must not rise at ${days}d`);
+    assert.ok(factor > 0, "decay stays strictly positive");
+    prev = factor;
+  }
 });

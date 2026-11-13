@@ -12,8 +12,10 @@ import type { StaleFileRef } from "./file-refs.js";
 import { searchFts, type FtsRow } from "./fts.js";
 import {
   DEFAULT_FUSION_WEIGHTS,
+  DEFAULT_RECENCY_HALF_LIFE_DAYS,
   DEFAULT_VECTOR_SCORE_FLOOR,
   fuseRrf,
+  recencyDecay,
   type FusionWeights,
 } from "./fusion.js";
 import { vectorSearch } from "./vector-index.js";
@@ -74,6 +76,10 @@ export interface FetchContextOptions {
   /** How a multi-tag filter combines: "or" (default) keeps a memory sharing
    * any listed tag; "and" requires every listed tag. */
   tagMatch?: "and" | "or";
+  /** Half-life in days for an optional recency decay on fused scores. 0 (the
+   * default) disables decay. Sweepable; see lib/fusion.ts for the measured
+   * decision to keep this off. */
+  recencyHalfLifeDays?: number;
 }
 
 /**
@@ -124,6 +130,8 @@ export function fetchRepoContext(
   };
   const vectorScoreFloor =
     options.vectorScoreFloor ?? DEFAULT_VECTOR_SCORE_FLOOR;
+  const recencyHalfLifeDays =
+    options.recencyHalfLifeDays ?? DEFAULT_RECENCY_HALF_LIFE_DAYS;
   const tagFilter = makeTagFilter(options.tags, options.tagMatch ?? "or");
   const tagFilterActive =
     (options.tags ?? []).some((tag) => tag.trim().length > 0);
@@ -262,6 +270,28 @@ export function fetchRepoContext(
         fusionLegs,
         (memory) => memory.row_id,
       );
+
+      // Optional recency decay (#61). Off by default (half-life 0). When on,
+      // scale each fused score by an exponential decay on how much older the
+      // memory is than the newest in the fused set, then re-sort. Corpus-
+      // relative age keeps this a pure function of the stored data, not the
+      // wall clock. Pinned rows are already in `rows` from before fusion, so
+      // their ordering is untouched regardless of decay.
+      if (recencyHalfLifeDays > 0 && fused.length > 0) {
+        const newest = Math.max(...fused.map((e) => e.item.updated_at));
+        for (const entry of fused) {
+          entry.score *= recencyDecay(
+            newest - entry.item.updated_at,
+            recencyHalfLifeDays,
+          );
+        }
+        fused.sort(
+          (a, b) =>
+            b.score - a.score ||
+            Math.min(...a.positions.values()) -
+              Math.min(...b.positions.values()),
+        );
+      }
 
       for (const entry of fused) {
         // Preserve the BM25 rank when the row came from the keyword leg, so

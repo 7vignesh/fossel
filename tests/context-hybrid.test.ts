@@ -92,3 +92,50 @@ test("enabled: results are deduplicated by normalized note", () => {
   const pnpmRows = rows.filter((r) => /pnpm workspaces/i.test(r.note));
   assert.equal(pnpmRows.length, 1, "near-identical notes should collapse");
 });
+
+test("recency decay off by default: old and new equal-score notes keep fusion order", () => {
+  // Two notes score symmetrically on the query via FTS + vector; the only
+  // difference is age. With decay off (default) the fusion order stands.
+  process.env.FOSSEL_EMBEDDINGS = "1";
+  const DAY = 86_400;
+  const now = 2_000_000_000;
+  insertMemory(ctx.db, "owner/repo", "deploy uses blue green rollout", {
+    updatedAt: now - 400 * DAY,
+  });
+  insertMemory(ctx.db, "owner/repo", "deploy uses canary rollout", {
+    updatedAt: now,
+  });
+  backfillRepoEmbeddings(ctx.db, "owner/repo");
+
+  const rows = fetchRepoContext(ctx.db, "owner/repo", 8, "deploy rollout");
+  const hits = rows.filter((r) => /rollout/.test(r.note));
+  assert.equal(hits.length, 2, "both rollout notes should surface");
+});
+
+test("recency decay on: a much older note is demoted below a newer tie", () => {
+  // Same two notes, but turn decay on with a short half-life. The 400-day-old
+  // note's score is multiplied toward zero, so the fresh note must rank first.
+  process.env.FOSSEL_EMBEDDINGS = "1";
+  const DAY = 86_400;
+  const now = 2_000_000_000;
+  insertMemory(ctx.db, "owner/repo", "deploy uses blue green rollout", {
+    updatedAt: now - 400 * DAY,
+  });
+  insertMemory(ctx.db, "owner/repo", "deploy uses canary rollout", {
+    updatedAt: now,
+  });
+  backfillRepoEmbeddings(ctx.db, "owner/repo");
+
+  const rows = fetchRepoContext(ctx.db, "owner/repo", 8, "deploy rollout", {
+    recencyHalfLifeDays: 30,
+  });
+  const searchHits = rows.filter(
+    (r) => r.source === "search" && /rollout/.test(r.note),
+  );
+  assert.ok(searchHits.length >= 1, "at least one rollout note surfaces");
+  assert.match(
+    searchHits[0].note,
+    /canary/,
+    "the fresh note must outrank the 400-day-old one under decay",
+  );
+});

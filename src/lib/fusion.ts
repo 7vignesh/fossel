@@ -66,6 +66,48 @@ export const DEFAULT_VECTOR_WEIGHT = 0.8;
  */
 export const DEFAULT_VECTOR_SCORE_FLOOR = 0;
 
+/**
+ * Half-life, in days, for an optional recency decay applied to fused scores.
+ * Defaults to 0, which disables decay entirely (every memory keeps its raw
+ * fused score). A positive value multiplies each score by 0.5 ^ (ageDays /
+ * halfLife), so a memory one half-life old is worth half as much as the newest.
+ *
+ * Age is measured corpus-relative: against the newest memory in the fused set,
+ * not the wall clock. This keeps the signal meaningful regardless of how old
+ * the whole corpus is, and keeps retrieval a pure function of the stored data
+ * rather than of the current time.
+ *
+ * Tried and rejected (#61): a recency decay term was added here behind this
+ * tunable and swept with `npx tsx bench/sweep.ts --sweep recency`. On the
+ * committed repo-memory benchmark every half-life from 1 to 365 days scored
+ * identically to decay-off: the dataset's memories are seconds apart in age, so
+ * any day-scale half-life leaves the decay factor at ~1 for all of them, and
+ * the ranking never moves. The dataset is also topical, not temporal - its only
+ * recency-sensitive queries are the two `superseded` cases, which supersession
+ * tombstones (migration 009) already resolve by filtering `valid_to`. Kept the
+ * plumbing (default 0 = inert) but did not change the default, per the working
+ * agreement: a retrieval knob only ships turned on when the numbers support it.
+ * Measuring this for real needs a temporally-labelled dataset ("which dated
+ * instance is current") with day/week-scale age gaps, which the repo-memory set
+ * is not.
+ */
+export const DEFAULT_RECENCY_HALF_LIFE_DAYS = 0;
+
+const SECONDS_PER_DAY = 86_400;
+
+/**
+ * Exponential recency decay factor in (0, 1]. `ageSeconds` is how much older a
+ * memory is than the newest in its set; `halfLifeDays <= 0` disables decay
+ * (returns 1). A memory `halfLifeDays` old scores 0.5, two half-lives 0.25, etc.
+ */
+export function recencyDecay(ageSeconds: number, halfLifeDays: number): number {
+  if (halfLifeDays <= 0 || ageSeconds <= 0) {
+    return 1;
+  }
+  const ageDays = ageSeconds / SECONDS_PER_DAY;
+  return Math.pow(0.5, ageDays / halfLifeDays);
+}
+
 export interface FusionWeights {
   fts: number;
   vector: number;
