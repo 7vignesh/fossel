@@ -214,6 +214,7 @@ interface RankedLists {
 export interface TuningOverrides {
   weights?: Partial<FusionWeights>;
   vectorScoreFloor?: number;
+  recencyHalfLifeDays?: number;
 }
 
 function retrieve(

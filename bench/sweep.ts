@@ -25,12 +25,13 @@ import {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-type Axis = "vector" | "floor" | "edge";
+type Axis = "vector" | "floor" | "edge" | "recency";
 
 const GRIDS: Record<Axis, number[]> = {
   vector: [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1, 1.5],
   floor: [0, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4],
   edge: [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1],
+  recency: [0, 1, 3, 7, 14, 30, 90, 180, 365],
 };
 
 function parseArgs(argv: string[]): { axes: Axis[]; values?: number[] } {
@@ -40,8 +41,13 @@ function parseArgs(argv: string[]): { axes: Axis[]; values?: number[] } {
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === "--sweep") {
       const value = argv[i + 1] as Axis | undefined;
-      if (value !== "vector" && value !== "floor" && value !== "edge") {
-        throw new Error("--sweep must be 'vector', 'floor' or 'edge'");
+      if (
+        value !== "vector" &&
+        value !== "floor" &&
+        value !== "edge" &&
+        value !== "recency"
+      ) {
+        throw new Error("--sweep must be 'vector', 'floor', 'edge' or 'recency'");
       }
       axes = [value];
       i += 1;
@@ -76,6 +82,9 @@ function tuningFor(axis: Axis, value: number): TuningOverrides {
   }
   if (axis === "edge") {
     return { weights: { ...base, edge: value } };
+  }
+  if (axis === "recency") {
+    return { weights: base, recencyHalfLifeDays: value };
   }
   return { weights: { ...base, vector: value } };
 }
