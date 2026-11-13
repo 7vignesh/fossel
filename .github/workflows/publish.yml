@@ -5,13 +5,18 @@ on:
     tags:
       - "v*"
 
-# Default read-only; the publish job keeps exactly this.
+# Read-only by default. The publish job adds id-token: write for provenance.
 permissions:
   contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Provenance signs the tarball via OIDC, which needs a short-lived id-token.
+    # Only this job gets it; the workflow default stays contents: read.
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout
@@ -46,6 +51,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish package
-        run: npm publish --access public
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
