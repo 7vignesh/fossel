@@ -1,6 +1,6 @@
 {
   "name": "fossel-git-drift-v1",
-  "description": "Git-aware drift fixtures (#31). Each memory references one file and declares the drift state that file should be in at read time: 'unchanged' (committed, untouched), 'committed-change' (content changed in a later commit), 'working-tree-dirty' (edited but not committed), or 'deleted' (removed and committed). The harness builds a scratch git repo deterministically from `files`, records file refs for every memory, then applies each memory's drift state, so findStaleFileRefs can be scored without any dependency on live repo state. Queries point at the memories whose files drifted, which is the signal #30 (drift-aware ranking) will use.",
+  "description": "Git-aware drift fixtures (#31). Each memory references one file and declares the drift state that file should be in at read time: 'unchanged' (committed, untouched), 'committed-change' (content changed in a later commit), 'working-tree-dirty' (edited but not committed), or 'deleted' (removed and committed). The harness builds a scratch git repo deterministically from `files`, records file refs for every memory, then applies each memory's drift state, so findStaleFileRefs can be scored without any dependency on live repo state. Queries point at the memories whose files drifted, which is the signal #30 (drift-aware ranking) will use. The 'contested' queries add lexical interference: two memories match a shared query near-equally but differ in drift state, so a drift-aware ranking change has measurable headroom (the per-state queries are 1:1 with memories and already saturate FTS at 1.0).",
   "repo": "acme/driftlab",
   "files": {
     "src/auth/jwt.ts": "export function verifyJwt(token: string) {\n  return decode(token);\n}\n",
@@ -12,7 +12,11 @@
     "src/cache/redis.ts": "export const redis = new Redis(process.env.REDIS_URL!);\n",
     "src/config/env.ts": "export const env = loadEnv();\n",
     "docs/deploy.md": "# Deploy\nRun the release workflow on a tag push.\n",
-    "src/legacy/soap.ts": "export function callSoap() {\n  throw new Error('removed');\n}\n"
+    "src/legacy/soap.ts": "export function callSoap() {\n  throw new Error('removed');\n}\n",
+    "src/queue/worker.ts": "export function startWorker() {\n  consume('jobs');\n}\n",
+    "src/queue/retry.ts": "export function retryPolicy() {\n  return { attempts: 3 };\n}\n",
+    "src/http/rate-limit.ts": "export const rateLimit = { window: 60, max: 100 };\n",
+    "src/http/limits.ts": "export const windowSeconds = 60;\nexport const maxPerClient = 100;\n"
   },
   "memories": [
     {
@@ -94,6 +98,38 @@
       "tags": ["legacy", "soap"],
       "file": "src/legacy/soap.ts",
       "drift": "deleted"
+    },
+    {
+      "key": "m-worker-drifted",
+      "note": "The queue worker consumes the jobs stream. See src/queue/worker.ts.",
+      "type": "convention",
+      "tags": ["queue", "worker"],
+      "file": "src/queue/worker.ts",
+      "drift": "committed-change"
+    },
+    {
+      "key": "m-worker-fresh",
+      "note": "The queue worker consumes the jobs stream with a bounded retry policy. See src/queue/retry.ts for the worker retry config.",
+      "type": "convention",
+      "tags": ["queue", "worker"],
+      "file": "src/queue/retry.ts",
+      "drift": "unchanged"
+    },
+    {
+      "key": "m-rl-drifted",
+      "note": "HTTP rate limiting is enforced. See src/http/rate-limit.ts.",
+      "type": "decision",
+      "tags": ["http", "rate-limit"],
+      "file": "src/http/rate-limit.ts",
+      "drift": "working-tree-dirty"
+    },
+    {
+      "key": "m-rl-fresh",
+      "note": "HTTP rate limiting is enforced with a fixed request window and per-client limit counters. See src/http/limits.ts for the rate limiting window and limit values.",
+      "type": "decision",
+      "tags": ["http", "rate-limit"],
+      "file": "src/http/limits.ts",
+      "drift": "unchanged"
     }
   ],
   "queries": [
@@ -152,6 +188,20 @@
       "relevant": ["m-migrate"],
       "category": "unchanged",
       "rationale": "src/db/migrate.ts is untouched."
+    },
+    {
+      "id": "q-contested-worker",
+      "query": "queue worker consumes jobs stream retry policy",
+      "relevant": ["m-worker-drifted"],
+      "category": "contested",
+      "rationale": "m-worker-fresh (unchanged, src/queue/retry.ts) wins pure FTS here: it repeats 'retry policy' and 'worker', so it carries more query terms. m-worker-drifted (committed-change, src/queue/worker.ts) is the intended answer but sits at rank 2 under FTS alone. Only a drift-aware ranking signal can lift it to rank 1, so MRR moves 0.5 -> 1.0 when #30 works and regresses if the drift hypothesis is wrong."
+    },
+    {
+      "id": "q-contested-ratelimit",
+      "query": "HTTP rate limiting request window per-client limit",
+      "relevant": ["m-rl-drifted"],
+      "category": "contested",
+      "rationale": "Mirror of q-contested-worker for a working-tree-dirty file. m-rl-fresh (unchanged, src/http/limits.ts) carries more query terms ('request window', 'per-client limit') and wins pure FTS; m-rl-drifted (working-tree-dirty, src/http/rate-limit.ts) is the intended answer at rank 2. Guards against a drift signal that only rewards committed changes and ignores dirty working trees."
     }
   ]
 }
