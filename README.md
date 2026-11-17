@@ -274,6 +274,7 @@ Every original tool is still available for power users.
 | Tool | Purpose |
 |------|---------|
 | `remember` | Save a memory in natural language — auto-infers type, tags, and repo |
+| `store_context` | Store a memory in explicit form with `type`, `note`, and `tags` |
 | `get_context` | Retrieve relevant memories, pinned first then recent |
 | `search_memory` | FTS search across notes, optional repo filter |
 | `pin_memory` / `unpin_memory` | Pin important memories to always appear first |
