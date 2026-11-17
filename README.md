@@ -286,6 +286,9 @@ Every original tool is still available for power users.
 | `dedupe_repo` | Merge near-duplicate memories |
 | `consolidate_memory` | Surface stale, redundant, and contradicted memories for review |
 | `summarize_repo_context` | Markdown summary — useful for PR descriptions |
+| `get_repo_context` | Recent memories for a repo, grouped by memory type |
+| `list_repos` | List every repo with stored memories and per-repo counts |
+| `resolve_repo` | Return the canonical repo key, aliases, and detected git remote |
 
 ### Memory types
 
