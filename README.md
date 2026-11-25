@@ -14,6 +14,8 @@
 
 2. **Add the JSON** from the output to **Cursor** (`~/.cursor/mcp.json`) or **Claude Desktop** MCP settings, then restart the app.
 
+   **Using Claude Code?** Run `claude mcp add fossel -- npx -y fossel` instead of editing JSON.
+
 3. **Run the server** (what the IDE launches; you can also run it manually for testing):
 
    ```bash
