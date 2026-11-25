@@ -67,6 +67,63 @@ For how retrieval actually works under the hood — three-tier FTS, local embedd
 
 ---
 
+## Retrieval Benchmarks & Architectural Trade-Offs
+
+Fossel's default search is SQLite FTS5 with BM25 ranking, run in three tiers (all terms, any term, stemmed prefix). Semantic search is opt-in. `npm run bench:neural` loads one 1,000-document corpus into three separate SQLite files and compares:
+
+- **Fossel 3-tier FTS5**: `searchFts()` from `src/lib/fts.ts`, the search the server runs by default.
+- **Fossel hybrid**: `fetchRepoContext()` with `FOSSEL_EMBEDDINGS=1`, which fuses FTS5 with the built-in feature-hashed vectors (256 dimensions, no model).
+- **sqlite-vec + all-MiniLM-L6-v2**: a `vec0` cosine index over 384-dimension embeddings from `Xenova/all-MiniLM-L6-v2` (`pooling: 'mean', normalize: true`), computed with `@huggingface/transformers`. This is an external baseline that Fossel does not ship.
+
+**Setup, index build and size**
+
+| System | Cold start (ms) | Index build, 1,000 docs (ms) | DB size (KB) |
+| --- | ---: | ---: | ---: |
+| Fossel 3-tier FTS5 | 38.6 | 87.7 | 1136.0 |
+| Fossel hybrid (FTS5 + hashed vectors) | 12.6 | 135.9 | 2552.0 |
+| sqlite-vec + all-MiniLM-L6-v2 | 282.6 | 47072.5 | 1812.0 |
+
+**Query latency** (5 untimed warmup queries, then 30 timed queries)
+
+| System | Measured path | p50 (ms) | p95 (ms) |
+| --- | ---: | ---: | ---: |
+| Fossel 3-tier FTS5 | searchFts() | 0.764 | 2.978 |
+| Fossel hybrid (FTS5 + hashed vectors) | fetchRepoContext() with hashed vectors | 10.863 | 17.831 |
+| sqlite-vec + all-MiniLM-L6-v2 | vec0 KNN, query vector precomputed | 6.173 | 6.724 |
+| sqlite-vec + all-MiniLM-L6-v2 | query embedding only | 9.016 | 15.837 |
+| sqlite-vec + all-MiniLM-L6-v2 | query embedding + vec0 KNN | 15.406 | 22.263 |
+
+**Recall** (15 symbol queries and 15 paraphrase queries, one relevant document each, so top-k recall equals hit@k)
+
+| System | Symbol top-1 | Symbol top-3 | Paraphrase top-1 | Paraphrase top-3 |
+| --- | ---: | ---: | ---: | ---: |
+| Fossel 3-tier FTS5 | 100.0% | 100.0% | 0.0% | 0.0% |
+| Fossel hybrid (FTS5 + hashed vectors) | 100.0% | 100.0% | 0.0% | 6.7% |
+| sqlite-vec + all-MiniLM-L6-v2 | 60.0% | 73.3% | 66.7% | 86.7% |
+
+Measured on an Intel Core i5-1135G7 (8 logical cores, 15.8 GB RAM), Windows 10.0.26300 x64, Node v22.21.1, SQLite 3.53.0, sqlite-vec v0.1.9, transformers.js 4.3.2. The raw output, including per-query ranks, is in [`bench/results/neural-compare.json`](bench/results/neural-compare.json). Reproduce with `npm run bench:neural`. It is not part of `npm run ci` because the first run downloads the model.
+
+### What the numbers show
+
+- **Identifier lookup favors FTS5.** The default search ranked the right document first for all 15 symbol queries (error codes such as `PGRST301`, function names, config keys, CLI flags). The dense baseline did so for 60.0%. Three of its misses ranked a sibling identifier (for example `PGRST302` beside `PGRST301`) above the target, the failure to expect from an embedding model on near-identical tokens.
+- **Paraphrase favors dense embeddings.** With no shared vocabulary, FTS5 returned no relevant document in the top 3 for any of the 15 paraphrase queries. The dense baseline ranked the right document first for 66.7% and in the top 3 for 86.7%. The built-in hashed vectors do not close the gap: hybrid reached 6.7% top-3, which is one query.
+- **No model, no download, no network.** Fossel's default path loads nothing: cold start was 38.6 ms (opening the file and running migrations) and the 1,000-document index took 87.7 ms. The dense baseline needs the 86.9 MB `all-MiniLM-L6-v2` model (stored outside the database file), downloaded on first use over the network. With the model already cached, its cold start was 282.6 ms (model load, first inference, creating the `vec0` table) and building the index took 47072.5 ms, almost all of it embedding the documents on CPU. The download time is not in these figures.
+- **Query cost.** The default path had a 0.764 ms p50 (2.978 ms p95). The dense baseline spent 9.016 ms p50 embedding the query, then 6.173 ms p50 on the KNN search, for 15.406 ms p50 end to end. Sub-millisecond lookup describes the default FTS5 path at p50 only.
+- **The hybrid path is not cheap.** `fetchRepoContext()` with hashed vectors took 10.863 ms p50. It does more than ranking (pinned and recent lookups, entity matching, an access-count write), and its vector leg scans every stored vector on each query.
+- **Database size.** 1136.0 KB, 2552.0 KB and 1812.0 KB, all small. These are not like-for-like: the Fossel files carry the full Fossel schema, and the sqlite-vec file holds only a documents table and the vector table.
+
+For a coding agent that mostly looks up symbols, error codes and file names, the default FTS5 path needs no model, no network and no startup cost, and it was the more accurate of the two on those queries. When a question is worded differently from the stored note, dense embeddings do better. Fossel can use them through `FOSSEL_EMBEDDER_CMD` (see [Hybrid semantic search](#hybrid-semantic-search-optional)).
+
+### Limits of this benchmark
+
+- **The corpus is synthetic.** It is generated from templates plus 45 hand-written documents, and the symbol/paraphrase split is deliberate. Each symbol query is a verbatim substring of its target, so a perfect FTS5 score on that half is expected by construction. Paraphrase targets share no content words with their queries by construction, so FTS5 cannot match them lexically. Neither half predicts accuracy on a real repository's memories.
+- **The query set is small.** Each query is worth 6.7 points of recall within its half, and p95 over 30 samples is the 29th-fastest.
+- **The dataset was revised after the first run.** The first version gave every paraphrase query a decoy that reused the query's own words. All three systems, the dense one included, ranked those decoys first, so paraphrase top-1 was 0.0% for every system and told nothing. The 15 paraphrase decoys were replaced with generic documents. The change was made after seeing results and it raises the dense baseline's paraphrase score. The sibling-identifier decoys on the symbol queries were kept.
+- **One machine, one recorded run.** Latency is wall-clock and varies. An earlier run on the same dataset measured `searchFts()` at 1.181 ms p50, against 0.764 ms in the recorded run.
+- **Dense search is measured alone.** The baseline is not fused with BM25, and Fossel was not run with an external embedder, which is the configuration that combines both. This benchmark does not measure that combination.
+
+---
+
 ## Simple mode (recommended)
 
 Two tools cover the 80% case. Neither needs you to specify `type` or `tags`.

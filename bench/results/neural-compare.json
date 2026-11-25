@@ -1,0 +1,703 @@
+{
+  "generatedBy": "npm run bench:neural",
+  "generatedAt": "2026-11-25T19:12:55.794Z",
+  "dataset": {
+    "name": "fossel-scale-1k-v1",
+    "documents": 1000,
+    "queries": 30,
+    "synthetic": true
+  },
+  "method": {
+    "limit": 10,
+    "warmupQueries": 5,
+    "timedQueries": 30,
+    "embedBatchSize": 32,
+    "model": "Xenova/all-MiniLM-L6-v2",
+    "pooling": {
+      "pooling": "mean",
+      "normalize": true
+    }
+  },
+  "environment": {
+    "node": "v22.21.1",
+    "os": "win32 10.0.26300 x64",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-1135G7 @ 2.40GHz",
+    "logicalCores": 8,
+    "memoryGb": 15.8,
+    "sqlite": "3.53.0",
+    "sqliteVec": "v0.1.9",
+    "transformersJs": "4.3.2"
+  },
+  "results": [
+    {
+      "id": "fossel-fts",
+      "label": "Fossel 3-tier FTS5",
+      "coldStartMs": 38.6,
+      "indexBuildMs": 87.7,
+      "dbSizeKb": 1136,
+      "latencyMs": {
+        "search": {
+          "n": 30,
+          "p50": 0.764,
+          "p95": 2.978,
+          "mean": 1.23,
+          "min": 0.288,
+          "max": 3.111
+        }
+      },
+      "recall": {
+        "paraphrase": {
+          "top1": 0,
+          "top3": 0
+        },
+        "symbol": {
+          "top1": 100,
+          "top3": 100
+        }
+      },
+      "ranks": [
+        {
+          "id": "s01",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s01"
+        },
+        {
+          "id": "s02",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s02"
+        },
+        {
+          "id": "s03",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s03"
+        },
+        {
+          "id": "s04",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s04"
+        },
+        {
+          "id": "s05",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s05"
+        },
+        {
+          "id": "s06",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s06"
+        },
+        {
+          "id": "s07",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s07"
+        },
+        {
+          "id": "s08",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s08"
+        },
+        {
+          "id": "s09",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s09"
+        },
+        {
+          "id": "s10",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s10"
+        },
+        {
+          "id": "s11",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s11"
+        },
+        {
+          "id": "s12",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s12"
+        },
+        {
+          "id": "s13",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s13"
+        },
+        {
+          "id": "s14",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s14"
+        },
+        {
+          "id": "s15",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s15"
+        },
+        {
+          "id": "p01",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p02"
+        },
+        {
+          "id": "p02",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s11"
+        },
+        {
+          "id": "p03",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s15"
+        },
+        {
+          "id": "p04",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s07"
+        },
+        {
+          "id": "p05",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s13"
+        },
+        {
+          "id": "p06",
+          "category": "paraphrase",
+          "rank": 4,
+          "top1": "n-p02"
+        },
+        {
+          "id": "p07",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s11"
+        },
+        {
+          "id": "p08",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-122"
+        },
+        {
+          "id": "p09",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-127"
+        },
+        {
+          "id": "p10",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s08"
+        },
+        {
+          "id": "p11",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p06"
+        },
+        {
+          "id": "p12",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s13"
+        },
+        {
+          "id": "p13",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s07"
+        },
+        {
+          "id": "p14",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p07"
+        },
+        {
+          "id": "p15",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s04"
+        }
+      ],
+      "detailMs": {
+        "openAndMigrate": 38.6,
+        "insertAndFtsTriggers": 87.7
+      },
+      "notes": [
+        "Search function: searchFts() (AND, OR, stemmed-prefix tiers)."
+      ]
+    },
+    {
+      "id": "fossel-hybrid",
+      "label": "Fossel hybrid (FTS5 + hashed vectors)",
+      "coldStartMs": 12.6,
+      "indexBuildMs": 135.9,
+      "dbSizeKb": 2552,
+      "latencyMs": {
+        "retrieval": {
+          "n": 30,
+          "p50": 10.863,
+          "p95": 17.831,
+          "mean": 12.272,
+          "min": 9.023,
+          "max": 25.698
+        }
+      },
+      "recall": {
+        "paraphrase": {
+          "top1": 0,
+          "top3": 6.7
+        },
+        "symbol": {
+          "top1": 100,
+          "top3": 100
+        }
+      },
+      "ranks": [
+        {
+          "id": "s01",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s01"
+        },
+        {
+          "id": "s02",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s02"
+        },
+        {
+          "id": "s03",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s03"
+        },
+        {
+          "id": "s04",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s04"
+        },
+        {
+          "id": "s05",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s05"
+        },
+        {
+          "id": "s06",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s06"
+        },
+        {
+          "id": "s07",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s07"
+        },
+        {
+          "id": "s08",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s08"
+        },
+        {
+          "id": "s09",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s09"
+        },
+        {
+          "id": "s10",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s10"
+        },
+        {
+          "id": "s11",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s11"
+        },
+        {
+          "id": "s12",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s12"
+        },
+        {
+          "id": "s13",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s13"
+        },
+        {
+          "id": "s14",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s14"
+        },
+        {
+          "id": "s15",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s15"
+        },
+        {
+          "id": "p01",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p02"
+        },
+        {
+          "id": "p02",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s11"
+        },
+        {
+          "id": "p03",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s15"
+        },
+        {
+          "id": "p04",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s07"
+        },
+        {
+          "id": "p05",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-s13"
+        },
+        {
+          "id": "p06",
+          "category": "paraphrase",
+          "rank": 2,
+          "top1": "n-p12"
+        },
+        {
+          "id": "p07",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s11"
+        },
+        {
+          "id": "p08",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-089"
+        },
+        {
+          "id": "p09",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-133"
+        },
+        {
+          "id": "p10",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-007"
+        },
+        {
+          "id": "p11",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p06"
+        },
+        {
+          "id": "p12",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-127"
+        },
+        {
+          "id": "p13",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "d-s07"
+        },
+        {
+          "id": "p14",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "n-p07"
+        },
+        {
+          "id": "p15",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-cli-073"
+        }
+      ],
+      "detailMs": {
+        "openAndMigrate": 12.6,
+        "insertAndFtsTriggers": 74.1,
+        "hashedEmbeddingBackfill": 61.7
+      },
+      "notes": [
+        "Timed path is fetchRepoContext(): FTS + hashed vector + RRF + entity lookup + backfill + access write.",
+        "No model: embeddings are feature-hashed, 256 dimensions."
+      ]
+    },
+    {
+      "id": "sqlite-vec-minilm",
+      "label": "sqlite-vec + all-MiniLM-L6-v2",
+      "coldStartMs": 282.6,
+      "indexBuildMs": 47072.5,
+      "dbSizeKb": 1812,
+      "latencyMs": {
+        "knnOnly": {
+          "n": 30,
+          "p50": 6.173,
+          "p95": 6.724,
+          "mean": 6.122,
+          "min": 4.515,
+          "max": 6.749
+        },
+        "queryEmbeddingOnly": {
+          "n": 30,
+          "p50": 9.016,
+          "p95": 15.837,
+          "mean": 9.673,
+          "min": 6.04,
+          "max": 16.466
+        },
+        "embeddingPlusKnn": {
+          "n": 30,
+          "p50": 15.406,
+          "p95": 22.263,
+          "mean": 15.795,
+          "min": 11.11,
+          "max": 22.979
+        }
+      },
+      "recall": {
+        "paraphrase": {
+          "top1": 66.7,
+          "top3": 86.7
+        },
+        "symbol": {
+          "top1": 60,
+          "top3": 73.3
+        }
+      },
+      "ranks": [
+        {
+          "id": "s01",
+          "category": "symbol",
+          "rank": null,
+          "top1": "d-s01"
+        },
+        {
+          "id": "s02",
+          "category": "symbol",
+          "rank": 10,
+          "top1": "n-s15"
+        },
+        {
+          "id": "s03",
+          "category": "symbol",
+          "rank": null,
+          "top1": "f-trace-091"
+        },
+        {
+          "id": "s04",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s04"
+        },
+        {
+          "id": "s05",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s05"
+        },
+        {
+          "id": "s06",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s06"
+        },
+        {
+          "id": "s07",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s07"
+        },
+        {
+          "id": "s08",
+          "category": "symbol",
+          "rank": 2,
+          "top1": "d-s08"
+        },
+        {
+          "id": "s09",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s09"
+        },
+        {
+          "id": "s10",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s10"
+        },
+        {
+          "id": "s11",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s11"
+        },
+        {
+          "id": "s12",
+          "category": "symbol",
+          "rank": 2,
+          "top1": "d-s12"
+        },
+        {
+          "id": "s13",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s13"
+        },
+        {
+          "id": "s14",
+          "category": "symbol",
+          "rank": 1,
+          "top1": "n-s14"
+        },
+        {
+          "id": "s15",
+          "category": "symbol",
+          "rank": null,
+          "top1": "d-s10"
+        },
+        {
+          "id": "p01",
+          "category": "paraphrase",
+          "rank": 2,
+          "top1": "n-p03"
+        },
+        {
+          "id": "p02",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p02"
+        },
+        {
+          "id": "p03",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p03"
+        },
+        {
+          "id": "p04",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p04"
+        },
+        {
+          "id": "p05",
+          "category": "paraphrase",
+          "rank": null,
+          "top1": "f-arch-096"
+        },
+        {
+          "id": "p06",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p06"
+        },
+        {
+          "id": "p07",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p07"
+        },
+        {
+          "id": "p08",
+          "category": "paraphrase",
+          "rank": 2,
+          "top1": "d-s11"
+        },
+        {
+          "id": "p09",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p09"
+        },
+        {
+          "id": "p10",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p10"
+        },
+        {
+          "id": "p11",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p11"
+        },
+        {
+          "id": "p12",
+          "category": "paraphrase",
+          "rank": 5,
+          "top1": "f-arch-137"
+        },
+        {
+          "id": "p13",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p13"
+        },
+        {
+          "id": "p14",
+          "category": "paraphrase",
+          "rank": 1,
+          "top1": "n-p14"
+        },
+        {
+          "id": "p15",
+          "category": "paraphrase",
+          "rank": 2,
+          "top1": "f-arch-037"
+        }
+      ],
+      "detailMs": {
+        "modelLoad": 260,
+        "firstInference": 11.3,
+        "openAndCreateVec0": 11.3,
+        "embedDocuments": 46939.7,
+        "insertDocuments": 132.7
+      },
+      "notes": [
+        "Model Xenova/all-MiniLM-L6-v2, dtype fp32, 384 dimensions, 86.9 MB on disk.",
+        "Database holds a docs table (key, note) plus the vec0 table; the model file is not in the database."
+      ]
+    }
+  ]
+}
