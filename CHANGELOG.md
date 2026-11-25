@@ -2,7 +2,9 @@
 
 All notable changes to Fossel are recorded in this file.
 
-## [Unreleased] - Measured retrieval, and the defects measuring it exposed
+## [Unreleased]
+
+## [2.2.0] - 2026-11-25 - Measured retrieval, and the defects measuring it exposed
 
 ### Added
 
