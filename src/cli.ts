@@ -578,8 +578,15 @@ function runStats(): void {
   closeDb();
 }
 
+const USAGE = "Usage: fossel [init [--no-dedupe] | doctor [--fix] | stats]";
+
 async function main(): Promise<void> {
   const command = process.argv[2];
+
+  if (command === "--help" || command === "-h") {
+    console.log(USAGE);
+    return;
+  }
 
   if (!command) {
     const { startServer } = await import("./index.js");
@@ -607,7 +614,7 @@ async function main(): Promise<void> {
   }
 
   console.error(`Unknown command: ${command}`);
-  console.error("Usage: fossel [init [--no-dedupe] | doctor [--fix] | stats]");
+  console.error(USAGE);
   process.exit(1);
 }
 
