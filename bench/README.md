@@ -163,6 +163,19 @@ id, symmetric types ordered). The one-hop edge leg is swept with
 `src/lib/fusion.ts` for the measured result (recall@5 62.5% -> 100% with the leg
 on).
 
+## Neural comparison (`npm run bench:neural`)
+
+Compares Fossel's real `searchFts()`, its built-in hybrid path, and an external
+dense baseline (`sqlite-vec` `vec0` cosine over `Xenova/all-MiniLM-L6-v2`) on the
+synthetic `scale-1k` dataset (1,000 documents, 15 symbol and 15 paraphrase
+queries). It reports cold start, index build time, p50/p95 query latency (5
+untimed warmups, then 30 timed queries), top-1/top-3 recall per query category,
+and database size, and writes `bench/results/neural-compare.json`.
+
+Unlike `npm run bench`, the output is wall-clock timing, so it varies between
+runs and is not a snapshot for `--check`. It is also outside `npm run ci`: the
+first run downloads the ~90 MB model into `bench/.cache/` (gitignored).
+
 ## Adding a benchmark case
 
 A retrieval change only counts if the numbers support it, and the numbers come from the

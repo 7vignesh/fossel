@@ -102,15 +102,20 @@ export interface IngestedDb {
   rowIdToKey: Map<number, string>;
   /** Every distinct repo the dataset wrote into. */
   repos: Set<string>;
+  /** Wall-clock split of `ingest`: opening the file and running migrations,
+   * then inserting rows (which also builds the FTS index via triggers). */
+  timings: { setupMs: number; insertMs: number };
   cleanup: () => void;
 }
 
 export function ingest(dataset: BenchDataset): IngestedDb {
+  const startedAt = performance.now();
   const dir = mkdtempSync(join(tmpdir(), "fossel-bench-"));
   const db = new Database(join(dir, "bench.db"));
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   runMigrations(db);
+  const setupDoneAt = performance.now();
 
   const insert = db.prepare(
     `
@@ -164,12 +169,17 @@ export function ingest(dataset: BenchDataset): IngestedDb {
     }
   });
   tx();
+  const insertDoneAt = performance.now();
 
   return {
     db,
     keyToRowId,
     rowIdToKey,
     repos,
+    timings: {
+      setupMs: setupDoneAt - startedAt,
+      insertMs: insertDoneAt - setupDoneAt,
+    },
     cleanup: () => {
       try {
         db.close();
@@ -186,7 +196,7 @@ export function ingest(dataset: BenchDataset): IngestedDb {
  * previous value afterwards. `embeddingsEnabled()` reads the env var at call
  * time, so modes can be switched in-process without spawning subprocesses.
  */
-function withEmbeddings<T>(enabled: boolean, fn: () => T): T {
+export function withEmbeddings<T>(enabled: boolean, fn: () => T): T {
   const previous = process.env.FOSSEL_EMBEDDINGS;
   if (enabled) {
     process.env.FOSSEL_EMBEDDINGS = "1";

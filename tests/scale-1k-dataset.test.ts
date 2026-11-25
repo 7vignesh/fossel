@@ -67,7 +67,7 @@ test("paraphrase targets share no content words with their query", () => {
 test("paraphrase queries are not answered by any generated filler", () => {
   // A filler sharing a rare query stem could make a paraphrase query ambiguous.
   const fillers = scale1k.memories.filter((m) => m.key.startsWith("f-"));
-  assert.equal(fillers.length, 940);
+  assert.equal(fillers.length, 955);
   for (const query of scale1k.queries.filter((q) => q.category === "paraphrase")) {
     const queryStems = contentStems(query.query);
     for (const filler of fillers) {
