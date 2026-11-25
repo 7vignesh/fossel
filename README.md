@@ -50,6 +50,21 @@
 
 ---
 
+## Benchmark: FTS5 vs a local dense model
+
+1,000 synthetic developer docs, 15 symbol queries and 15 paraphrase queries ([details and limits](#retrieval-benchmarks--architectural-trade-offs)).
+
+| System | Symbol top-1 | Paraphrase top-3 | Query p50 | Index build (1,000 docs) |
+|---|---:|---:|---:|---:|
+| Fossel (SQLite FTS5) | 100% | 0% | 0.76 ms | 88 ms |
+| sqlite-vec + MiniLM | 60% | 86.7% | 15.4 ms (embedding + KNN) | 47.1 s |
+
+Measured on Intel i5-1135G7 (neural wall-clock range across runs: 18.5–47.1 s index, 5.9–15.4 ms p50).
+
+Reproduce: `npm run bench:neural`
+
+---
+
 ## Why Fossel?
 
 | You get | Details |
