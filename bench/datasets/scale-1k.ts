@@ -10,15 +10,18 @@
  *
  * Composition (1,000 documents):
  *   -  30 needles   one hand-written target per query
- *   -  30 decoys    hand-written near-misses, one per query
- *   - 940 fillers   generated: 188 each of TypeScript signatures, PostgreSQL
+ *   -  15 decoys    hand-written near-misses for the symbol queries only
+ *   - 955 fillers   generated: 191 each of TypeScript signatures, PostgreSQL
  *                   schemas/errors, stack traces, CLI flags, architecture notes
  *
- * Decoys are deliberate and disclosed. An exact-symbol decoy is a sibling
- * identifier (PGRST302 next to PGRST301). A paraphrase decoy reuses the query's
- * own words in an unrelated sentence, so lexical overlap alone points at the
- * wrong document. Paraphrase targets are written to share no stemmed content
- * words with their query (checked in tests/scale-1k-dataset.test.ts).
+ * Symbol decoys are deliberate and disclosed: a sibling identifier sits next to
+ * each target (PGRST302 beside PGRST301), which is the realistic way identifier
+ * lookup goes wrong. Paraphrase queries have no decoys. An earlier revision
+ * gave them lexical-trap decoys that reused each query's own words; the first
+ * benchmark run showed every system, the dense model included, ranking those
+ * decoys first, which made paraphrase top-1 uninformative. Paraphrase targets
+ * share no stemmed content words with their query (checked in
+ * tests/scale-1k-dataset.test.ts).
  *
  * Label invariants (also checked in the test):
  *   - every exact query string appears, case-insensitively, in exactly one
@@ -33,7 +36,7 @@
 import type { BenchDataset, BenchMemory, BenchQuery, MemoryType } from "../lib/harness.js";
 
 export const SCALE_1K_SEED = 20240601;
-const FILLERS_PER_CATEGORY = 188;
+const FILLERS_PER_CATEGORY = 191;
 
 type Rng = () => number;
 
@@ -97,7 +100,8 @@ interface Case {
   query: string;
   rationale: string;
   target: { note: string; type: MemoryType; tags: string[] };
-  decoy: { note: string; type: MemoryType; tags: string[] };
+  /** Symbol cases only. See the header for why paraphrase cases have none. */
+  decoy?: { note: string; type: MemoryType; tags: string[] };
 }
 
 const CASES: Case[] = [
@@ -354,11 +358,6 @@ const CASES: Case[] = [
       type: "decision",
       tags: ["email", "reliability"],
     },
-    decoy: {
-      note: "Saving a purchase draft on the customer profile page fails when the server rejects a payload over 1MB. Trim the image attachments first.",
-      type: "issue",
-      tags: ["profile", "uploads"],
-    },
   },
   {
     id: "p02",
@@ -369,11 +368,6 @@ const CASES: Case[] = [
       note: "The API never deletes customer rows. A deleted_at timestamp hides them from normal queries, so audits and the undo window keep working.",
       type: "convention",
       tags: ["data", "audit"],
-    },
-    decoy: {
-      note: "Erase the local database for good with `make reset-db`; it recreates the user accounts used by the demo.",
-      type: "convention",
-      tags: ["dev", "makefile"],
     },
   },
   {
@@ -386,11 +380,6 @@ const CASES: Case[] = [
       type: "convention",
       tags: ["payments", "api"],
     },
-    decoy: {
-      note: "The phone checkout screen shows billed amounts two times, once in the header and once in the summary. The duplicate is cosmetic.",
-      type: "issue",
-      tags: ["mobile", "ui"],
-    },
   },
   {
     id: "p04",
@@ -401,11 +390,6 @@ const CASES: Case[] = [
       note: "Feature flags are evaluated once per request and cached on the request context, so flipping a flag mid-request cannot change behaviour half-way through.",
       type: "decision",
       tags: ["flags", "api"],
-    },
-    decoy: {
-      note: "The rollout switch (the blue toggle in the admin UI) is disabled while a call in progress banner is visible. Someone fixed its z-index.",
-      type: "issue",
-      tags: ["admin", "ui"],
     },
   },
   {
@@ -418,11 +402,6 @@ const CASES: Case[] = [
       type: "decision",
       tags: ["cache", "deploy"],
     },
-    decoy: {
-      note: "Upgrade checklist: the shared store of build objects is kept in sync by hand, and half the fleet dashboard misreads it.",
-      type: "general",
-      tags: ["ops", "checklist"],
-    },
   },
   {
     id: "p06",
@@ -433,11 +412,6 @@ const CASES: Case[] = [
       note: "Failed background jobs are retried with exponentially growing delays plus random jitter. After seven attempts they are parked in a dead-letter queue for a human to inspect.",
       type: "convention",
       tags: ["queue", "reliability"],
-    },
-    decoy: {
-      note: "Crashing tasks in the VS Code debugger keep hammering the system until you press stop. Use the forever-run watch flag sparingly.",
-      type: "general",
-      tags: ["dev", "debugger"],
     },
   },
   {
@@ -450,11 +424,6 @@ const CASES: Case[] = [
       type: "convention",
       tags: ["money", "data"],
     },
-    decoy: {
-      note: "Invoice sums on the prices page come out wrong when the locale uses a comma. Represent the decimal separator explicitly.",
-      type: "bug_fix",
-      tags: ["i18n", "ui"],
-    },
   },
   {
     id: "p08",
@@ -465,11 +434,6 @@ const CASES: Case[] = [
       note: "Access tokens last fifteen minutes. A longer-lived opaque credential in an httpOnly cookie is exchanged for a fresh one in the background.",
       type: "decision",
       tags: ["auth", "session"],
-    },
-    decoy: {
-      note: "Someone stays signed in on the kiosk all day because the sign-in form autofills and never clears the typed password. Clear it on blur.",
-      type: "bug_fix",
-      tags: ["kiosk", "ui"],
     },
   },
   {
@@ -482,11 +446,6 @@ const CASES: Case[] = [
       type: "decision",
       tags: ["websocket", "scaling"],
     },
-    decoy: {
-      note: "Chatting in the support channel attaches a single backend instance id to every message. People ask for it when reporting bugs.",
-      type: "general",
-      tags: ["support", "chat"],
-    },
   },
   {
     id: "p10",
@@ -497,11 +456,6 @@ const CASES: Case[] = [
       note: "Large CSV exports stream rows through a database cursor straight into the HTTP response instead of building the whole file in memory.",
       type: "convention",
       tags: ["export", "performance"],
-    },
-    decoy: {
-      note: "Docker Desktop shows RAM exhausted when someone downloads gigantic images. Avoid pulling every spreadsheet-service layer at once.",
-      type: "issue",
-      tags: ["docker", "dev"],
     },
   },
   {
@@ -514,11 +468,6 @@ const CASES: Case[] = [
       type: "convention",
       tags: ["migrations", "deploy"],
     },
-    decoy: {
-      note: "The wiki page on how to reshape a table's layout lists which older builds are still serving users. Update it after each release.",
-      type: "general",
-      tags: ["docs", "wiki"],
-    },
   },
   {
     id: "p12",
@@ -529,11 +478,6 @@ const CASES: Case[] = [
       note: "Each API key gets a token bucket in Redis that refills at a fixed pace, so short spikes pass but sustained abuse is throttled.",
       type: "decision",
       tags: ["api", "redis"],
-    },
-    decoy: {
-      note: "A client flooding us with too many calls in tests: the one client fixture wraps fetch and counts invocations. Reset it between specs.",
-      type: "general",
-      tags: ["testing", "fixtures"],
     },
   },
   {
@@ -546,11 +490,6 @@ const CASES: Case[] = [
       type: "convention",
       tags: ["logging", "observability"],
     },
-    decoy: {
-      note: "Backend components diagram: the full path an incoming call takes is drawn in docs/arch.drawio. Reconstruct it with the export script when something breaks.",
-      type: "general",
-      tags: ["docs", "diagram"],
-    },
   },
   {
     id: "p14",
@@ -562,11 +501,6 @@ const CASES: Case[] = [
       type: "convention",
       tags: ["security", "ops"],
     },
-    decoy: {
-      note: "The on-screen keyboard keeps passwords hidden. Keys the application needs for the IME are stored in prefs before they register.",
-      type: "general",
-      tags: ["kiosk", "input"],
-    },
   },
   {
     id: "p15",
@@ -577,11 +511,6 @@ const CASES: Case[] = [
       note: "List endpoints return an opaque cursor built from the last row's sort key rather than page numbers, because deep offsets get slower and skip or repeat rows when data changes.",
       type: "decision",
       tags: ["api", "pagination"],
-    },
-    decoy: {
-      note: "Collection requests in Postman hand back a bookmark folder. Jump to arbitrary positions with the sidebar instead.",
-      type: "general",
-      tags: ["tools", "postman"],
     },
   },
 ];
@@ -785,7 +714,9 @@ export function buildScale1k(seed: number = SCALE_1K_SEED): BenchDataset {
   const queries: BenchQuery[] = [];
   for (const c of CASES) {
     seeds.push({ key: `n-${c.id}`, ...c.target });
-    seeds.push({ key: `d-${c.id}`, ...c.decoy });
+    if (c.decoy) {
+      seeds.push({ key: `d-${c.id}`, ...c.decoy });
+    }
     queries.push({
       id: c.id,
       query: c.query,
@@ -806,7 +737,7 @@ export function buildScale1k(seed: number = SCALE_1K_SEED): BenchDataset {
   return {
     name: "fossel-scale-1k-v1",
     description:
-      "Synthetic 1,000-document developer-memory corpus (acme/platform) with 30 labelled queries: 15 exact-symbol and 15 paraphrase. 30 hand-written targets, 30 hand-written decoys (sibling identifiers for symbol queries, lexical traps for paraphrase queries) and 940 template-generated fillers. Seeded and deterministic. Synthetic by design: the symbol/paraphrase split probes two retrieval behaviours and is not a prediction of accuracy on a real repo.",
+      "Synthetic 1,000-document developer-memory corpus (acme/platform) with 30 labelled queries: 15 exact-symbol and 15 paraphrase. 30 hand-written targets, 15 hand-written decoys (sibling identifiers, symbol queries only) and 955 template-generated fillers. Seeded and deterministic. Synthetic by design: the symbol/paraphrase split probes two retrieval behaviours and is not a prediction of accuracy on a real repo.",
     repo: "acme/platform",
     memories,
     queries,
