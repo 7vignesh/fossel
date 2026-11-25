@@ -10,3 +10,9 @@ yarn-error.log*
 pnpm-debug.log*
 .DS_Store
 Thumbs.db
+
+# bench: HuggingFace model cache and scratch databases
+bench/.cache/
+*.db
+*.db-wal
+*.db-shm
