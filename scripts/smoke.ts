@@ -33,7 +33,7 @@ function extractMemoryId(message: string): string {
 }
 
 async function main(): Promise<void> {
-  const repo = "RocketChat/Rocket.Chat";
+  const repo = "acme/storefront";
   const client = new Client({
     name: "fossel-smoke-client",
     version: "0.1.0",
