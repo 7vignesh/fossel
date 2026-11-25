@@ -27,6 +27,7 @@
     "type": "git",
     "url": "git+https://github.com/7vignesh/fossel.git"
   },
+  "license": "MIT",
   "type": "module",
   "files": [
     "dist"
