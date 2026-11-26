@@ -25,7 +25,7 @@ test("real build: landing page is copied unchanged and docs overview exists", ()
     assert.equal(read(dir, "index.html"), LANDING);
     const overview = read(dir, "docs", "index.html");
     assert.match(overview, /<title>Documentation - Fossel docs<\/title>/);
-    assert.match(overview, /<h1>Overview<\/h1>/);
+    assert.match(overview, /<h1>Introduction &amp; Quickstart<\/h1>/);
     assert.ok(existsSync(join(dir, "docs", "docs.css")));
     assert.ok(existsSync(join(dir, "docs", "docs.js")));
   } finally {

@@ -16,13 +16,37 @@ export const GROUPS = [
     pages: [
       {
         slug: "index",
-        title: "Overview",
+        title: "Introduction & Quickstart",
         description:
-          "Fossel is a local-first MCP memory server that keeps repo conventions, bug fixes and decisions in SQLite on your machine.",
+          "What Fossel solves, why it runs fully local on SQLite, and how to start it with npx or a global install.",
       },
     ],
   },
-  { title: "MCP Client Setup", pages: [] },
+  {
+    title: "MCP Client Setup",
+    pages: [
+      {
+        slug: "claude-code",
+        title: "Claude Code",
+        description: "Add Fossel to Claude Code with claude mcp add, and check that it connected.",
+      },
+      {
+        slug: "cursor",
+        title: "Cursor",
+        description: "Add Fossel to Cursor's mcp.json, globally or per project.",
+      },
+      {
+        slug: "gemini-cli",
+        title: "Gemini CLI",
+        description: "Add Fossel to Gemini CLI's settings.json and check it with /mcp.",
+      },
+      {
+        slug: "opencode-windsurf",
+        title: "OpenCode & Windsurf",
+        description: "Add Fossel to OpenCode (tested) and Windsurf Cascade.",
+      },
+    ],
+  },
   { title: "Core Concepts", pages: [] },
   { title: "Reference", pages: [] },
   { title: "Architecture & Benchmarks", pages: [] },

@@ -1,0 +1,32 @@
+<p class="lead">Cursor reads MCP servers from an <code>mcp.json</code> file. Fossel runs as a local stdio server.</p>
+<p class="note">Not tested here: Cursor was not installed on the machine that wrote this page. The Cursor side follows the <a href="https://cursor.com/help/customization/mcp" target="_blank" rel="noopener noreferrer">Cursor MCP docs</a>. The JSON below is what <code>npx -y fossel init</code> prints, and Fossel's side is checked against the source.</p>
+
+<h2>Add Fossel</h2>
+<p>Cursor reads two files:</p>
+<ul>
+  <li><code>~/.cursor/mcp.json</code> applies to every project.</li>
+  <li><code>.cursor/mcp.json</code> in a repository applies to that project and can be committed so teammates share it.</li>
+</ul>
+<p>Create or merge this entry into <code>mcpServers</code>:</p>
+<code-block lang="json">{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "${workspaceFolder}"
+      }
+    }
+  }
+}</code-block>
+<p><code>FOSSEL_WORKSPACE</code> pins Fossel to your project root. Cursor sometimes launches MCP servers from your home directory, which would file memories under the wrong repo. Cursor expands <code>${workspaceFolder}</code> in this file.</p>
+<p>Restart Cursor after editing the file.</p>
+
+<h2>Verify</h2>
+<ol>
+  <li>Open the MCP tools list in the chat panel and confirm <code>fossel</code> is listed and its tools are enabled.</li>
+  <li>Ask the agent to call <code>resolve_repo</code>. The reply names the repo key, for example <code>acme/storefront</code>. If it names your home folder or the wrong project, the workspace setting did not apply.</li>
+  <li>Say <code>remember: Fossel is working in this repo</code>, then <code>what does Fossel remember?</code></li>
+</ol>
+<p>By default Cursor asks for approval before an agent uses an MCP tool, so the first calls will prompt you.</p>
+<p><code>npx fossel doctor</code> checks that <code>~/.cursor/mcp.json</code> exists. It does not read project-level <code>.cursor/mcp.json</code> files.</p>

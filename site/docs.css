@@ -213,3 +213,14 @@
 @media (prefers-reduced-motion: reduce) {
   .docs-sidebar, .docs-scrim, .docs-group summary::after { transition: none; }
 }
+
+/* provenance note under a page lead */
+.docs-article .note {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

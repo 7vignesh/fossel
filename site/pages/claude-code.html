@@ -1,0 +1,43 @@
+<p class="lead">Claude Code adds MCP servers with <code>claude mcp add</code>. Fossel runs as a local stdio server.</p>
+<p class="note">Not tested here: Claude Code was not installed on the machine that wrote this page. The Claude Code side follows the <a href="https://code.claude.com/docs/en/mcp" target="_blank" rel="noopener noreferrer">Claude Code MCP docs</a>. Fossel's side (the command, arguments and environment variables) is checked against the Fossel source.</p>
+
+<h2>Add Fossel</h2>
+<p>Run this inside your project:</p>
+<code-block lang="bash">claude mcp add fossel -- npx -y fossel</code-block>
+<p>Everything after <code>--</code> is the command Claude Code runs. Any <code>claude</code> options, such as <code>--env</code> or <code>--scope</code>, go before the server name.</p>
+
+<h2>Choose a scope</h2>
+<table>
+  <thead><tr><th>Scope</th><th>Command</th><th>Where it applies</th></tr></thead>
+  <tbody>
+    <tr><td>local (default)</td><td><code>claude mcp add fossel -- npx -y fossel</code></td><td>This project, for you only. Stored in <code>~/.claude.json</code>.</td></tr>
+    <tr><td>project</td><td><code>claude mcp add --scope project fossel -- npx -y fossel</code></td><td>Written to <code>.mcp.json</code> in the project root, so teammates who clone the repo get it. Claude Code asks each person to approve it.</td></tr>
+    <tr><td>user</td><td><code>claude mcp add --scope user fossel -- npx -y fossel</code></td><td>Every project you open.</td></tr>
+  </tbody>
+</table>
+<p>The file that project scope writes looks like this:</p>
+<code-block lang="json">{
+  "mcpServers": {
+    "fossel": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "fossel"]
+    }
+  }
+}</code-block>
+
+<h2>Verify</h2>
+<ol>
+  <li>Check the server and its status: <code>claude mcp get fossel</code>, or <code>claude mcp list</code> for all servers.</li>
+  <li>Start <code>claude</code> in your project and run <code>/mcp</code> to see the connection status.</li>
+  <li>Ask Claude to call the <code>resolve_repo</code> tool. It returns the repo key Fossel is using, for example <code>acme/storefront</code>.</li>
+  <li>Say <code>remember: Fossel is working in this repo</code>, then <code>what does Fossel remember?</code></li>
+</ol>
+
+<h2>If it picks the wrong repo</h2>
+<p>Fossel decides the repo from <code>FOSSEL_WORKSPACE</code>, or else from the working directory the client starts it in. If <code>resolve_repo</code> shows the wrong key, pin the project root with an absolute path:</p>
+<code-block lang="bash">claude mcp add --env FOSSEL_WORKSPACE=/absolute/path/to/project fossel -- npx -y fossel</code-block>
+<p>A fixed path only suits local or project scope. For user scope, leave it unset.</p>
+
+<h2>Remove</h2>
+<code-block lang="bash">claude mcp remove fossel</code-block>

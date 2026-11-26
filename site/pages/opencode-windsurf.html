@@ -1,0 +1,42 @@
+<p class="lead">OpenCode and Windsurf both launch Fossel as a local stdio server. OpenCode takes the command as an array, Windsurf as <code>command</code> plus <code>args</code>.</p>
+
+<h2>OpenCode</h2>
+<p class="note">Tested with OpenCode 1.14.48: the config below connected, and <code>opencode mcp list</code> showed Fossel as connected. OpenCode's config format has changed between versions, so read the version note.</p>
+<p>Create <code>opencode.json</code> in your project root, or use the global config at <code>~/.config/opencode/opencode.json</code>:</p>
+<code-block lang="json">{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "fossel": {
+      "type": "local",
+      "command": ["npx", "-y", "fossel"],
+      "enabled": true
+    }
+  }
+}</code-block>
+<p>OpenCode starts the server in the project folder, so Fossel finds the right repo without <code>FOSSEL_WORKSPACE</code>. This was confirmed by having OpenCode launch a probe command and reading the working directory it received.</p>
+
+<h3>Verify</h3>
+<code-block lang="bash">opencode mcp list</code-block>
+<p>The output shows <code>fossel</code> with a check mark and <code>connected</code>. Then ask the agent to call <code>resolve_repo</code>, and try <code>remember: Fossel is working in this repo</code>.</p>
+
+<h3>Version note</h3>
+<p>OpenCode's current online documentation describes a newer layout with servers under <code>mcp.servers</code>. OpenCode 1.14.48 rejected that layout with a configuration error and accepted servers directly under <code>mcp</code>, as above. If <code>opencode mcp list</code> reports a configuration error, check your version with <code>opencode --version</code> and use the layout that version's documentation shows. The <code>command</code> array stays <code>["npx", "-y", "fossel"]</code> either way.</p>
+
+<h2>Windsurf</h2>
+<p class="note">Not tested here: Windsurf was not installed on the machine that wrote this page. This section follows the <a href="https://docs.windsurf.com/windsurf/cascade/mcp" target="_blank" rel="noopener noreferrer">Windsurf Cascade MCP docs</a>, and Fossel's side is checked against the source.</p>
+<p>In Cascade, open the <code>...</code> menu, choose <strong>Open MCP config file</strong> in the MCPs section, and merge this entry into <code>mcpServers</code>:</p>
+<code-block lang="json">{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": {
+        "FOSSEL_WORKSPACE": "/absolute/path/to/project"
+      }
+    }
+  }
+}</code-block>
+<p>Use an absolute project path. Cascade documents <code>${env:VAR_NAME}</code> and <code>${file:/path/to/file}</code> interpolation, but not Cursor's <code>${workspaceFolder}</code>.</p>
+
+<h3>Verify</h3>
+<p>Refresh the MCP list in Cascade and confirm <code>fossel</code> and its tools appear. Then ask the agent to call <code>resolve_repo</code> and check that the repo key matches your project.</p>
