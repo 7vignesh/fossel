@@ -177,3 +177,29 @@ test("slugify keeps readable ids for inline markup and never leaves a tag behind
     assert.match(slugify(nasty), /^[a-z0-9-]*$/, nasty);
   }
 });
+
+test("bench elements render numbers from the results file and fail on a bad key", () => {
+  const { dir, done } = scratch();
+  try {
+    buildSite({ outDir: dir });
+    const html = read(dir, "docs", "architecture-benchmarks", "index.html");
+    const bench = JSON.parse(readFileSync(join(ROOT, "bench", "results", "neural-compare.json"), "utf8"));
+    const fts = bench.results.find((r: { id: string }) => r.id === "fossel-fts");
+    const neural = bench.results.find((r: { id: string }) => r.id === "sqlite-vec-minilm");
+    assert.ok(html.includes(`<td>${fts.latencyMs.search.p50.toFixed(3)}</td>`), "FTS p50 missing from the latency table");
+    assert.ok(html.includes(Math.round(neural.indexBuildMs).toLocaleString("en-US")), "neural index build missing");
+    assert.ok(!/<bench-/.test(html), "an unexpanded bench element was left in the page");
+  } finally {
+    done();
+  }
+
+  const f = fixture({ index: '<p><bench-value key="fts.latency.nope.p50" digits="1"></bench-value></p>' });
+  try {
+    assert.throws(
+      () => buildSite({ outDir: f.outDir, pagesDir: f.pagesDir, groups: [{ title: "A", pages: [page("index", "One")] }] }),
+      /does not resolve to a number/,
+    );
+  } finally {
+    f.done();
+  }
+});

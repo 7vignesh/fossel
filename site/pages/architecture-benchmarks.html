@@ -1,0 +1,72 @@
+<p class="lead">Fossel searches with SQLite FTS5 in one local file. This page explains that choice, then shows a measured comparison against a dense-embedding baseline built on <code>sqlite-vec</code> and a MiniLM model. The comparison is small and synthetic, and the limits section says exactly how. Read it before quoting any figure.</p>
+
+<h2>Why local SQLite FTS5</h2>
+<p>The project's own design notes state one constraint that drives most decisions: <em>no LLM, no model download, no network at runtime</em>. Search follows from it.</p>
+<ul>
+  <li><strong>One file, no service.</strong> Memories, the full-text index and every side table live in a single SQLite database. There is nothing to install, start, keep running or point a client at. The MCP server opens the file and answers.</li>
+  <li><strong>No model to fetch.</strong> FTS5 needs no vectors, so there is no embedding model to download, store or load, and no first-run delay waiting for one.</li>
+  <li><strong>The queries agents ask are mostly literal.</strong> Error codes, function names, config keys and file paths are tokens, and keyword search finds tokens exactly. This is a design judgment, and the benchmark below tests it on one synthetic corpus. It is not evidence about your repo.</li>
+  <li><strong>Predictable results.</strong> The same query over the same data returns the same ranking. Nothing depends on a model version.</li>
+</ul>
+<p>A separate vector-database server would add a process to run, a network port, and a way to produce vectors, which means an embedding model. Those are consequences of the design, not measurements. <strong>This benchmark did not test a database server.</strong> Its dense baseline, <code>sqlite-vec</code>, is a SQLite extension that runs inside the same process, so it is a fairer comparison for a local tool but says nothing about a daemon's latency.</p>
+<p>Semantic search is still available. <code>FOSSEL_EMBEDDINGS=1</code> turns on a built-in vector leg that needs no model, and <code>FOSSEL_EMBEDDER_CMD</code> lets you plug in a real model. See <a href="/docs/how-fossel-works/">How Fossel Works</a> and <a href="/docs/cli/">CLI &amp; Configuration</a>.</p>
+
+<h2>What was compared</h2>
+<p>One corpus of <bench-value key="dataset.documents" digits="0"></bench-value> documents went into three separate SQLite files, and each system answered the same <bench-value key="dataset.queries" digits="0"></bench-value> queries.</p>
+<table>
+  <thead><tr><th>System</th><th>What runs</th></tr></thead>
+  <tbody>
+    <tr><td>Fossel 3-tier FTS5</td><td><code>searchFts()</code> from <code>src/lib/fts.ts</code>: the exact, OR and stemmed-prefix tiers, ranked by BM25. This is the keyword search Fossel runs by default. It is not a bare <code>bm25()</code> query.</td></tr>
+    <tr><td>Fossel hybrid</td><td><code>fetchRepoContext()</code> with <code>FOSSEL_EMBEDDINGS=1</code>: FTS5 plus the built-in 256-dimension hashed vectors, fused with weighted rank fusion, plus entity lookup and the recent-memory backfill.</td></tr>
+    <tr><td>sqlite-vec + MiniLM</td><td>A <code>vec0</code> table with cosine distance over 384-dimension embeddings from <code>Xenova/all-MiniLM-L6-v2</code> (mean pooling, normalized), computed with <code>@huggingface/transformers</code> in fp32. This is an external baseline. Fossel does not ship it.</td></tr>
+  </tbody>
+</table>
+
+<h2>Results</h2>
+<p>These tables are generated from <code>bench/results/neural-compare.json</code> when the site is built. They are not typed in.</p>
+<bench-results></bench-results>
+
+<h2>What the numbers show</h2>
+<h3>Symbol lookup: FTS5 found every target, the dense baseline did not</h3>
+<p>The 15 symbol queries are error codes such as <code>PGRST301</code>, function names, config keys and CLI flags. Fossel's FTS5 search ranked the right document first for <bench-value key="fts.recall.symbol.top1" digits="0"></bench-value>% of them. The dense baseline did so for <bench-value key="neural.recall.symbol.top1" digits="0"></bench-value>%, and had the target in its top three for <bench-value key="neural.recall.symbol.top3" digits="1"></bench-value>%.</p>
+<p>Of the dense baseline's top-1 misses on symbol queries, <bench-value key="neural.top1miss.symbol.decoy" digits="0"></bench-value> ranked a planted decoy first, <bench-value key="neural.top1miss.symbol.filler" digits="0"></bench-value> ranked a generated filler first, and <bench-value key="neural.top1miss.symbol.target" digits="0"></bench-value> ranked another query's target first. Most of the decoys were the target's own sibling identifier (for example <code>PGRST302</code> ahead of <code>PGRST301</code>), which is the mistake to expect from an embedding model on near-identical tokens. Not every decoy was a sibling: one was the decoy planted for a different query.</p>
+<p>This result is partly built in. Each symbol query is a literal substring of its one target, so a keyword search is expected to find it. The test of the design is the sibling-identifier decoys, which FTS5 passed.</p>
+
+<h3>Paraphrase: the dense baseline wins clearly</h3>
+<p>The 15 paraphrase queries are questions written without the words their answers use. FTS5 had the target in its top 10 for <bench-value key="fts.top10.paraphrase" digits="0"></bench-value> of 15, and in its top three for <bench-value key="fts.recall.paraphrase.top3" digits="1"></bench-value>%. The dense baseline ranked the target first for <bench-value key="neural.recall.paraphrase.top1" digits="1"></bench-value>% and in the top three for <bench-value key="neural.recall.paraphrase.top3" digits="1"></bench-value>%. Fossel's built-in hashed vectors do not close the gap: hybrid mode reached <bench-value key="hybrid.recall.paraphrase.top3" digits="1"></bench-value>% in the top three, which is one query.</p>
+<p>That gap is the reason the <code>FOSSEL_EMBEDDER_CMD</code> hook exists. If your agent asks questions in different words from your notes, a real embedding model helps, and Fossel can use one.</p>
+
+<h3>Cost: setup, index build and query time</h3>
+<ul>
+  <li><strong>Index build.</strong> Building the index for 1,000 documents took <bench-value key="fts.indexBuildMs" digits="0"></bench-value> ms with FTS5 and <bench-value key="neural.indexBuildMs" digits="0"></bench-value> ms for the dense baseline. Embedding the documents accounts for <bench-value key="neural.detail.embedDocuments" digits="0"></bench-value> ms of that.</li>
+  <li><strong>Model.</strong> The dense baseline needs the <bench-value key="neural.modelMb" digits="1"></bench-value> MB fp32 model, stored outside the database. The first run downloads it over the network, and that time is not in the figures. With the model already cached, loading it took <bench-value key="neural.detail.modelLoad" digits="0"></bench-value> ms. The reference embedder script in the Fossel repository uses a quantized build that its comments put at about 30 MB, which this benchmark did not measure.</li>
+  <li><strong>Query time.</strong> <code>searchFts()</code> had a median of <bench-value key="fts.latency.search.p50" digits="2"></bench-value> ms and a 95th percentile of <bench-value key="fts.latency.search.p95" digits="2"></bench-value> ms. The dense baseline spent a median of <bench-value key="neural.latency.queryEmbeddingOnly.p50" digits="1"></bench-value> ms embedding the query and <bench-value key="neural.latency.knnOnly.p50" digits="1"></bench-value> ms on the vector search, <bench-value key="neural.latency.embeddingPlusKnn.p50" digits="1"></bench-value> ms together. Sub-millisecond describes the FTS5 median only.</li>
+  <li><strong>The hybrid path is not cheap.</strong> <code>fetchRepoContext()</code> with hashed vectors had a median of <bench-value key="hybrid.latency.retrieval.p50" digits="1"></bench-value> ms. It does more than ranking (pinned and recent lookups, entity matching, an access-count write), and its vector leg compares against every stored vector on each query. The no-model default does not pay this.</li>
+  <li><strong>Database size.</strong> <bench-value key="fts.dbSizeKb" digits="0"></bench-value> KB, <bench-value key="hybrid.dbSizeKb" digits="0"></bench-value> KB and <bench-value key="neural.dbSizeKb" digits="0"></bench-value> KB for FTS5, hybrid and sqlite-vec. These are not like for like. The Fossel files carry Fossel's full schema, and the sqlite-vec file holds only a documents table and the vector table.</li>
+</ul>
+
+<h2>Method</h2>
+<ul>
+  <li><strong>Corpus.</strong> The dataset is <code>bench/datasets/scale-1k.ts</code>, generated with a fixed seed so every run builds the same documents. It has 30 hand-written target documents (one per query), 15 hand-written decoys, and 955 template-generated fillers. The fillers are TypeScript signatures, PostgreSQL schemas and errors, stack traces, CLI flags and architecture notes, 191 of each. The 15 decoys are sibling identifiers placed beside the symbol targets.</li>
+  <li><strong>Labels.</strong> Each query has exactly one correct document. A test checks that each symbol query occurs, as a substring, only in its target, and that each paraphrase target shares no content words with its query after light stemming.</li>
+  <li><strong>Timing.</strong> Each system ran <bench-value key="method.warmupQueries" digits="0"></bench-value> untimed warmup queries, then answered each of the <bench-value key="method.timedQueries" digits="0"></bench-value> queries once, timed. Percentiles use the nearest-rank method, so the 95th percentile of 30 samples is the 29th-fastest value.</li>
+  <li><strong>Recall.</strong> With one relevant document per query, top-1 and top-3 recall are the share of queries whose target was ranked first, or in the first three. Each query is worth about 6.7 points within its category.</li>
+  <li><strong>Embedding.</strong> Documents were embedded in batches of <bench-value key="method.embedBatchSize" digits="0"></bench-value> and queries one at a time.</li>
+</ul>
+
+<h2>Limits</h2>
+<ul>
+  <li><strong>The corpus is synthetic.</strong> It is generated from templates plus hand-written documents, and the split between symbol and paraphrase queries is deliberate. Neither half predicts accuracy on a real repository's memories.</li>
+  <li><strong>The categories decide the winner.</strong> Symbol queries were written to be literal matches, and paraphrase targets were written to share no content words with their queries. A perfect FTS5 score on the first half and a near-zero score on the second are close to guaranteed by construction. The numbers show the size of each effect on this data. They do not show which kind of query your agent asks more often.</li>
+  <li><strong>The query set is small.</strong> Thirty queries means one query moves a category by 6.7 points. A different set of 30 could rank the systems differently.</li>
+  <li><strong>One machine, one recorded run.</strong> The figures are wall-clock times from a single run on one laptop. A later run on the same machine, which was not committed, measured the dense baseline's index build at about 18.5 seconds and its median embedding-plus-search query at about 5.9 ms, against the recorded 47 seconds and 15.4 ms. Across the five runs made while preparing this page, the FTS5 median ranged from 0.62 to 1.18 ms. Timings vary a lot between runs here, so treat the latencies as an order of magnitude, not as a specification.</li>
+  <li><strong>The dataset was revised after the first run.</strong> The first version gave every paraphrase query a decoy that reused the query's own words. All three systems, the dense one included, ranked those decoys first, so paraphrase top-1 was 0% for every system and told nothing. Those 15 decoys were replaced with generic documents. That change was made after seeing results, and it raises the dense baseline's paraphrase score.</li>
+  <li><strong>Dense search was measured alone.</strong> The baseline is not fused with keyword search, and Fossel was not run with an external embedder, which is the setup that combines both. This benchmark says nothing about that combination.</li>
+  <li><strong>No database server was tested.</strong> See the first section.</li>
+</ul>
+
+<h2>Reproduce it</h2>
+<p>From a clone of the repository, with Node 20 or newer:</p>
+<code-block lang="bash">npm ci
+npm run bench:neural</code-block>
+<p>The first run downloads the model into <code>bench/.cache/</code>, which is ignored by git. The script prints the tables and writes <code>bench/results/neural-compare.json</code>. It is not part of <code>npm run ci</code>, because it needs the network on first use and its timings are not stable enough to gate on. The recall figures are deterministic and reproduced exactly across runs here. The latencies were not.</p>
