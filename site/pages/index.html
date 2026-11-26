@@ -1,0 +1,12 @@
+<p class="lead">Fossel is a local-first MCP memory server. It keeps your repo's conventions, bug fixes and decisions in SQLite on your machine, and serves them back to Cursor, Claude and any stdio MCP client.</p>
+
+<h2>Try it</h2>
+<p>Run the onboarding command inside a repository. It prints the MCP config to paste into your client and adds a starter memory if the database is empty.</p>
+<code-block lang="bash">npx -y fossel init</code-block>
+<p>The database lives at <code>~/.fossel/memory.db</code>. Set <code>FOSSEL_DB_PATH</code> to put it somewhere else.</p>
+
+<h2>More</h2>
+<ul>
+  <li><a href="https://github.com/7vignesh/fossel#readme" target="_blank" rel="noopener noreferrer">README</a> for the full quick start and every client's config.</li>
+  <li><a href="https://github.com/7vignesh/fossel/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">Architecture notes</a> on how retrieval works.</li>
+</ul>

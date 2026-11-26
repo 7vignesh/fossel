@@ -1,0 +1,215 @@
+/* ─────────── docs ───────────
+   Appended after the landing page's tokens, layout, nav and footer CSS, which
+   scripts/build-site.mjs extracts from index.html. Only docs-specific rules
+   live here. */
+
+:root { --nav-h: 59px; }
+
+/* top bar additions */
+.docs-brandrow { display: flex; align-items: center; gap: var(--space-3); }
+.docs-crumb {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--border);
+}
+.docs-menu-btn { display: none; }
+
+/* shell: sidebar + content */
+.docs-shell {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+.docs-sidebar {
+  position: sticky; top: var(--nav-h);
+  height: calc(100dvh - var(--nav-h));
+  overflow-y: auto;
+  padding: var(--space-8) var(--space-4) var(--space-8) var(--space-6);
+  border-right: 1px solid var(--divider);
+}
+.docs-scrim { display: none; }
+
+.docs-group + .docs-group { margin-top: var(--space-5); }
+.docs-group summary {
+  display: flex; align-items: center; justify-content: space-between;
+  list-style: none; cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+}
+.docs-group summary::-webkit-details-marker { display: none; }
+.docs-group summary::after {
+  content: ''; width: 6px; height: 6px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--transition);
+}
+.docs-group[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.docs-group summary:hover { color: var(--text); }
+.docs-group ul { list-style: none; margin-top: var(--space-2); }
+.docs-group li a {
+  display: block;
+  padding: var(--space-1) var(--space-3);
+  margin-left: var(--space-2);
+  border-left: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+}
+.docs-group li a:hover { color: var(--text); border-left-color: var(--border-hi); }
+.docs-group li a[aria-current="page"] {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* content */
+.docs-main { padding: var(--space-12) var(--space-8) var(--space-20); min-width: 0; }
+.docs-article { max-width: 46rem; }
+.docs-article h1 {
+  font-family: var(--font-display); font-style: italic; font-weight: 400;
+  font-size: var(--text-2xl); letter-spacing: -0.01em;
+  margin-bottom: var(--space-5);
+}
+.docs-article h2 {
+  font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em;
+  margin: var(--space-12) 0 var(--space-4);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--divider);
+  scroll-margin-top: calc(var(--nav-h) + var(--space-4));
+}
+.docs-article h3 {
+  font-size: var(--text-base); font-weight: 600;
+  margin: var(--space-8) 0 var(--space-3);
+  scroll-margin-top: calc(var(--nav-h) + var(--space-4));
+}
+.docs-article p { margin-bottom: var(--space-4); max-width: none; }
+.docs-article .lead { font-size: var(--text-lg); color: var(--text-muted); line-height: 1.5; }
+.docs-article ul, .docs-article ol { margin: 0 0 var(--space-4) var(--space-6); }
+.docs-article li { margin-bottom: var(--space-2); }
+.docs-article a { color: var(--accent); text-underline-offset: 3px; }
+.docs-article a:hover { color: var(--accent-hi); }
+.docs-article :not(pre) > code {
+  padding: 0.1em 0.4em;
+  background: var(--surface-2);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-sm);
+}
+.docs-article table {
+  display: block; overflow-x: auto;
+  border-collapse: collapse; margin: 0 0 var(--space-6);
+  font-size: var(--text-sm);
+}
+.docs-article th, .docs-article td {
+  text-align: left; vertical-align: top;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+}
+.docs-article th {
+  background: var(--surface-2);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500;
+  color: var(--text-muted); white-space: nowrap;
+}
+
+/* code block: same look as the landing page's .code primitive */
+.docs-article .code {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+  margin: var(--space-5) 0 var(--space-6);
+}
+.docs-article .code-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface-2);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+.docs-article .code-lang { letter-spacing: 0.08em; text-transform: lowercase; }
+.docs-article .code-copy {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  transition: color var(--transition), border-color var(--transition);
+}
+.docs-article .code-copy:hover { color: var(--text); border-color: var(--border); }
+.docs-article .code-copy-icon { display: inline-flex; }
+.docs-article .code pre {
+  padding: var(--space-5);
+  font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.7;
+  overflow-x: auto;
+  color: var(--text);
+}
+.docs-article .code pre code { font-size: inherit; background: none; border: 0; padding: 0; }
+
+/* previous / next */
+.docs-pager {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);
+  margin-top: var(--space-16); padding-top: var(--space-6);
+  border-top: 1px solid var(--divider);
+}
+.docs-pager a {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-decoration: none; color: var(--text);
+  transition: border-color var(--transition), background var(--transition);
+}
+.docs-pager a:hover { border-color: var(--border-hi); background: var(--surface-2); color: var(--text); }
+.docs-pager-next { text-align: right; grid-column: 2; }
+.docs-pager-prev { grid-column: 1; }
+.docs-pager-label {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted);
+}
+.docs-pager-title { color: var(--accent); font-weight: 500; }
+
+/* small screens: the sidebar becomes a drawer */
+@media (max-width: 900px) {
+  .docs-menu-btn { display: grid; }
+  .docs-shell { grid-template-columns: minmax(0, 1fr); }
+  .docs-sidebar {
+    position: fixed; top: var(--nav-h); bottom: 0; left: 0; z-index: 90;
+    width: min(20rem, 86vw); height: auto;
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform var(--transition), visibility 0s linear 200ms;
+  }
+  .docs-menu-open .docs-sidebar {
+    transform: none; visibility: visible;
+    transition: transform var(--transition), visibility 0s;
+  }
+  .docs-scrim {
+    display: block; position: fixed; inset: var(--nav-h) 0 0 0; z-index: 80;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0; visibility: hidden;
+    transition: opacity var(--transition), visibility 0s linear 200ms;
+  }
+  .docs-menu-open .docs-scrim { opacity: 1; visibility: visible; transition: opacity var(--transition), visibility 0s; }
+  .docs-menu-open { overflow: hidden; }
+  .docs-main { padding: var(--space-8) var(--space-5) var(--space-16); }
+}
+@media (max-width: 560px) {
+  .docs-crumb { display: none; }
+  .docs-pager { grid-template-columns: 1fr; }
+  .docs-pager-next, .docs-pager-prev { grid-column: 1; text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .docs-sidebar, .docs-scrim, .docs-group summary::after { transition: none; }
+}

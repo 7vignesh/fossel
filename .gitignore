@@ -20,3 +20,4 @@ bench/.cache/
 # local environment files
 .env
 .env.*
+public/
