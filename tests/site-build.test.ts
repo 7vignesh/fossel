@@ -149,7 +149,7 @@ test("code-block renders a labelled, escaped block with a copy button", () => {
     "t",
   );
   assert.match(html, /<span class="code-lang">json<\/span>/);
-  assert.match(html, /<button type="button" class="code-copy" aria-label="Copy json code to clipboard">/);
+  assert.match(html, /<button type="button" class="code-copy" aria-label="Copy json to clipboard">/);
   assert.match(html, /<pre><code>\{ &quot;a&quot;: &quot;&lt;b&gt;&amp;&quot; \}<\/code><\/pre>/);
   assert.ok(!html.includes("<b>"), "raw markup must not survive");
   assert.equal(escapeHtml("<&>"), "&lt;&amp;&gt;");

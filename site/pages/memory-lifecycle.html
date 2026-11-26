@@ -1,0 +1,70 @@
+<p class="lead">A memory is created, may be merged with a near-duplicate, may be flagged against a related one, can be retired without being erased, and can be marked stale when the code it mentions changes. This page follows one memory through those stages. Every response shown is recorded from the real server by <code>npm run docs:snapshot</code>.</p>
+
+<h2>1. Create</h2>
+<p><code>remember</code> saves a note. With no type or tags given, Fossel infers them and reports what it chose.</p>
+<tool-example step="remember-basic"></tool-example>
+<p>You can set the type, the tags, or both. Fossel merges your tags with the inferred ones and keeps at most five.</p>
+<tool-example step="remember-explicit"></tool-example>
+<p>The six types are <code>convention</code>, <code>bug_fix</code>, <code>reviewer_pattern</code>, <code>decision</code>, <code>issue</code> and <code>general</code>.</p>
+
+<h3>Relative dates are written out</h3>
+<p>A note that says "last week" will be wrong in a month. When a note contains a relative date, Fossel appends the absolute date in parentheses and keeps your wording.</p>
+<tool-example step="remember-dates"></tool-example>
+
+<h3>Storing exactly what you give</h3>
+<p><code>infer: false</code> on <code>remember</code> skips type and tag inference. <code>store_context</code> goes further: it never merges and never raises a conflict notice.</p>
+<tool-example step="remember-verbatim"></tool-example>
+<tool-example step="store-context"></tool-example>
+
+<h2>2. Merge near-duplicates</h2>
+<p>Saying the same thing twice should not create two memories. On every <code>remember</code>, Fossel compares the new note with the repo's 200 most recently updated memories. If one scores 0.82 or higher, the new note merges into it instead of being stored.</p>
+<p>The score blends word overlap (55%) with overlap of three-character pieces of the text (45%), after lowercasing and removing punctuation. A note that matches an existing one exactly after that cleanup is found immediately, without scoring.</p>
+<p>On a merge, the longer of the two notes is kept, the tags are combined, the existing type is kept unless you passed one, and the change is recorded in the memory's history.</p>
+<tool-example step="remember-duplicate"></tool-example>
+
+<h2>3. Flag related and conflicting memories</h2>
+<p>A note that changes an earlier decision is similar to the old one, but not similar enough to merge. For notes that score between 0.28 and 0.82 against existing memories, <code>remember</code> lists up to the three closest in its reply. If exactly one of the two notes contains a replacement or negation cue (such as <em>no longer</em>, <em>not</em>, <em>never</em>, <em>instead</em>, <em>replaced</em>, <em>deprecated</em> or <em>migrated</em>), the entry is marked <code>⚠ may contradict/supersede</code>.</p>
+<p>Fossel does not decide anything here. It cannot read meaning, so it reports the candidates and leaves the call to the agent, which can then use <code>update_memory</code>, <code>supersede_memory</code> or <code>delete_memory</code>. The same candidates are saved as edges (<code>contradicts</code> when flagged, <code>relates_to</code> otherwise), so the link survives after the reply is gone.</p>
+<tool-example step="remember-conflict"></tool-example>
+
+<h2>4. Revise</h2>
+<p><code>update_memory</code> changes a memory's text, its type, or both. It re-indexes the new text, so search, entities and file references follow the edit.</p>
+<tool-example step="update-memory"></tool-example>
+<tool-example step="update-memory-empty"></tool-example>
+<p>Pinning moves a memory to the top of <code>get_context</code> results.</p>
+<tool-example step="pin-memory"></tool-example>
+
+<h2>5. Retire, don't erase</h2>
+<p><code>supersede_memory</code> ends a memory's life without deleting it. The row stays in the database with an end time and a history entry, and it stops appearing in every live search and listing. If you name its replacement, Fossel also records a <code>supersedes</code> edge when both are in the same repo.</p>
+<tool-example step="supersede-memory"></tool-example>
+<p>A superseded memory can no longer be looked up by id. Tools that take an id report it as not found, and that includes calling <code>supersede_memory</code> on it a second time. Only <code>export_memories</code> and the repo counts still see it.</p>
+<tool-example step="superseded-lookup"></tool-example>
+<p>Use <code>delete_memory</code> when the memory was simply wrong and should leave no trace. Deleting removes the row for good, along with its embedding, entities and file references. Its edges are closed, not removed.</p>
+<tool-example step="delete-memory"></tool-example>
+<tool-example step="delete-memory-missing"></tool-example>
+
+<h2>6. Clean up</h2>
+<p>Two tools help keep a repo tidy. Both leave the decision to you.</p>
+<p><code>consolidate_memory</code> is read-only. It reports memories that look stale (never returned by a context retrieval, not pinned, and not updated for more than <code>stale_days</code> days, default 90), pairs that look redundant (similarity of 0.70 or more), and pairs where one note carries a negation cue that the other lacks (similarity from 0.28 up to 0.70). The stale check covers every live memory. The two pair checks look at the 100 most recently updated, and the report stops at <code>max_candidates</code> entries (default 20).</p>
+<tool-example step="consolidate-memory"></tool-example>
+<p><code>dedupe_repo</code> merges near-duplicates in bulk. By default it only prints a plan. Pass <code>apply: true</code> to carry it out. Memories of different types are never merged. The memory that is kept is the more recently updated one, and it ends up pinned if either of the two was pinned. The default threshold is 0.85, stricter than the 0.82 that <code>remember</code> uses.</p>
+<tool-example step="store-duplicate-a"></tool-example>
+<tool-example step="store-duplicate-b"></tool-example>
+<tool-example step="dedupe-dry-run"></tool-example>
+<tool-example step="dedupe-apply"></tool-example>
+
+<h2>7. Detect code drift</h2>
+<p>A memory that says "the auth middleware in <code>src/auth.ts</code> rejects expired tokens" goes wrong when that file changes. When you save a note inside a git repository, Fossel finds the file paths in it (names ending in a recognized code or config extension) and records each file's git blob hash at that moment.</p>
+<p>On every <code>get_context</code>, Fossel compares those hashes with the files now. A memory whose file has changed gets a marker: <code>⚠ may be stale</code>, and <em>has uncommitted changes</em> when the edit is not committed yet. A path that git cannot resolve (an untracked, ignored or non-existent file) gets a different marker, <code>ⓘ unverified</code>, because it was never checked, and the absence of a warning there means nothing.</p>
+<p>Both markers are advisories. Fossel does not hide or rewrite the memory. Outside a git repository nothing is recorded and nothing is flagged.</p>
+<tool-example step="get-context-drift"></tool-example>
+<tool-example step="get-context-drift-dirty"></tool-example>
+<p>Only <code>get_context</code> shows these markers. <code>search_memory</code> and <code>get_repo_context</code> do not. <code>fossel stats</code> reports a count of memories whose files have drifted.</p>
+
+<h2>8. Move data in and out</h2>
+<p><code>export_memories</code> writes a versioned JSON envelope of memories, repo aliases and edges. It includes superseded memories. It leaves out embeddings, which are rebuilt on import so the file stays small and does not depend on any model. With no <code>path</code> the envelope is the response. With a <code>path</code> the envelope is written to a file and the response is a one-line summary. The path must resolve inside the workspace.</p>
+<tool-example step="export-memories-file"></tool-example>
+<tool-example step="export-memories-outside"></tool-example>
+<p><code>import_memories</code> is additive and idempotent. A memory whose id already exists is skipped and never overwritten, so importing the same file twice changes nothing. There is no replace mode. To start from nothing, delete the database file. Import re-derives embeddings, entities and file references for what it adds.</p>
+<tool-example step="import-memories"></tool-example>
+<tool-example step="import-memories-invalid"></tool-example>

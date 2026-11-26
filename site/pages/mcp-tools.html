@@ -1,0 +1,30 @@
+<p class="lead">Fossel registers 17 tools and one resource. This page is generated from the running server: the parameter tables come from its <code>tools/list</code> response and every example is a request and response recorded by <code>npm run docs:snapshot</code>. A test fails if either drifts from the code.</p>
+
+<h2>Conventions</h2>
+<ul>
+  <li><strong><code>repo</code></strong> is optional on every tool that has it. Omit it to use the repo of the current workspace. See <a href="/docs/how-fossel-works/">How Fossel Works</a> for how a repo is resolved.</li>
+  <li><strong>Ids.</strong> A memory has a numeric id, shown as <code>(2)</code> in listings, and a longer string id shown as <code>legacy: …</code>. Tools that take an <code>id</code> accept either. A superseded memory is not found by either.</li>
+  <li><strong>Memory types</strong> are <code>convention</code>, <code>bug_fix</code>, <code>reviewer_pattern</code>, <code>decision</code>, <code>issue</code> and <code>general</code>.</li>
+  <li><strong>Return format.</strong> Every tool returns one block of plain text. Most of that text is meant for the model to read, not for a program to parse. <code>resolve_repo</code> and <code>export_memories</code> return JSON text.</li>
+  <li><strong>Errors.</strong> A failure inside a tool is returned with <code>isError: true</code> and a message, and does not end the session. A call with invalid arguments is rejected by the MCP layer before the tool runs, with a validation message that names the field.</li>
+  <li><strong>Examples</strong> come from one scripted session on a throwaway database, so the ids and numbers in them are consistent from one example to the next. Timestamps in the session are fixed.</li>
+</ul>
+
+<h2>Save and change memories</h2>
+<tool-reference names="remember store_context update_memory pin_memory unpin_memory"></tool-reference>
+
+<h2>Retire and delete</h2>
+<tool-reference names="supersede_memory delete_memory"></tool-reference>
+
+<h2>Retrieve</h2>
+<tool-reference names="get_context search_memory get_repo_context summarize_repo_context"></tool-reference>
+
+<h2>Repos and maintenance</h2>
+<tool-reference names="resolve_repo list_repos consolidate_memory dedupe_repo"></tool-reference>
+
+<h2>Export and import</h2>
+<tool-reference names="export_memories import_memories"></tool-reference>
+
+<h2>Resource</h2>
+<p>One MCP resource is registered alongside the tools. It is described in <a href="/docs/how-fossel-works/#the-startup-resource">How Fossel Works</a>.</p>
+<resource-reference></resource-reference>

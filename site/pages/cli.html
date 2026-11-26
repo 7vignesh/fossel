@@ -1,0 +1,59 @@
+<p class="lead">Fossel has one binary, <code>fossel</code>. With no arguments it runs the MCP server. The other commands are for setup and upkeep, and they act on the repo in the current directory. Every output below was recorded from the real CLI by <code>npm run docs:snapshot</code>.</p>
+
+<h2>Commands</h2>
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>fossel</code></td><td>Start the MCP server on stdio. This is what an MCP client launches.</td></tr>
+    <tr><td><code>fossel init [--no-dedupe]</code></td><td>Onboarding. Resolve the repo key, merge memories saved under older keys, remove exact duplicates (skip with <code>--no-dedupe</code>), add a starter memory if the whole database is empty, print the MCP config, and append a <code>get_context</code> hint to rule files that already exist.</td></tr>
+    <tr><td><code>fossel doctor [--fix]</code></td><td>Check the repo's health. Without <code>--fix</code> it changes nothing and exits 1 if it finds a problem. With <code>--fix</code> it merges sibling keys, rewrites stale mentions and removes exact duplicates.</td></tr>
+    <tr><td><code>fossel stats</code></td><td>Print a read-only summary for the current repo.</td></tr>
+    <tr><td><code>fossel --help</code>, <code>-h</code></td><td>Print the usage line and exit 0.</td></tr>
+  </tbody>
+</table>
+<p>Any other command prints <code>Unknown command</code> and the usage line to standard error, and exits 1. The three flags above are the only ones the CLI reads. A misspelled flag is ignored without a warning.</p>
+
+<h2>Usage</h2>
+<cli-example id="cli-help"></cli-example>
+<cli-example id="cli-unknown"></cli-example>
+
+<h2><code>fossel init</code></h2>
+<p>Run it from the root of a repo. The output below is from a repo that already has an <code>AGENTS.md</code>, so <code>init</code> appends its hint there. It writes to rule files that already exist and never creates one. It looks for <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.cursor/rules</code>, <code>.cursor/rules.md</code>, <code>.windsurfrules</code>, <code>.windsurf/rules.md</code>, <code>.clinerules</code> and <code>.rules</code>. A marker comment makes the append idempotent.</p>
+<cli-example id="cli-init"></cli-example>
+<p>Running it again changes nothing: no starter memory, no second hint.</p>
+<cli-example id="cli-init-again"></cli-example>
+<p>The starter memory is added only when the entire database has no memories at all, not when only this repo has none.</p>
+
+<h2><code>fossel stats</code></h2>
+<p>Counts live, superseded and pinned memories, memories by type, memories that have never been returned by a context retrieval and were last updated more than 90 days ago (this count does not exclude pinned memories), memories whose referenced files have changed, the most common tags and entities, and the size of the database including its write-ahead log.</p>
+<cli-example id="cli-stats"></cli-example>
+
+<h2><code>fossel doctor</code></h2>
+<p>Reports the repo key, the git remote and aliases, then checks for: sibling repo keys that look like the same repo, notes that still mention a deprecated key, exact-duplicate clusters, and whether a Cursor or Claude Desktop config file exists. It also prints counts of memories, stale memories, and how many have embeddings, entities and file references. It looks for <code>~/.cursor/mcp.json</code> and Claude Desktop's config file only. Other clients are not checked.</p>
+<cli-example id="cli-doctor"></cli-example>
+<p>When memories were saved under a bare folder name before the repo had a git remote, <code>doctor</code> flags them and exits 1:</p>
+<cli-example id="cli-doctor-problem"></cli-example>
+<p><code>--fix</code> moves those memories under the canonical key, rewrites notes that mention the old key, and removes exact duplicates.</p>
+<cli-example id="cli-doctor-fix"></cli-example>
+
+<h2>Environment variables</h2>
+<p>Fossel reads four variables and has no configuration file.</p>
+<table>
+  <thead><tr><th>Variable</th><th>Default</th><th>Effect</th></tr></thead>
+  <tbody>
+    <tr><td><code>FOSSEL_DB_PATH</code></td><td><code>~/.fossel/memory.db</code></td><td>Database file. Missing parent folders are created. Read by the server and by every CLI command.</td></tr>
+    <tr><td><code>FOSSEL_WORKSPACE</code></td><td>the server's working directory</td><td>Project root used to find the repo, and the folder <code>export_memories</code> may write into. Read by the server only. CLI commands use the current directory.</td></tr>
+    <tr><td><code>FOSSEL_EMBEDDINGS</code></td><td>off</td><td>Set to <code>1</code>, <code>true</code>, <code>on</code> or <code>yes</code> (any case) to turn on hybrid search with vectors. Anything else leaves it off.</td></tr>
+    <tr><td><code>FOSSEL_EMBEDDER_CMD</code></td><td>unset</td><td>A shell command that turns text into a vector, replacing the built-in embedder. Text goes in on standard input and a JSON array of numbers comes out on standard output. For many texts, Fossel sends one JSON-encoded string per line and expects one array per line. It runs with a 120-second timeout, and its output must be a numeric array. Changing the command makes Fossel re-embed every memory on the next search. This is the one place Fossel runs a command you configured.</td></tr>
+  </tbody>
+</table>
+<p>Setting <code>FOSSEL_EMBEDDER_CMD</code> without <code>FOSSEL_EMBEDDINGS</code> does nothing for search. Embeddings are only used when the second variable is on.</p>
+
+<h2>Exit codes</h2>
+<table>
+  <thead><tr><th>Code</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td>0</td><td>The command finished. <code>doctor</code> without <code>--fix</code> reported nothing wrong.</td></tr>
+    <tr><td>1</td><td>An unknown command, <code>doctor</code> found a problem, or a command failed with an error. The server also exits 1 if it cannot start.</td></tr>
+  </tbody>
+</table>

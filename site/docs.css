@@ -224,3 +224,24 @@
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* generated reference: tool sections, parameter tables, recorded examples */
+.docs-article .tool { margin: var(--space-8) 0 var(--space-12); }
+.docs-article .tool h3 { margin-top: 0; }
+.docs-article .tool h3 code { font-size: var(--text-base); background: none; border: 0; padding: 0; color: var(--accent); }
+.docs-article .tool-desc { color: var(--text-muted); font-size: var(--text-sm); }
+.docs-article table.params td:first-child { white-space: nowrap; }
+.docs-article .param-desc { display: block; margin-top: var(--space-1); white-space: normal; max-width: 22rem; color: var(--text-muted); font-size: var(--text-xs); }
+.docs-article .no-params { color: var(--text-muted); font-size: var(--text-sm); }
+.docs-article .examples { margin: var(--space-4) 0; border: 1px solid var(--divider); border-radius: var(--radius-md); background: var(--surface); }
+.docs-article .examples > summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.docs-article .examples > summary:hover { color: var(--text); }
+.docs-article .examples[open] > summary { border-bottom: 1px solid var(--divider); }
+.docs-article .examples .example { padding: 0 var(--space-4); }
+.docs-article .example { margin: var(--space-5) 0; }
+.docs-article .example-title { margin: 0 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); }
+.docs-article .example .code { margin: var(--space-2) 0 var(--space-3); }
+.docs-article th[colspan], .docs-article table.params th { white-space: nowrap; }
+
+/* keep the constraints column readable inside the horizontally scrolling table */
+.docs-article table.params td:last-child { min-width: 16rem; }
