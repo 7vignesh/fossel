@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 // @ts-expect-error plain .mjs build script, no type declarations
-import { buildSite, escapeHtml, pageUrl, renderFragment } from "../scripts/build-site.mjs";
+import { buildSite, escapeHtml, pageUrl, renderFragment, slugify } from "../scripts/build-site.mjs";
 
 const ROOT = join(import.meta.dirname, "..");
 const LANDING = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -167,4 +167,13 @@ test("headings get unique ids and a fragment may not carry its own h1", () => {
 test("pageUrl maps the index slug to /docs/ and others to /docs/<slug>/", () => {
   assert.equal(pageUrl("index"), "/docs/");
   assert.equal(pageUrl("quickstart"), "/docs/quickstart/");
+});
+
+test("slugify keeps readable ids for inline markup and never leaves a tag behind", () => {
+  assert.equal(slugify("<code>remember</code> a fact"), "remember-a-fact");
+  assert.equal(slugify("Tom &amp; Jerry"), "tom-jerry");
+  // Nested or malformed markup must not survive into an id.
+  for (const nasty of ["<scr<script>ipt>alert(1)", "<<b>script>x", "a<b", "<img src=x onerror=1>"]) {
+    assert.match(slugify(nasty), /^[a-z0-9-]*$/, nasty);
+  }
 });

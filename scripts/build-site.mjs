@@ -85,10 +85,22 @@ export function extractFontsHref(landingHtml) {
   return m[1].replace(/&amp;/g, "&");
 }
 
+/** Drop everything between "<" and ">" with a scan, not a regex: a regex strips
+ * one layer and can leave a tag behind when markup is nested or malformed. */
+function dropTags(text) {
+  let out = "";
+  let depth = 0;
+  for (const char of text) {
+    if (char === "<") depth += 1;
+    else if (char === ">" && depth > 0) depth -= 1;
+    else if (depth === 0) out += char;
+  }
+  return out;
+}
+
+/** Heading text to an id. The result only ever contains a-z, 0-9 and "-". */
 export function slugify(text) {
-  return text
-    .toLowerCase()
-    .replace(/<[^>]+>/g, "")
+  return dropTags(text.toLowerCase())
     .replace(/&[a-z]+;/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
