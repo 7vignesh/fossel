@@ -59,7 +59,17 @@ test("every MCP tool the docs name is registered by the server", () => {
   for (const page of pages) {
     for (const m of page.html.matchAll(/<code>([a-z]+_[a-z_]+)<\/code>/g)) mentioned.add(m[1]);
   }
-  const toolLike = [...mentioned].filter((name) => !name.startsWith("fossel_"));
+  // Parameter and field names look like tool names but are not tools.
+  const snapshot = JSON.parse(readFileSync(join(ROOT, "site", "data", "tools.json"), "utf8")).tools as Array<{
+    inputSchema: { properties?: Record<string, unknown> };
+  }>;
+  const params = new Set(snapshot.flatMap((tool) => Object.keys(tool.inputSchema.properties ?? {})));
+  const otherFields = new Set(["valid_to", "valid_from", "legacy_id", "access_count", "memory_rowid", "relates_to", "bug_fix", "reviewer_pattern"]);
+  // Database table names appear in prose and are not tools.
+  const tables = new Set(["memories_fts", "memory_edges", "memory_embeddings", "memory_entities", "memory_file_refs", "repo_aliases"]);
+  const toolLike = [...mentioned].filter(
+    (name) => !name.startsWith("fossel_") && !params.has(name) && !otherFields.has(name) && !tables.has(name),
+  );
   assert.ok(toolLike.includes("resolve_repo") && toolLike.includes("get_context"));
   for (const name of toolLike) {
     assert.ok(registered.has(name), `${name} is documented as a tool but is not registered in src/`);
@@ -93,4 +103,26 @@ test("every page is listed in the nav and every internal docs link resolves", ()
       assert.ok(slugs.has(target), `${page.slug} links to /docs/${m[1]}/ which is not a page`);
     }
   }
+});
+
+test("tool pages reference only tools and steps that exist in the snapshot", () => {
+  const tools = new Set<string>(
+    (JSON.parse(readFileSync(join(ROOT, "site", "data", "tools.json"), "utf8")).tools as Array<{ name: string }>).map((t) => t.name),
+  );
+  const steps = new Set<string>(
+    (JSON.parse(readFileSync(join(ROOT, "site", "data", "session.json"), "utf8")).steps as Array<{ id: string }>).map((s) => s.id),
+  );
+  const used = new Set<string>();
+  for (const page of pages) {
+    for (const m of page.html.matchAll(/<tool-reference names="([^"]*)"/g)) {
+      for (const name of m[1].split(/\s+/).filter(Boolean)) {
+        assert.ok(tools.has(name), `${page.slug}: <tool-reference> names unknown tool ${name}`);
+        used.add(name);
+      }
+    }
+    for (const m of page.html.matchAll(/<tool-example step="([^"]*)"/g)) {
+      assert.ok(steps.has(m[1]), `${page.slug}: <tool-example> uses unknown step ${m[1]}`);
+    }
+  }
+  assert.deepEqual([...used].sort(), [...tools].sort(), "the MCP Tools page must document every tool exactly once");
 });

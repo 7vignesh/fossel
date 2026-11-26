@@ -1,0 +1,79 @@
+<p class="lead">Fossel is a single Node process that speaks MCP over stdio and keeps everything in one SQLite file. This page covers where data lives, how a repo is identified, what a write does, and how a search is answered.</p>
+
+<h2>Storage</h2>
+<p>All memories live in one SQLite database in WAL mode, at <code>~/.fossel/memory.db</code> unless <code>FOSSEL_DB_PATH</code> says otherwise. The schema is built by 14 named migrations that run when the database is opened. They are append-only, and a database from an older release is upgraded in place.</p>
+<table>
+  <thead><tr><th>Table</th><th>Holds</th></tr></thead>
+  <tbody>
+    <tr><td><code>memories</code></td><td>The notes. One row per memory, with its repo key, type, tags (a JSON array), pin flag, access counters, a normalized copy of the text, and <code>valid_from</code> / <code>valid_to</code> for supersession.</td></tr>
+    <tr><td><code>memories_fts</code></td><td>An FTS5 index over each memory's repo, note and tags, kept in sync by triggers. Tags are searchable.</td></tr>
+    <tr><td><code>repo_aliases</code></td><td>Maps alternate repo keys (a folder name, an old key) to the canonical one.</td></tr>
+    <tr><td><code>memory_embeddings</code></td><td>One vector per memory, written only when <code>FOSSEL_EMBEDDINGS</code> is on.</td></tr>
+    <tr><td><code>memory_entities</code></td><td>Entities found in notes: files, packages, services, functions, identifiers and tickets.</td></tr>
+    <tr><td><code>memory_file_refs</code></td><td>For each file path a note mentions, the git blob hash of that file when the note was written.</td></tr>
+    <tr><td><code>memory_edges</code></td><td>Typed links between memories: <code>fixes</code>, <code>contradicts</code>, <code>supersedes</code>, <code>relates_to</code>.</td></tr>
+  </tbody>
+</table>
+<p>Deleting a memory removes its embedding, entity and file-reference rows with it. Its edges are not removed: they are closed (given an end time), so the history of a relationship survives.</p>
+
+<h2>Repo scoping</h2>
+<p>Every memory belongs to one repo, and every tool works on one repo at a time. Fossel works out which one like this:</p>
+<ol>
+  <li>It takes the workspace folder: <code>FOSSEL_WORKSPACE</code> if set, otherwise the server's working directory.</li>
+  <li>It reads <code>git remote get-url origin</code> and reduces the URL to <code>owner/repo</code>. HTTPS, SSH (<code>ssh://</code> and <code>git@host:path</code>) and <code>git://</code> remotes all work, and nested GitLab paths keep every segment. This is the canonical key, for example <code>acme/storefront</code>.</li>
+  <li>With no usable remote, it falls back to the folder's name.</li>
+  <li>It records both the canonical key and the folder name as aliases that resolve to the canonical key, so a note saved under either one is found under both.</li>
+</ol>
+<p>A tool's <code>repo</code> argument goes through the same alias table. A bare name like <code>storefront</code> resolves to <code>acme/storefront</code> when the last segments match. A name that matches nothing becomes its own repo, so <code>repo: "acme/docs-demo"</code> creates a separate store of memories.</p>
+<p>To see the result, call <code>resolve_repo</code>. It returns the canonical key, the aliases, the working directory, the remote, and the <code>source</code> (<code>git-remote</code>, <code>folder</code>, <code>alias</code> or <code>input</code>).</p>
+<tool-example step="resolve-repo"></tool-example>
+
+<h2>What a write does</h2>
+<p>There are two ways to save a memory, and they differ on purpose.</p>
+<ul>
+  <li><strong><code>remember</code></strong> is the everyday tool. It infers a type and up to five tags, writes relative dates out as absolute ones, merges the note into an existing memory when they are near-identical, and tells you about related memories that may conflict.</li>
+  <li><strong><code>store_context</code></strong> writes exactly what you pass: your type, your tags, your text. No inference, no merging, no conflict notice. It still resolves the repo and grounds relative dates.</li>
+</ul>
+<p>After the row is written, <code>remember</code> and <code>store_context</code> also index the note for retrieval: the embedding (if enabled), the entities it names, and a git hash for each file path it mentions. The next page, <a href="/docs/memory-lifecycle/">Memory Lifecycle</a>, walks through the merge, conflict and staleness behavior with recorded examples.</p>
+<p>Type and tag inference are keyword heuristics, not a model. A note with no matching signal is typed <code>convention</code>. Pass <code>infer: false</code> to skip inference: the type is then <code>general</code> (unless you pass a <code>type</code>) and only the tags you supply are kept.</p>
+
+<h2>How a search is answered</h2>
+<p><code>get_context</code> and <code>search_memory</code> share one pipeline. <code>get_context</code> adds pinned and recent memories around it; <code>search_memory</code> returns only matches (plus a fallback, described below).</p>
+
+<h3>Step 1: three-tier FTS5 search</h3>
+<p>The query is lowercased and split on whitespace, <code>/</code>, <code>_</code>, <code>-</code>, <code>.</code> and common punctuation. Any other punctuation and any non-ASCII character is then removed, and tokens shorter than two characters are dropped. So <code>auth.ts</code> becomes <code>auth</code> and <code>ts</code>, and <code>PGRST301</code> stays one token. Each token is quoted before it reaches FTS5, so query text cannot be read as FTS5 syntax. The search runs in up to three tiers, each reached only if needed:</p>
+<ol>
+  <li><strong>Exact (AND).</strong> Every token must appear in the memory. This is the most precise tier and runs first.</li>
+  <li><strong>OR.</strong> If tier 1 matched nothing and the query has more than one token, any token may match. BM25 ranks the results, and because it already discounts words that appear everywhere, the extra common words in a question add little.</li>
+  <li><strong>Stemmed prefix.</strong> If the first two tiers returned fewer rows than the limit, this tier fills the remaining slots. Each token is trimmed with a conservative suffix strip (<code>ments</code>, <code>ment</code>, <code>ings</code>, <code>ing</code>, <code>ies</code>, <code>ers</code>, <code>er</code>, <code>es</code>, <code>ed</code>, <code>s</code>) and matched as a prefix, so <code>alerts</code> finds <code>alert</code>. A stem is only used if it stays at least four characters long, and it is always a prefix of the original word. This tier appends rows after the exact results. It never reorders them.</li>
+</ol>
+<p>Ranking within a tier is BM25 over the <code>repo</code>, <code>note</code> and <code>tags</code> columns. Because non-ASCII characters are removed from the query, <code>café</code> is searched as <code>caf</code>.</p>
+
+<h3>Step 2: optional vector search</h3>
+<p>With <code>FOSSEL_EMBEDDINGS=1</code>, the query is also embedded and compared by cosine similarity with every stored vector for the repo. The built-in embedder uses no model. It hashes each word, each pair of adjacent words, and the four-character pieces of words of six or more characters into a 256-dimension vector. That captures word overlap and shared word parts such as <code>migrate</code> and <code>migration</code>. It does not capture meaning: two sentences with no words in common are not close. Words that are common across the repo's memories are down-weighted in the query, and not in the stored vectors, so adding a memory never forces the others to be re-embedded.</p>
+<p>Setting <code>FOSSEL_EMBEDDER_CMD</code> replaces the built-in embedder with a command you provide. Fossel writes text to its standard input and reads a JSON array of numbers from standard output. For many texts it sends one JSON string per line and expects one array per line, so a model loads once per batch. A failing command does not block a write: for that call Fossel uses the built-in embedding instead.</p>
+
+<h3>Step 3: entity matches</h3>
+<p>Entities in the query (file paths, package names, function names, identifiers, ticket ids) are matched against the entities stored with each memory. Memories sharing more entities with the query rank higher.</p>
+
+<h3>Step 4: fusing the lists</h3>
+<p>The ranked lists are combined with weighted Reciprocal Rank Fusion: each list gives an item <code>weight / (60 + rank)</code>, and the scores add. The weights are 1.0 for FTS5, 0.8 for vectors, 0.6 for entities and 0.2 for edge neighbours. The vector weight was picked by sweeping it against the committed benchmark, and the repository notes that it has to be re-swept if the embedder changes. Edge neighbours come from one hop along live edges from the top three keyword hits. Superseded memories are excluded from every list.</p>
+<p>When embeddings are off, the vector list is empty and the result comes from FTS5, entity matches and edge neighbours.</p>
+
+<h3>What <code>get_context</code> adds</h3>
+<p>The result is assembled in this order: pinned memories, then fused search matches, then the most recent memories to fill any remaining slots up to <code>limit</code>. Near-identical notes are collapsed so the same text never appears twice in one result. Each returned memory has its access count increased, which feeds the stale checks in <code>consolidate_memory</code>, <code>fossel stats</code> and <code>fossel doctor</code>. The same retrieval also runs for the startup resource and for <code>search_memory</code>'s fallback, and both count as access too.</p>
+<tool-example step="get-context-query"></tool-example>
+<p>In text format, a search match is labelled <code>[match]</code>. A memory without that label was added as pinned or recent context.</p>
+
+<h3>What <code>search_memory</code> does differently</h3>
+<p>It runs the same FTS5 search, then falls back in order: vector search (only if embeddings are on and a repo is known), then pinned and recent memories for the repo. The fallback is only available when a <code>repo</code> is passed, and the result says so in its first line.</p>
+<tool-example step="search-memory-no-match"></tool-example>
+<tool-example step="search-memory-fallback"></tool-example>
+
+<h2>Tag filters</h2>
+<p><code>get_context</code> and <code>search_memory</code> accept <code>tags</code> and <code>tagMatch</code>. Matching is case-insensitive and compares whole tags. With <code>tagMatch: "or"</code> (the default) a memory needs any listed tag, and with <code>"and"</code> it needs all of them. The filter is applied after search, so when tags are given Fossel fetches a larger candidate pool (the larger of 50 and four times the limit) to avoid returning too few results.</p>
+<tool-example step="get-context-tags"></tool-example>
+
+<h2>The startup resource</h2>
+<p>Besides tools, Fossel registers one MCP resource. A client that lists resources when a session starts can show it without any tool call, so the agent sees the top memories before you type anything. The project README says Cursor and Claude Desktop do this; it was not checked here. A client that does not list resources can call <code>get_context</code> as the agent's first action instead. The resource returns the top five pinned and recent memories for the current workspace.</p>
+<resource-reference></resource-reference>

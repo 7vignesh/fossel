@@ -47,7 +47,38 @@ export const GROUPS = [
       },
     ],
   },
-  { title: "Core Concepts", pages: [] },
-  { title: "Reference", pages: [] },
+  {
+    title: "Core Concepts",
+    pages: [
+      {
+        slug: "how-fossel-works",
+        title: "How Fossel Works",
+        description:
+          "Where memories live, how a repo is identified, what happens on a write, and how retrieval combines FTS5, hashed vectors and entity matches.",
+      },
+      {
+        slug: "memory-lifecycle",
+        title: "Memory Lifecycle",
+        description:
+          "How memories are created, merged, flagged as conflicting, superseded, marked stale after code changes, exported and deleted.",
+      },
+    ],
+  },
+  {
+    title: "Reference",
+    pages: [
+      {
+        slug: "mcp-tools",
+        title: "MCP Tools",
+        description:
+          "Every tool Fossel registers: parameters, constraints, and recorded request and response examples.",
+      },
+      {
+        slug: "cli",
+        title: "CLI & Configuration",
+        description: "The fossel commands, flags, exit codes and environment variables, with recorded output.",
+      },
+    ],
+  },
   { title: "Architecture & Benchmarks", pages: [] },
 ];

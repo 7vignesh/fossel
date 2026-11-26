@@ -1,0 +1,466 @@
+{
+  "steps": [
+    {
+      "id": "resolve-repo",
+      "title": "Which repo is Fossel using?",
+      "tool": "resolve_repo",
+      "args": {},
+      "isError": false,
+      "output": "{\n  \"canonical\": \"acme/storefront\",\n  \"aliases\": [\n    \"acme/storefront\",\n    \"storefront\"\n  ],\n  \"cwd\": \"/home/dev/storefront\",\n  \"gitRemote\": \"https://github.com/acme/storefront.git\",\n  \"source\": \"git-remote\"\n}"
+    },
+    {
+      "id": "remember-basic",
+      "title": "Save a note. Fossel infers the type and tags.",
+      "tool": "remember",
+      "args": {
+        "note": "JWT lives in localStorage; 401 redirects to /login"
+      },
+      "isError": false,
+      "output": "Stored memory 1 for acme/storefront (type convention, tags: jwt, login, /login, localstorage)."
+    },
+    {
+      "id": "remember-explicit",
+      "title": "Save a note with an explicit type and tags.",
+      "tool": "remember",
+      "args": {
+        "note": "Fixed the websocket reconnect race by awaiting the auth handshake",
+        "type": "bug_fix",
+        "tags": [
+          "websocket"
+        ]
+      },
+      "isError": false,
+      "output": "Stored memory 2 for acme/storefront (type bug_fix, tags: websocket, auth, awaiting, fixed, handshake)."
+    },
+    {
+      "id": "remember-duplicate",
+      "title": "Saving a near-identical note merges into the existing memory.",
+      "tool": "remember",
+      "args": {
+        "note": "JWT lives in localStorage; 401 redirects to /login."
+      },
+      "isError": false,
+      "output": "Merged into memory 1 for acme/storefront (similarity 1.00, type convention, tags: jwt, login, /login, localstorage)."
+    },
+    {
+      "id": "remember-conflict",
+      "title": "A related note that may contradict an older one is flagged for review.",
+      "tool": "remember",
+      "args": {
+        "note": "JWT no longer lives in localStorage; it moved to httpOnly cookies and 401 still redirects to /login"
+      },
+      "isError": false,
+      "output": "Stored memory 3 for acme/storefront (type convention, tags: jwt, login, /login, cookies, httponly).\n\nRelated existing memories you may want to reconcile:\n  - #1 (similarity 0.48) ⚠ may contradict/supersede: JWT lives in localStorage; 401 redirects to /login.\nIf this new note replaces or contradicts any of them, call update_memory to revise the existing memory or delete_memory to remove the stale one. Otherwise no action is needed."
+    },
+    {
+      "id": "remember-dates",
+      "title": "Relative dates are written out as absolute dates.",
+      "tool": "remember",
+      "args": {
+        "note": "Migrated the cron scheduler to a queue last week"
+      },
+      "isError": false,
+      "output": "Stored memory 4 for acme/storefront (type convention, tags: last, week, 2026-06-08, cron, migrated)."
+    },
+    {
+      "id": "remember-verbatim",
+      "title": "infer=false stores the note as given, with no type or tags inferred.",
+      "tool": "remember",
+      "args": {
+        "note": "Use Postgres advisory locks for migrations",
+        "infer": false
+      },
+      "isError": false,
+      "output": "Stored memory 5 for acme/storefront (type general, tags: none)."
+    },
+    {
+      "id": "store-context",
+      "title": "store_context writes exactly what you pass. No inference, no merging.",
+      "tool": "store_context",
+      "args": {
+        "type": "decision",
+        "note": "The auth middleware in src/auth.ts verifies the JWT before any route handler runs",
+        "tags": [
+          "auth",
+          "jwt"
+        ]
+      },
+      "isError": false,
+      "output": "Stored memory CvFUAajyOGyz2faP9e2qR (numeric id: 6) for acme/storefront (decision)."
+    },
+    {
+      "id": "get-context-query",
+      "title": "Retrieve context for a query.",
+      "tool": "get_context",
+      "args": {
+        "query": "auth"
+      },
+      "isError": false,
+      "output": "Repository context for acme/storefront (query: \"auth\")\nTotal: 6\n\n- (6 | decision) [match] The auth middleware in src/auth.ts verifies the JWT before any route handler runs [tags: auth, jwt]\n- (2 | bug_fix) [match] Fixed the websocket reconnect race by awaiting the auth handshake [tags: websocket, auth, awaiting, fixed, handshake]\n- (5 | general) Use Postgres advisory locks for migrations\n- (4 | convention) Migrated the cron scheduler to a queue last week (last week = 2026-06-08) [tags: last, week, 2026-06-08, cron, migrated]\n- (3 | convention) JWT no longer lives in localStorage; it moved to httpOnly cookies and 401 still redirects to /login [tags: jwt, login, /login, cookies, httponly]\n- (1 | convention) JWT lives in localStorage; 401 redirects to /login. [tags: jwt, login, /login, localstorage]"
+    },
+    {
+      "id": "get-context-markdown",
+      "title": "The same retrieval as a markdown brief, capped at three memories.",
+      "tool": "get_context",
+      "args": {
+        "query": "auth",
+        "format": "markdown",
+        "limit": 3
+      },
+      "isError": false,
+      "output": "# Fossel context: acme/storefront\n\nQuery: `auth`\n\n## Bug Fixes\n- (2) Fixed the websocket reconnect race by awaiting the auth handshake _(websocket, auth, awaiting, fixed, handshake)_\n\n## Decisions\n- (6) The auth middleware in src/auth.ts verifies the JWT before any route handler runs _(auth, jwt)_\n\n## General\n- (5) Use Postgres advisory locks for migrations"
+    },
+    {
+      "id": "get-context-tags",
+      "title": "Restrict retrieval to memories that carry every listed tag.",
+      "tool": "get_context",
+      "args": {
+        "query": "websocket",
+        "tags": [
+          "websocket"
+        ],
+        "tagMatch": "and"
+      },
+      "isError": false,
+      "output": "Repository context for acme/storefront (query: \"websocket\")\nTotal: 1\n\n- (2 | bug_fix) [match] Fixed the websocket reconnect race by awaiting the auth handshake [tags: websocket, auth, awaiting, fixed, handshake]"
+    },
+    {
+      "id": "search-memory",
+      "title": "Full-text search.",
+      "tool": "search_memory",
+      "args": {
+        "query": "websocket reconnect"
+      },
+      "isError": false,
+      "output": "Search results for \"websocket reconnect\":\n\n1. [acme/storefront] bug_fix (2 | legacy: HX4_fWuBb4ZrQczbFtKvd)\nFixed the websocket reconnect race by awaiting the auth handshake | tags: websocket, auth, awaiting, fixed, handshake"
+    },
+    {
+      "id": "search-memory-no-match",
+      "title": "With no repo argument, search_memory searches every repo and reports no match plainly.",
+      "tool": "search_memory",
+      "args": {
+        "query": "kubernetes"
+      },
+      "isError": false,
+      "output": "No memories matched \"kubernetes\"."
+    },
+    {
+      "id": "search-memory-fallback",
+      "title": "With a repo argument, a query with no match falls back to recent and pinned memories.",
+      "tool": "search_memory",
+      "args": {
+        "query": "kubernetes",
+        "repo": "acme/storefront",
+        "limit": 2
+      },
+      "isError": false,
+      "output": "No exact match for \"kubernetes\" in acme/storefront; showing recent + pinned context:\n\n1. [acme/storefront] decision (6 | legacy: CvFUAajyOGyz2faP9e2qR)\nThe auth middleware in src/auth.ts verifies the JWT before any route handler runs | tags: auth, jwt\n\n2. [acme/storefront] general (5 | legacy: N-so9R6Qop-iqZLmN9e0o)\nUse Postgres advisory locks for migrations"
+    },
+    {
+      "id": "get-repo-context",
+      "title": "Recent memories grouped by type.",
+      "tool": "get_repo_context",
+      "args": {
+        "limit": 5
+      },
+      "isError": false,
+      "output": "Repository context for acme/storefront\nTotal memories: 5\n\nConvention\n- (4 | legacy: SnfSbNFf1bmZEWkyVMy50) Migrated the cron scheduler to a queue last week (last week = 2026-06-08) [tags: last, week, 2026-06-08, cron, migrated]\n- (3 | legacy: YPT86IRuCMNQeT9_dbG_A) JWT no longer lives in localStorage; it moved to httpOnly cookies and 401 still redirects to /login [tags: jwt, login, /login, cookies, httponly]\n- (1 | legacy: d3GmYEc9O_zH4QVJlqaEL) JWT lives in localStorage; 401 redirects to /login. [tags: jwt, login, /login, localstorage]\n\nDecision\n- (6 | legacy: CvFUAajyOGyz2faP9e2qR) The auth middleware in src/auth.ts verifies the JWT before any route handler runs [tags: auth, jwt]\n\nGeneral\n- (5 | legacy: N-so9R6Qop-iqZLmN9e0o) Use Postgres advisory locks for migrations"
+    },
+    {
+      "id": "pin-memory",
+      "title": "Pin a memory.",
+      "tool": "pin_memory",
+      "args": {
+        "id": 2
+      },
+      "isError": false,
+      "output": "Pinned memory 2: Fixed the websocket reconnect race by awaiting the auth handshake"
+    },
+    {
+      "id": "unpin-memory",
+      "title": "Unpin it.",
+      "tool": "unpin_memory",
+      "args": {
+        "id": 2
+      },
+      "isError": false,
+      "output": "Unpinned memory 2."
+    },
+    {
+      "id": "update-memory",
+      "title": "Rewrite a memory's text.",
+      "tool": "update_memory",
+      "args": {
+        "id": 2,
+        "content": "Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing"
+      },
+      "isError": false,
+      "output": "Memory 2 updated successfully.\nid: 2\nlegacy_id: HX4_fWuBb4ZrQczbFtKvd\nrepo: acme/storefront\nmemory_type: bug_fix\ncontent: Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing\ntags: websocket, auth, awaiting, fixed, handshake\npinned: false\ncreated_at: 1781524920\nupdated_at: 1781525820"
+    },
+    {
+      "id": "update-memory-empty",
+      "title": "update_memory needs at least one field.",
+      "tool": "update_memory",
+      "args": {
+        "id": 2
+      },
+      "isError": true,
+      "output": "Provide at least one field to update: content or memory_type."
+    },
+    {
+      "id": "supersede-memory",
+      "title": "Retire an outdated memory and point at its replacement.",
+      "tool": "supersede_memory",
+      "args": {
+        "id": 1,
+        "superseded_by": 3,
+        "reason": "moved to httpOnly cookies"
+      },
+      "isError": false,
+      "output": "Superseded memory 1. It will no longer appear in live retrieval but the row is preserved."
+    },
+    {
+      "id": "superseded-lookup",
+      "title": "A superseded memory is no longer addressable by id.",
+      "tool": "pin_memory",
+      "args": {
+        "id": 1
+      },
+      "isError": true,
+      "output": "Memory 1 not found."
+    },
+    {
+      "id": "summarize-repo-context",
+      "title": "A summary of every live memory.",
+      "tool": "summarize_repo_context",
+      "args": {},
+      "isError": false,
+      "output": "Fossel Context Summary: acme/storefront\n\nConventions\n- (4) Migrated the cron scheduler to a queue last week (last week = 2026-06-08)\n- (3) JWT no longer lives in localStorage; it moved to httpOnly cookies and 401 still redirects to /login\n\nBug Fixes\n- (2) Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing\n\nDecisions\n- (6) The auth middleware in src/auth.ts verifies the JWT before any route handler runs\n\nGeneral\n- (5) Use Postgres advisory locks for migrations"
+    },
+    {
+      "id": "consolidate-memory",
+      "title": "A read-only maintenance report.",
+      "tool": "consolidate_memory",
+      "args": {},
+      "isError": false,
+      "output": "# Memory Consolidation Report: acme/storefront\n\nAnalyzed 5 live memories for acme/storefront.\nNo maintenance candidates found. Memory is clean.\n"
+    },
+    {
+      "id": "store-duplicate-a",
+      "title": "Two memories with the same text, written with store_context (no merging).",
+      "tool": "store_context",
+      "args": {
+        "type": "convention",
+        "note": "Run the linter before every commit in this repository"
+      },
+      "isError": false,
+      "output": "Stored memory jf6Q2-oLbva_SOuVt5uJX (numeric id: 7) for acme/storefront (convention)."
+    },
+    {
+      "id": "store-duplicate-b",
+      "title": "The second copy.",
+      "tool": "store_context",
+      "args": {
+        "type": "convention",
+        "note": "Run the linter before every commit in this repository."
+      },
+      "isError": false,
+      "output": "Stored memory pHt6V7zaohB1rLHh2ICOi (numeric id: 8) for acme/storefront (convention)."
+    },
+    {
+      "id": "dedupe-dry-run",
+      "title": "dedupe_repo reports a plan by default.",
+      "tool": "dedupe_repo",
+      "args": {},
+      "isError": false,
+      "output": "Dry run for acme/storefront. Found 1 duplicate pair(s):\n- keep 8, drop 7 (similarity 1.00)\n\nRe-run with apply=true to merge."
+    },
+    {
+      "id": "dedupe-apply",
+      "title": "apply=true carries the plan out.",
+      "tool": "dedupe_repo",
+      "args": {
+        "apply": true
+      },
+      "isError": false,
+      "output": "Merged 1 duplicate pair(s) in acme/storefront."
+    },
+    {
+      "id": "delete-memory",
+      "title": "Delete a memory.",
+      "tool": "delete_memory",
+      "args": {
+        "id": 4
+      },
+      "isError": false,
+      "output": "Deleted memory 4 (legacy: SnfSbNFf1bmZEWkyVMy50)."
+    },
+    {
+      "id": "delete-memory-missing",
+      "title": "Deleting an id that does not exist is an error.",
+      "tool": "delete_memory",
+      "args": {
+        "id": 999
+      },
+      "isError": true,
+      "output": "Memory 999 not found."
+    },
+    {
+      "id": "get-context-drift",
+      "title": "After src/auth.ts is edited and committed, memories that mention it are flagged.",
+      "tool": "get_context",
+      "args": {
+        "query": "auth middleware"
+      },
+      "isError": false,
+      "output": "Repository context for acme/storefront (query: \"auth middleware\")\nTotal: 5\n\n- (6 | decision) [match] The auth middleware in src/auth.ts verifies the JWT before any route handler runs [tags: auth, jwt] ⚠ may be stale: src/auth.ts changed since this was written\n- (2 | bug_fix) [match] Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing [tags: websocket, auth, awaiting, fixed, handshake]\n- (8 | convention) Run the linter before every commit in this repository.\n- (5 | general) Use Postgres advisory locks for migrations\n- (3 | convention) JWT no longer lives in localStorage; it moved to httpOnly cookies and 401 still redirects to /login [tags: jwt, login, /login, cookies, httponly]"
+    },
+    {
+      "id": "get-context-drift-dirty",
+      "title": "Uncommitted edits are flagged too, and a path git cannot resolve is reported as unverified.",
+      "tool": "get_context",
+      "args": {
+        "query": "auth middleware",
+        "format": "markdown",
+        "limit": 4
+      },
+      "isError": false,
+      "output": "# Fossel context: acme/storefront\n\nQuery: `auth middleware`\n\n## Conventions\n- (8) Run the linter before every commit in this repository.\n\n## Bug Fixes\n- (2) Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing _(websocket, auth, awaiting, fixed, handshake)_\n\n## Decisions\n- (6) The auth middleware in src/auth.ts verifies the JWT before any route handler runs _(auth, jwt)_ ⚠ may be stale: src/auth.ts has uncommitted changes since this was written\n\n## General\n- (9) Notes about src/ghost.ts, a file that was never committed ⓘ unverified: src/ghost.ts (untracked)"
+    },
+    {
+      "id": "remember-other-repo",
+      "title": "Memories for a second repo, used by the next two examples.",
+      "tool": "remember",
+      "args": {
+        "repo": "acme/docs-demo",
+        "note": "Docs build runs before the site deploys"
+      },
+      "isError": false,
+      "output": "Stored memory 10 for acme/docs-demo (type convention, tags: build, docs, before, deploys, runs)."
+    },
+    {
+      "id": "list-repos",
+      "title": "Every repo that has memories.",
+      "tool": "list_repos",
+      "args": {},
+      "isError": false,
+      "output": "2 repo(s) with memories:\n- acme/storefront: 6 live, 1 superseded, updated 2026-06-15\n- acme/docs-demo: 1 live, updated 2026-06-15"
+    },
+    {
+      "id": "export-memories",
+      "title": "Export one repo as a JSON envelope.",
+      "tool": "export_memories",
+      "args": {
+        "repo": "acme/docs-demo"
+      },
+      "isError": false,
+      "output": "{\n  \"format\": \"fossel-export\",\n  \"version\": 3,\n  \"exported_at\": \"2026-06-15T12:34:00.000Z\",\n  \"memories\": [\n    {\n      \"id\": \"uvhjz2-p1TnsFIgs_XWTu\",\n      \"repo\": \"acme/docs-demo\",\n      \"type\": \"convention\",\n      \"note\": \"Docs build runs before the site deploys\",\n      \"tags\": [\n        \"build\",\n        \"docs\",\n        \"before\",\n        \"deploys\",\n        \"runs\"\n      ],\n      \"created_at\": 1781526720,\n      \"updated_at\": 1781526720,\n      \"pinned\": 0,\n      \"metadata_json\": \"{\\\"changelog\\\":[{\\\"at\\\":1781526720,\\\"action\\\":\\\"created\\\"}],\\\"inferred\\\":{\\\"type\\\":\\\"convention\\\",\\\"tags\\\":[\\\"build\\\",\\\"docs\\\",\\\"before\\\",\\\"deploys\\\",\\\"runs\\\"],\\\"type_overridden\\\":false}}\",\n      \"valid_from\": 0,\n      \"valid_to\": null,\n      \"access_count\": 0,\n      \"last_accessed_at\": 0\n    }\n  ],\n  \"aliases\": [\n    {\n      \"alias\": \"acme/docs-demo\",\n      \"canonical\": \"acme/docs-demo\",\n      \"created_at\": 1781526720\n    },\n    {\n      \"alias\": \"acme/storefront\",\n      \"canonical\": \"acme/storefront\",\n      \"created_at\": 1781524800\n    },\n    {\n      \"alias\": \"storefront\",\n      \"canonical\": \"acme/storefront\",\n      \"created_at\": 1781524800\n    }\n  ],\n  \"edges\": []\n}"
+    },
+    {
+      "id": "export-memories-file",
+      "title": "Write the export to a file inside the workspace instead.",
+      "tool": "export_memories",
+      "args": {
+        "repo": "acme/docs-demo",
+        "path": "backup/fossel.json"
+      },
+      "isError": false,
+      "output": "Exported 1 memory(s), 3 alias(es) and 0 edge(s) for acme/docs-demo to /home/dev/storefront/backup/fossel.json."
+    },
+    {
+      "id": "export-memories-outside",
+      "title": "Paths outside the workspace are refused.",
+      "tool": "export_memories",
+      "args": {
+        "path": "../fossel.json"
+      },
+      "isError": true,
+      "output": "Export failed: Refusing to write outside the workspace: \"../fossel.json\" resolves outside /home/dev/storefront."
+    },
+    {
+      "id": "import-memories",
+      "title": "Importing is additive and idempotent. Re-importing the same file changes nothing.",
+      "tool": "import_memories",
+      "args": {
+        "data": "<the JSON text returned by export_memories>"
+      },
+      "isError": false,
+      "output": "Imported 0 memory(s), skipped 1 existing. Aliases: 0 imported, 3 existing. Edges: 0 imported, 0 existing."
+    },
+    {
+      "id": "import-memories-invalid",
+      "title": "Malformed input is rejected.",
+      "tool": "import_memories",
+      "args": {
+        "data": "not json"
+      },
+      "isError": true,
+      "output": "Invalid JSON in the data field."
+    }
+  ],
+  "resource": {
+    "uri": "fossel://context/current-repo",
+    "name": "fossel-startup-context",
+    "mimeType": "text/markdown",
+    "description": "Top pinned and recent memories for the current workspace. Read this at the start of a session to ground the conversation in prior context.",
+    "text": "# Fossel context: acme/storefront\n\n## Conventions\n- (8) Run the linter before every commit in this repository.\n\n## Bug Fixes\n- (2) Fixed the websocket reconnect race by awaiting the auth handshake before resubscribing _(websocket, auth, awaiting, fixed, handshake)_\n\n## Decisions\n- (6) The auth middleware in src/auth.ts verifies the JWT before any route handler runs _(auth, jwt)_\n\n## General\n- (9) Notes about src/ghost.ts, a file that was never committed\n- (5) Use Postgres advisory locks for migrations"
+  },
+  "cli": [
+    {
+      "id": "cli-help",
+      "title": "Usage.",
+      "command": "fossel --help",
+      "exitCode": 0,
+      "output": "Usage: fossel [init [--no-dedupe] | doctor [--fix] | stats]"
+    },
+    {
+      "id": "cli-init",
+      "title": "Onboarding in a repo that already has an AGENTS.md.",
+      "command": "fossel init",
+      "exitCode": 0,
+      "output": "Fossel — local-first MCP memory for your repos.\n\nCanonical repo key: acme/storefront\n  source: git-remote\n  git remote: https://github.com/acme/storefront.git\n  aliases: acme/storefront, storefront\n\nMCP config (Cursor: ~/.cursor/mcp.json, Claude Desktop: settings):\n{\n  \"mcpServers\": {\n    \"fossel\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"fossel\"\n      ],\n      \"env\": {\n        \"FOSSEL_WORKSPACE\": \"${workspaceFolder}\"\n      }\n    }\n  }\n}\n\nDB path: /home/dev/.fossel/memory.db\nMemories for acme/storefront: 1\nInserted one starter memory because the database was empty.\n\nQuick usage in chat:\n  remember           — natural-language save (no type/tags needed)\n  get_context        — pinned + recent + matching memories\n  resolve_repo       — show which repo key Fossel will use\n  store_context      — explicit save (advanced)\n  dedupe_repo        — merge near-duplicate memories\n\nSet FOSSEL_WORKSPACE in your MCP config to your project root if Fossel detects the wrong repo.\n\nAdded get_context invocation hint to /home/dev/storefront/AGENTS.md."
+    },
+    {
+      "id": "cli-init-again",
+      "title": "Running it again changes nothing.",
+      "command": "fossel init",
+      "exitCode": 0,
+      "output": "Fossel — local-first MCP memory for your repos.\n\nCanonical repo key: acme/storefront\n  source: git-remote\n  git remote: https://github.com/acme/storefront.git\n  aliases: acme/storefront, storefront\n\nMCP config (Cursor: ~/.cursor/mcp.json, Claude Desktop: settings):\n{\n  \"mcpServers\": {\n    \"fossel\": {\n      \"command\": \"npx\",\n      \"args\": [\n        \"-y\",\n        \"fossel\"\n      ],\n      \"env\": {\n        \"FOSSEL_WORKSPACE\": \"${workspaceFolder}\"\n      }\n    }\n  }\n}\n\nDB path: /home/dev/.fossel/memory.db\nMemories for acme/storefront: 1\n\nQuick usage in chat:\n  remember           — natural-language save (no type/tags needed)\n  get_context        — pinned + recent + matching memories\n  resolve_repo       — show which repo key Fossel will use\n  store_context      — explicit save (advanced)\n  dedupe_repo        — merge near-duplicate memories\n\nSet FOSSEL_WORKSPACE in your MCP config to your project root if Fossel detects the wrong repo."
+    },
+    {
+      "id": "cli-stats",
+      "title": "A read-only summary.",
+      "command": "fossel stats",
+      "exitCode": 0,
+      "output": "Repo: acme/storefront\nDB: /home/dev/.fossel/memory.db (124.1 KB)\n\nMemories: 1 live, 0 superseded, 0 pinned\nBy type: convention 1\nStale (never accessed, older than 90d): 0\nCode drift (referenced file changed since written): 0"
+    },
+    {
+      "id": "cli-doctor",
+      "title": "A health check.",
+      "command": "fossel doctor",
+      "exitCode": 0,
+      "output": "DB path: /home/dev/.fossel/memory.db\nCanonical repo key: acme/storefront (source: git-remote)\nGit remote: https://github.com/acme/storefront.git\nAliases: acme/storefront, storefront\nNo sibling repo keys.\nNo memory notes reference deprecated repo keys.\nNo exact-duplicate memory clusters.\nDetected MCP config(s): /home/dev/.cursor/mcp.json\nTotal memories across all repos: 1\nMemories for acme/storefront: 1 live, 0 superseded.\nStale (never accessed, older than 90d): 0/1 (0%).\nCoverage of 1 live: embeddings 0, entities 0, file refs 0.\n\nStatus: OK"
+    },
+    {
+      "id": "cli-doctor-problem",
+      "title": "doctor exits 1 when it finds a problem.",
+      "command": "fossel doctor",
+      "exitCode": 1,
+      "output": "DB path: /home/dev/.fossel/memory.db\nCanonical repo key: acme/storefront (source: git-remote)\nGit remote: https://github.com/acme/storefront.git\nAliases: acme/storefront, storefront\n⚠ Sibling repo keys detected: storefront (1). Run `npx fossel init` to merge.\nNo memory notes reference deprecated repo keys.\nNo exact-duplicate memory clusters.\nDetected MCP config(s): /home/dev/.cursor/mcp.json\nTotal memories across all repos: 2\nMemories for acme/storefront: 1 live, 0 superseded.\nStale (never accessed, older than 90d): 0/1 (0%).\nCoverage of 1 live: embeddings 0, entities 0, file refs 0.\n\nStatus: needs attention (see ⚠ lines above)"
+    },
+    {
+      "id": "cli-doctor-fix",
+      "title": "doctor --fix applies the safe repairs.",
+      "command": "fossel doctor --fix",
+      "exitCode": 0,
+      "output": "DB path: /home/dev/.fossel/memory.db\nCanonical repo key: acme/storefront (source: git-remote)\nGit remote: https://github.com/acme/storefront.git\nAliases: acme/storefront, storefront\n⚠ Sibling repo keys detected: storefront (1). Run `npx fossel init` to merge.\nNo memory notes reference deprecated repo keys.\nNo exact-duplicate memory clusters.\nDetected MCP config(s): /home/dev/.cursor/mcp.json\nTotal memories across all repos: 2\nMemories for acme/storefront: 1 live, 0 superseded.\nStale (never accessed, older than 90d): 0/1 (0%).\nCoverage of 1 live: embeddings 0, entities 0, file refs 0.\n\nApplied fixes:\n  merged repo memory rows:  1\n  rewrote stale mentions:   0\n  removed exact duplicates: 0\n\nRe-run `fossel doctor` to verify."
+    },
+    {
+      "id": "cli-unknown",
+      "title": "An unknown command.",
+      "command": "fossel frobnicate",
+      "exitCode": 1,
+      "output": "Unknown command: frobnicate\nUsage: fossel [init [--no-dedupe] | doctor [--fix] | stats]"
+    }
+  ]
+}

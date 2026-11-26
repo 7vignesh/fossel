@@ -34,6 +34,10 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GROUPS } from "../site/nav.mjs";
+import { escapeHtml, normalizeNewlines, renderCodeBlock } from "./site-html.mjs";
+import { expandReferenceElements, loadSiteData } from "./site-reference.mjs";
+
+export { escapeHtml };
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -43,18 +47,6 @@ const REUSED_SECTIONS = ["tokens", "layout", "nav", "footer"];
 /** localStorage key the landing page uses for the theme. Shared on purpose, so
  * the choice carries between / and /docs. */
 export const THEME_KEY = "fossel-theme";
-
-export function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function normalizeNewlines(text) {
-  return text.replace(/\r\n/g, "\n");
-}
 
 /** Split the landing page's <style> block into named sections. */
 export function extractSections(landingHtml) {
@@ -106,30 +98,14 @@ export function slugify(text) {
     .replace(/^-+|-+$/g, "");
 }
 
-const COPY_ICON =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-
-function renderCodeBlock(lang, raw) {
-  if (!/^[a-z0-9+#._-]*$/i.test(lang)) {
-    throw new Error(`code-block lang "${lang}" has unexpected characters`);
-  }
-  const text = normalizeNewlines(raw).replace(/^\n+/, "").replace(/\s+$/, "");
-  const label = lang || "text";
-  return (
-    `<div class="code">` +
-    `<div class="code-head"><span class="code-lang">${escapeHtml(label)}</span>` +
-    `<button type="button" class="code-copy" aria-label="Copy ${escapeHtml(label)} code to clipboard">` +
-    `<span class="code-copy-icon">${COPY_ICON}</span><span class="code-copy-label" aria-live="polite">copy</span></button></div>` +
-    `<pre><code>${escapeHtml(text)}</code></pre></div>`
-  );
-}
-
 /** Expand <code-block> elements and give h2/h3 headings stable ids. */
-export function renderFragment(fragment, slug) {
+export function renderFragment(fragment, slug, getData = () => {
+  throw new Error("No docs snapshot is available to render reference elements");
+}) {
   if (/<h1[\s>]/i.test(fragment)) {
     throw new Error(`site/pages/${slug}.html contains an <h1>; the page title is the h1`);
   }
-  let html = normalizeNewlines(fragment).replace(
+  let html = expandReferenceElements(normalizeNewlines(fragment), getData, slug).replace(
     /<code-block(?:\s+lang="([^"]*)")?\s*>([\s\S]*?)<\/code-block>/g,
     (_all, lang, raw) => renderCodeBlock(lang ?? "", raw),
   );
@@ -280,6 +256,7 @@ ${renderPager(prev, next)}
  * @param {string} [options.pagesDir]  default <repo>/site/pages
  * @param {string} [options.docsCss]   default <repo>/site/docs.css
  * @param {string} [options.docsJs]    default <repo>/site/docs.js
+ * @param {string} [options.dataDir]   default <repo>/site/data (docs snapshot)
  * @param {Array}  [options.groups]    default GROUPS from site/nav.mjs
  */
 export function buildSite(options = {}) {
@@ -288,7 +265,13 @@ export function buildSite(options = {}) {
   const pagesDir = options.pagesDir ?? join(ROOT, "site", "pages");
   const docsCss = options.docsCss ?? join(ROOT, "site", "docs.css");
   const docsJs = options.docsJs ?? join(ROOT, "site", "docs.js");
+  const dataDir = options.dataDir ?? join(ROOT, "site", "data");
   const groups = options.groups ?? GROUPS;
+
+  // The snapshot is read on first use, so a site with no reference elements
+  // does not need one.
+  let siteData;
+  const getData = () => (siteData ??= loadSiteData(dataDir));
 
   validateNav(groups, pagesDir);
 
@@ -310,7 +293,7 @@ export function buildSite(options = {}) {
   copyFileSync(docsJs, join(outDir, "docs", "docs.js"));
 
   flat.forEach((page, i) => {
-    const body = renderFragment(readFileSync(join(pagesDir, `${page.slug}.html`), "utf8"), page.slug);
+    const body = renderFragment(readFileSync(join(pagesDir, `${page.slug}.html`), "utf8"), page.slug, getData);
     const html = renderPage({
       page,
       body,

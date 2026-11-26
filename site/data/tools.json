@@ -1,0 +1,482 @@
+{
+  "tools": [
+    {
+      "name": "consolidate_memory",
+      "description": "Analyze repo memories for stale, redundant, or contradicted entries. Returns a prompt-ready report with suggested actions. Does not modify any data — read-only analysis.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "description": "Repository key (auto-detected from workspace if omitted)",
+            "type": "string",
+            "minLength": 1
+          },
+          "max_candidates": {
+            "description": "Maximum candidates to surface (default: 20)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "stale_days": {
+            "description": "Days without access before a memory is considered stale (default: 90)",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "dedupe_repo",
+      "description": "Scan a repository for near-duplicate memories. Returns a plan by default; pass apply=true to merge duplicates into the most recently updated row, appending a changelog entry to metadata_json.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "threshold": {
+            "default": 0.85,
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 1
+          },
+          "apply": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "delete_memory",
+      "description": "Delete a memory from storage by id. Accepts either the numeric row id or the legacy string id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "export_memories",
+      "description": "Export all memories (with repo aliases and the edges between memories) as a portable JSON envelope. Embeddings are not included — they are re-derived on import so the file stays small and model-agnostic. Pass a repo to scope the export; omit to export everything. Pass a path to write the envelope to a file (within the workspace) and get a short summary back instead of the full JSON.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "description": "Optional file path to write the envelope to (resolved within the workspace). When set, the response is a short summary instead of the full JSON.",
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_context",
+      "description": "Unified retrieval tool. Returns pinned memories first, then recent ones, then FTS matches when a query is provided. Optionally restrict to memories carrying given tags (tagMatch 'or' keeps any, 'and' requires all). Default limit is tuned for direct injection into an LLM system prompt. Use format='markdown' for a PR-ready brief.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 8,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 50
+          },
+          "format": {
+            "default": "text",
+            "type": "string",
+            "enum": [
+              "text",
+              "markdown"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "tagMatch": {
+            "default": "or",
+            "type": "string",
+            "enum": [
+              "and",
+              "or"
+            ]
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_repo_context",
+      "description": "Get recent memories for a repository grouped by memory type. The repo argument is resolved to a canonical key automatically; omit it to use the current workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 10,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 100
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "import_memories",
+      "description": "Import memories from a JSON envelope produced by export_memories. Additive and idempotent: existing memories with the same id are never overwritten, so re-importing the same file is a no-op. Embeddings, file references and entities are re-derived on import.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10485760
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "list_repos",
+      "description": "List every repository that has stored memories, with per-repo counts (live, superseded, pinned) and the last-updated time. Useful for discovering which projects Fossel has memory for.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "pin_memory",
+      "description": "Pin a memory to keep it at the top of repository context.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "remember",
+      "description": "Save a memory from a natural-language note. By default Fossel infers memory_type and generates tags. For best quality, extract a single clean, self-contained fact before calling (resolve pronouns and vague references), and you may pass an explicit type and tags. Set infer=false when you have already supplied type/tags and want the note stored verbatim. Relative dates in the note (\"last week\", \"3 days ago\") are grounded to absolute dates automatically. Fossel resolves the repo, merges near-duplicates, and lists related memories so you can reconcile contradictions — call update_memory to revise or delete_memory to remove a superseded memory. Prefer this tool over store_context for everyday use.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "convention",
+              "bug_fix",
+              "reviewer_pattern",
+              "decision",
+              "issue",
+              "general"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "infer": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "resolve_repo",
+      "description": "Return the canonical repo key for a working directory along with any aliases and the detected git remote. Useful for clients that want to display which repo Fossel is targeting before making other tool calls.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "cwd": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "search_memory",
+      "description": "Search memories using full-text search with optional repository and tag filtering (tagMatch 'or' keeps any listed tag, 'and' requires all). Falls back to recent + pinned context when the query has no exact matches.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 5,
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 50
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "tagMatch": {
+            "default": "or",
+            "type": "string",
+            "enum": [
+              "and",
+              "or"
+            ]
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "store_context",
+      "description": "Store repository-specific contributor context such as bug fixes, conventions, and decisions. The repo argument is resolved to a canonical key automatically; pass it explicitly only when targeting a different repo than the current workspace.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "convention",
+              "bug_fix",
+              "reviewer_pattern",
+              "decision",
+              "issue",
+              "general"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "type",
+          "note"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "summarize_repo_context",
+      "description": "Generate a structured markdown summary of all memories for a repository.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "supersede_memory",
+      "description": "Tombstone a memory so it stops surfacing in live retrieval while preserving the row and its history (Zep invalidate-never-delete pattern). Accepts either the numeric row_id or the legacy nanoid string.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          },
+          "superseded_by": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "unpin_memory",
+      "description": "Unpin a previously pinned memory.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_memory",
+      "description": "Update an existing memory by id (numeric or legacy string) with partial fields.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              }
+            ]
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "memory_type": {
+            "type": "string",
+            "enum": [
+              "convention",
+              "bug_fix",
+              "reviewer_pattern",
+              "decision",
+              "issue",
+              "general"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}

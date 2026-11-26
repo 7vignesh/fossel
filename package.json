@@ -38,6 +38,8 @@
   "scripts": {
     "build": "tsup",
     "build:site": "node scripts/build-site.mjs",
+    "docs:snapshot": "node scripts/docs-snapshot.mjs",
+    "docs:snapshot:check": "node scripts/docs-snapshot.mjs --check",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "smoke": "tsx scripts/smoke.ts",
