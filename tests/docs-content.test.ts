@@ -126,3 +126,21 @@ test("tool pages reference only tools and steps that exist in the snapshot", () 
   }
   assert.deepEqual([...used].sort(), [...tools].sort(), "the MCP Tools page must document every tool exactly once");
 });
+
+test("benchmark prose that is not generated still matches the committed results", () => {
+  const bench = JSON.parse(readFileSync(join(ROOT, "bench", "results", "neural-compare.json"), "utf8")) as {
+    results: Array<{ id: string; ranks: Array<{ id: string; category: string; rank: number | null; top1: string | null }> }>;
+  };
+  const html = readFileSync(join(PAGES_DIR, "architecture-benchmarks.html"), "utf8");
+  const neural = bench.results.find((r) => r.id === "sqlite-vec-minilm")!;
+  const symbolMisses = neural.ranks.filter((r) => r.category === "symbol" && r.rank !== 1);
+  const decoyMisses = symbolMisses.filter((r) => r.top1?.startsWith("d-"));
+  const ownSibling = decoyMisses.filter((r) => r.top1 === `d-${r.id}`);
+  // The page says "most" decoy misses were the target's own sibling, and that
+  // not every one was.
+  assert.ok(html.includes("Most of the decoys were the target's own sibling identifier"));
+  assert.ok(ownSibling.length > decoyMisses.length / 2, "fewer than half the decoy misses were own-sibling");
+  assert.ok(ownSibling.length < decoyMisses.length, "every decoy miss was own-sibling, so the 'not every decoy' sentence is false");
+  const fts = bench.results.find((r) => r.id === "fossel-fts")!;
+  assert.equal(fts.ranks.filter((r) => r.category === "symbol" && r.rank !== 1).length, 0, "the page says FTS5 passed the decoys");
+});

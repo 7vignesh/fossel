@@ -257,6 +257,7 @@ ${renderPager(prev, next)}
  * @param {string} [options.docsCss]   default <repo>/site/docs.css
  * @param {string} [options.docsJs]    default <repo>/site/docs.js
  * @param {string} [options.dataDir]   default <repo>/site/data (docs snapshot)
+ * @param {string} [options.benchFile] default <repo>/bench/results/neural-compare.json
  * @param {Array}  [options.groups]    default GROUPS from site/nav.mjs
  */
 export function buildSite(options = {}) {
@@ -266,12 +267,13 @@ export function buildSite(options = {}) {
   const docsCss = options.docsCss ?? join(ROOT, "site", "docs.css");
   const docsJs = options.docsJs ?? join(ROOT, "site", "docs.js");
   const dataDir = options.dataDir ?? join(ROOT, "site", "data");
+  const benchFile = options.benchFile ?? join(ROOT, "bench", "results", "neural-compare.json");
   const groups = options.groups ?? GROUPS;
 
   // The snapshot is read on first use, so a site with no reference elements
   // does not need one.
   let siteData;
-  const getData = () => (siteData ??= loadSiteData(dataDir));
+  const getData = () => (siteData ??= loadSiteData(dataDir, benchFile));
 
   validateNav(groups, pagesDir);
 

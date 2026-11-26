@@ -245,3 +245,8 @@
 
 /* keep the constraints column readable inside the horizontally scrolling table */
 .docs-article table.params td:last-child { min-width: 16rem; }
+
+/* let long benchmark headers wrap so every column fits the article width */
+.docs-article table.params th { white-space: normal; }
+.docs-article table.params td:first-child { white-space: normal; }
+.docs-article table.params:has(td code:only-child) td:first-child { white-space: nowrap; }

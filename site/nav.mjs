@@ -80,5 +80,15 @@ export const GROUPS = [
       },
     ],
   },
-  { title: "Architecture & Benchmarks", pages: [] },
+  {
+    title: "Architecture & Benchmarks",
+    pages: [
+      {
+        slug: "architecture-benchmarks",
+        title: "Architecture & Benchmarks",
+        description:
+          "Why Fossel searches with local SQLite FTS5, and what a measured comparison against sqlite-vec with a MiniLM model does and does not show.",
+      },
+    ],
+  },
 ];
