@@ -1,12 +1,67 @@
-<p class="lead">Fossel is a local-first MCP memory server. It keeps your repo's conventions, bug fixes and decisions in SQLite on your machine, and serves them back to Cursor, Claude and any stdio MCP client.</p>
+<p class="lead">Fossel is a local-first MCP memory server. It keeps your repo's conventions, bug fixes and decisions in SQLite on your machine, and serves them back to Claude Code, Cursor, Gemini CLI, OpenCode, Windsurf and any other stdio MCP client.</p>
 
-<h2>Try it</h2>
-<p>Run the onboarding command inside a repository. It prints the MCP config to paste into your client and adds a starter memory if the database is empty.</p>
-<code-block lang="bash">npx -y fossel init</code-block>
-<p>The database lives at <code>~/.fossel/memory.db</code>. Set <code>FOSSEL_DB_PATH</code> to put it somewhere else.</p>
-
-<h2>More</h2>
+<h2>What it solves</h2>
+<p>Coding agents start every session knowing nothing about your repo. You re-explain the same conventions, and the agent re-makes the same mistakes. Fossel gives the agent somewhere to write that down and read it back.</p>
 <ul>
-  <li><a href="https://github.com/7vignesh/fossel#readme" target="_blank" rel="noopener noreferrer">README</a> for the full quick start and every client's config.</li>
-  <li><a href="https://github.com/7vignesh/fossel/blob/main/docs/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">Architecture notes</a> on how retrieval works.</li>
+  <li>You say <code>remember: JWT lives in localStorage; 401 redirects to /login</code>. Fossel stores it against the repo, infers a type and tags, and merges near-duplicates.</li>
+  <li>Later the agent calls <code>get_context</code> and gets the pinned, recent and matching memories for that repo.</li>
+  <li>Memories are scoped to the repo, resolved from its git remote (for example <code>acme/storefront</code>), so two projects do not mix.</li>
 </ul>
+
+<h2>Local-first, and what that covers</h2>
+<ul>
+  <li><strong>Storage:</strong> one SQLite file, <code>~/.fossel/memory.db</code> by default. Set <code>FOSSEL_DB_PATH</code> to move it.</li>
+  <li><strong>Search:</strong> SQLite FTS5, with an optional local hybrid mode. No model download and no embedding service by default.</li>
+  <li><strong>Network at runtime:</strong> the server code imports no networking modules, so it does not call out. The one exception is the optional <code>FOSSEL_EMBEDDER_CMD</code>, a command you choose and run yourself.</li>
+  <li><strong>First run with <code>npx</code>:</strong> <code>npx</code> downloads the package from npm the first time, so that step needs the network. A global install (below) removes it.</li>
+</ul>
+
+<h2>Quickstart</h2>
+<p>You need Node.js 20 or newer. Run the onboarding command inside a git repository:</p>
+<code-block lang="bash">npx -y fossel init</code-block>
+<p>It prints the repo key Fossel resolved, the MCP config to paste into your client, and the database path. If the database is empty it adds one starter memory. If the repo has an <code>AGENTS.md</code>, <code>CLAUDE.md</code> or similar rule file, it appends a one-line hint telling the agent to call <code>get_context</code> at the start of a session.</p>
+<p>Then add Fossel to your client. Each client has its own page:</p>
+<ul>
+  <li><a href="/docs/claude-code/">Claude Code</a></li>
+  <li><a href="/docs/cursor/">Cursor</a></li>
+  <li><a href="/docs/gemini-cli/">Gemini CLI</a></li>
+  <li><a href="/docs/opencode-windsurf/">OpenCode &amp; Windsurf</a></li>
+</ul>
+<p>Every client launches the same server. The command it runs is:</p>
+<code-block lang="bash">npx -y fossel</code-block>
+<p>With no arguments, <code>fossel</code> starts the MCP server on stdio. You do not normally run it by hand.</p>
+
+<h2>Use it from chat</h2>
+<p>Once your client has connected, say:</p>
+<code-block lang="text">remember: Fossel is working in this repo</code-block>
+<p>Then ask:</p>
+<code-block lang="text">what does Fossel remember?</code-block>
+<p>You should see the memory come back. To see which repo Fossel thinks you are in, ask the agent to call <code>resolve_repo</code>.</p>
+
+<h2>Install globally instead of using npx</h2>
+<p>A global install avoids the download on every cold start and works offline once installed.</p>
+<code-block lang="bash">npm install -g fossel
+fossel init</code-block>
+<p>In your client config, use <code>fossel</code> as the command with no arguments, instead of <code>npx</code> with <code>-y fossel</code>.</p>
+
+<h2>Command line</h2>
+<table>
+  <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+  <tbody>
+    <tr><td><code>fossel</code></td><td>Start the MCP server on stdio.</td></tr>
+    <tr><td><code>fossel init [--no-dedupe]</code></td><td>Onboarding: resolve the repo, print the MCP config, merge legacy repo keys, auto-merge exact duplicates unless <code>--no-dedupe</code> is given.</td></tr>
+    <tr><td><code>fossel doctor [--fix]</code></td><td>Report sibling repo keys, duplicate clusters and stale mentions. Without <code>--fix</code> it changes nothing and exits non-zero when it finds a problem, so it can run in CI. With <code>--fix</code> it applies the safe cleanups. It looks for Cursor and Claude Desktop config files only.</td></tr>
+    <tr><td><code>fossel stats</code></td><td>Read-only summary for the current repo: live, superseded and pinned counts, memory types, stale and code-drift counts, top tags, database size.</td></tr>
+  </tbody>
+</table>
+
+<h2>Environment variables</h2>
+<table>
+  <thead><tr><th>Variable</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td><code>FOSSEL_DB_PATH</code></td><td>Database file. Default <code>~/.fossel/memory.db</code>.</td></tr>
+    <tr><td><code>FOSSEL_WORKSPACE</code></td><td>Project root used for repo detection. Falls back to the server's working directory. Set it when a client launches the server from the wrong folder.</td></tr>
+    <tr><td><code>FOSSEL_EMBEDDINGS</code></td><td>Set to <code>1</code>, <code>true</code>, <code>on</code> or <code>yes</code> to enable hybrid keyword and vector search.</td></tr>
+    <tr><td><code>FOSSEL_EMBEDDER_CMD</code></td><td>Command that embeds text, to use a stronger model than the built-in one. Optional.</td></tr>
+  </tbody>
+</table>

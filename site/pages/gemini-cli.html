@@ -1,0 +1,41 @@
+<p class="lead">Gemini CLI reads MCP servers from <code>settings.json</code>. Fossel runs as a local stdio server.</p>
+<p class="note">Not tested here: Gemini CLI was not installed on the machine that wrote this page. The Gemini CLI side follows the <a href="https://geminicli.com/docs/tools/mcp-server/" target="_blank" rel="noopener noreferrer">Gemini CLI MCP docs</a>. Fossel's side is checked against the Fossel source.</p>
+
+<h2>Add Fossel</h2>
+<p>Add the server to one of these files:</p>
+<ul>
+  <li><code>~/.gemini/settings.json</code> for every project.</li>
+  <li><code>.gemini/settings.json</code> in a repository for that project.</li>
+</ul>
+<code-block lang="json">{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"]
+    }
+  }
+}</code-block>
+<p>Gemini CLI also has a <code>gemini mcp add</code> command. Its documented form is <code>gemini mcp add [options] &lt;name&gt; &lt;commandOrUrl&gt; [args...]</code>, but its docs do not say how it treats an argument that starts with a dash, like the <code>-y</code> here. Editing <code>settings.json</code> avoids the question.</p>
+
+<h2>Verify</h2>
+<ol>
+  <li>Start <code>gemini</code> in your project and run <code>/mcp</code>. Fossel should be listed as connected, with its tools.</li>
+  <li>Ask Gemini to call <code>resolve_repo</code>. The reply names the repo key.</li>
+  <li>Say <code>remember: Fossel is working in this repo</code>, then <code>what does Fossel remember?</code></li>
+</ol>
+
+<h2>If it picks the wrong repo</h2>
+<p>Fossel uses the working directory Gemini CLI starts it in. If <code>resolve_repo</code> shows the wrong key, add an <code>env</code> block with an absolute path:</p>
+<code-block lang="json">{
+  "mcpServers": {
+    "fossel": {
+      "command": "npx",
+      "args": ["-y", "fossel"],
+      "env": { "FOSSEL_WORKSPACE": "/absolute/path/to/project" }
+    }
+  }
+}</code-block>
+<p>Do not use Cursor's <code>${workspaceFolder}</code> here. Gemini CLI expands environment variables from your shell inside <code>env</code>, not editor placeholders.</p>
+
+<h2>If the server does not show up</h2>
+<p>Gemini CLI can ignore a project's <code>.gemini/settings.json</code> in a folder it does not trust. If a project-level entry is missing from <code>/mcp</code>, trust the folder or move the entry to <code>~/.gemini/settings.json</code>.</p>
